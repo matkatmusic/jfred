@@ -11,6 +11,8 @@ import { StateConfidence, StateMoment, type FileKnownState } from "../engineV3/e
 import { createInverseRepo, insertStatesIntoInverseRepo, type OrderedKnownState } from "../engineV3/engineV3_inverse_repo.ts";
 import { getInverseRepoFolderForFile, type ProjectFile } from "../engineV3/engineV3_inverse_repos_for_project.ts";
 import { FileEventType } from "../engineV3/engineV3_replay_reverse_events.ts";
+import { writeReplayGapsSidecar, type ReplayGapsSidecar, type ScriptReplayTaskRecord } from "../engineV3/engineV3_script_replay_gaps.ts";
+import { ScriptExecutorKind } from "../src/reconstruction_script_execution.ts";
 import { findNextChangingInstantInRepos, formatNotProvenSection, readProjectFilesAtMark, type NotProvenFile } from "../src/viewer_api_layer1_jfred_reader_texts.ts";
 
 const DISK_NOW_INSTANT = new Date(Date.UTC(2026, 5, 1, 12, 0, 0));
@@ -43,10 +45,38 @@ function makeOrderedState(position: number, second: number | undefined, moment: 
   return { state, position };
 }
 
+const EMPTY_SIDECAR: ReplayGapsSidecar = { gaps: [], bornless: null };
+
 // Position 0 is the disk-now state; a larger position is older.
-function makeRepo(repoFolder: Path, fileName: string, diskNowText: string | undefined, olderStates: OrderedKnownState[]): void {
+function makeRepo(repoFolder: Path, fileName: string, diskNowText: string | undefined, olderStates: OrderedKnownState[], sidecar: ReplayGapsSidecar): void {
   createInverseRepo(repoFolder, fileName, makeOrderedState(0, undefined, StateMoment.AtEvent, diskNowText), DISK_NOW_INSTANT);
   insertStatesIntoInverseRepo(repoFolder, fileName, olderStates);
+  writeReplayGapsSidecar(repoFolder, sidecar);
+}
+
+function makeScriptTaskRecord(second: number, line: number): ScriptReplayTaskRecord {
+  return {
+    taskId: `/logs/session.jsonl:${line}:toolu_${line}`,
+    instant: makeInstant(second).toISOString(),
+    jsonlPath: "/logs/session.jsonl",
+    line,
+    toolUseId: `toolu_${line}`,
+    executorKind: ScriptExecutorKind.python,
+    language: "python",
+    cwd: "/project",
+    code: `print(${line})`,
+    invokedScriptPath: null,
+    runInBackground: false,
+  };
+}
+
+// positionedStates holds [position, second, text] triples; a position that is left out is a gap.
+function makeProjectFileWithGapRepo(fixture: Fixture, relativePath: string, diskNowText: string | undefined, positionedStates: [number, number, string][], sidecar: ReplayGapsSidecar): ProjectFile {
+  const file = new Path(join(fixture.projectFolder.toString(), relativePath));
+  const fileName = relativePath.split("/").pop()!;
+  const olderStates = positionedStates.map(([position, second, text]) => makeOrderedState(position, second, StateMoment.AtEvent, text));
+  makeRepo(getInverseRepoFolderForFile(fixture.storeFolder, fixture.projectFolder, file), fileName, diskNowText, olderStates, sidecar);
+  return { file, transcriptFile: file };
 }
 
 // stateTexts holds [second, text] pairs, oldest first; an undefined text is an absent file.
@@ -55,7 +85,7 @@ function makeProjectFileWithRepo(fixture: Fixture, relativePath: string, diskNow
   const fileName = relativePath.split("/").pop()!;
   const newestFirst = [...stateTexts].reverse();
   const olderStates = newestFirst.map(([second, text], index) => makeOrderedState(index + 1, second, StateMoment.AtEvent, text));
-  makeRepo(getInverseRepoFolderForFile(fixture.storeFolder, fixture.projectFolder, file), fileName, diskNowText, olderStates);
+  makeRepo(getInverseRepoFolderForFile(fixture.storeFolder, fixture.projectFolder, file), fileName, diskNowText, olderStates, EMPTY_SIDECAR);
   return { file, transcriptFile: file };
 }
 
@@ -180,10 +210,34 @@ test("test_next_changing_instant_ignores_a_lone_before_event_commit_whose_newer_
   // Scenario: a file is absent on disk now and has one before-event commit with text at second 200.
   const fixture = makeFixture(t);
   const file = new Path(join(fixture.projectFolder.toString(), "src/a.txt"));
-  makeRepo(getInverseRepoFolderForFile(fixture.storeFolder, fixture.projectFolder, file), "a.txt", undefined, [makeOrderedState(1, 200, StateMoment.BeforeEvent, "two\n")]);
+  makeRepo(getInverseRepoFolderForFile(fixture.storeFolder, fixture.projectFolder, file), "a.txt", undefined, [makeOrderedState(1, 200, StateMoment.BeforeEvent, "two\n")], EMPTY_SIDECAR);
   const projectFile: ProjectFile = { file, transcriptFile: file };
   // The mark is second 150, where the file is in neither texts nor absentPaths.
   const nextInstant = findNextChangingInstantInRepos(fixture.projectFolder, fixture.storeFolder, [projectFile], makeInstant(150), new Map(), new Set());
   // The text holds before second 200 and the state after it is unknown, so the reader gives no text at second 200 and nothing changes.
   assert.equal(nextInstant, undefined);
+});
+
+test("test_file_inside_an_unfilled_script_gap_is_listed_as_not_proven_with_the_older_bytes", (t) => {
+  // Scenario: a file has commits at positions 1 (second 100) and 4 (second 10); positions 2 and 3 are a gap with a script at second 50.
+  const fixture = makeFixture(t);
+  const sidecar: ReplayGapsSidecar = { gaps: [{ newerPosition: 1, olderPosition: 4, droppedPositions: [2, 3], scriptTasks: [makeScriptTaskRecord(70, 13), makeScriptTaskRecord(50, 12)] }], bornless: null };
+  const projectFile = makeProjectFileWithGapRepo(fixture, "src/a.txt", "now\n", [[1, 100, "newer\n"], [4, 10, "older\n"]], sidecar);
+  // The mark is second 60, after the first script and before the newer commit.
+  const filesAtMark = readProjectFilesAtMark(fixture.projectFolder, fixture.storeFolder, [projectFile], makeInstant(60));
+  // The text is the older bytes.
+  assert.deepEqual([...filesAtMark.texts], [["src/a.txt", "older\n"]]);
+  // The file is listed with the instant of the older commit and the instant of the first script.
+  assert.deepEqual(filesAtMark.notProven, [{ relativePath: "src/a.txt", bytesFromInstant: makeInstant(10), firstScriptInstant: makeInstant(50) }]);
+});
+
+test("test_file_after_a_filled_gap_is_not_listed", (t) => {
+  // Scenario: the same gap as above, but positions 2 and 3 now have commits, so the gap is filled.
+  const fixture = makeFixture(t);
+  const sidecar: ReplayGapsSidecar = { gaps: [{ newerPosition: 1, olderPosition: 4, droppedPositions: [2, 3], scriptTasks: [makeScriptTaskRecord(50, 12)] }], bornless: null };
+  const projectFile = makeProjectFileWithGapRepo(fixture, "src/a.txt", "now\n", [[1, 100, "newer\n"], [2, 60, "replayed two\n"], [3, 55, "replayed three\n"], [4, 10, "older\n"]], sidecar);
+  // The mark is second 70.
+  const filesAtMark = readProjectFilesAtMark(fixture.projectFolder, fixture.storeFolder, [projectFile], makeInstant(70));
+  // The file is not listed.
+  assert.deepEqual(filesAtMark.notProven, []);
 });

@@ -1,5 +1,7 @@
 // Task 383: the commit message text for a jfred cut mark, and the per-file snapshot lines it lists.
 
+import { listBarsSnapLines } from "../bars-view/layer1-bars-cut-facts.ts";
+import { isBarsViewOn } from "../bars-view/layer1-bars-mode.ts";
 import { isBeaconNode } from "./layer1-cut-beacons.ts";
 import { JFRED_SUBJECT_PREFIX } from "./layer1-wire-jfred.ts";
 
@@ -40,6 +42,9 @@ function findLatestBeaconNode(box: HTMLElement, markMs: number): HTMLElement | u
 }
 
 export function listSnapLines(markMs: number): string[] {
+  if (isBarsViewOn()) {
+    return listBarsSnapLines(markMs);
+  }
   const lines: string[] = [];
   for (const box of document.querySelectorAll<HTMLElement>("#fileBubbleContainer .filebox")) {
     const path = box.querySelector<HTMLElement>(".fname")?.dataset["path"];

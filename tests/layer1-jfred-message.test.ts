@@ -2,10 +2,16 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { buildInverseCommit, buildInverseFile, ensureBarsMarkup } from "./layer1-bars-test-helpers.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 initLayer1Dom();
 const { FOOTNOTE_PREFIX, buildCommitMessage, listSnapLines } = await import("../webapp/layer1-components/commits-column/layer1-jfred-message.ts");
+const { BarsViewMode, setBarsViewMode } = await import("../webapp/layer1-components/bars-view/layer1-bars-mode.ts");
+const { buildBarFileModels } = await import("../webapp/layer1-components/bars-view/layer1-bars-model.ts");
+const { listRealRulerRows } = await import("../webapp/layer1-components/bars-view/layer1-bars-ruler.ts");
+const { getBarsViewState } = await import("../webapp/layer1-components/bars-view/layer1-bars-state.ts");
+const { storeRow } = await import("../webapp/layer1-components/ruler/layer1-tick-events.ts");
 
 const MARK = "2026-06-03T10:30:00Z";
 const WALL_CLOCK = "2026-11-03T12:00:00Z";
@@ -100,4 +106,49 @@ test("test_snap_lines_skip_a_box_without_a_path", () => {
   bucket.className = "filebox";
   document.getElementById("fileBubbleContainer")!.append(bucket);
   assert.deepEqual(listSnapLines(Date.parse(MARK)), []);
+});
+
+const BARS_DAY_START_MS = Date.parse("2026-06-01T00:00:00Z");
+const BARS_HOUR_MS = 3600_000;
+
+function buildBarsInstant(hour: number): string {
+  return new Date(BARS_DAY_START_MS + hour * BARS_HOUR_MS).toISOString();
+}
+
+// One real ruler tick per hour, hours oldest first (the DOM order of the real ruler).
+function addRulerTicks(hours: number[]): void {
+  for (const hour of hours) {
+    const tick = document.createElement("div");
+    tick.className = "tick";
+    document.getElementById("timelineRulerComponent")!.append(tick);
+    const instant = buildBarsInstant(hour);
+    storeRow(tick, { axisPx: 0, text: "t", eventCount: 1, axisPxList: [0], instants: [instant] });
+  }
+}
+
+test("test_in_bars_view_the_snap_lines_come_from_the_bars_models", () => {
+  // Step: Bars view, no bubble boxes at all. Ticks h1 to h3. A file has a commit at h1 and a snapshot at h3.
+  initLayer1Dom();
+  ensureBarsMarkup();
+  setBarsViewMode(BarsViewMode.bars);
+  addRulerTicks([1, 2, 3]);
+  const commits = [
+    buildInverseCommit({ instant: buildBarsInstant(3), eventType: "BackupSnapshot", treeHash: "t3" }),
+    buildInverseCommit({ instant: buildBarsInstant(1), eventType: "GitCommit", treeHash: "t1" }),
+  ];
+  getBarsViewState().models = buildBarFileModels([buildInverseFile("src/a.ts", commits)], listRealRulerRows());
+  // Step: the line comes from the Bars models.
+  assert.deepEqual(listSnapLines(BARS_DAY_START_MS + 3 * BARS_HOUR_MS), [`src/a.ts: snapshot at ${buildBarsInstant(3)}`]);
+});
+
+test("test_in_bubbles_view_the_snap_lines_still_come_from_the_bubbles", () => {
+  // Step: Bubbles view. The Bars models hold a commit line for b.ts, the bubbles hold a snapshot node for a.ts. 
+  initLayer1Dom();
+  ensureBarsMarkup();
+  setBarsViewMode(BarsViewMode.bubbles);
+  addRulerTicks([1]);
+  getBarsViewState().models = buildBarFileModels([buildInverseFile("b.ts", [buildInverseCommit({ instant: buildBarsInstant(1) })])], listRealRulerRows());
+  addFile("a.ts", [{ cls: "n-snap", instant: "2026-06-02T00:00:00Z", label: "@v3" }]);
+  // Step: only the bubble line shows.
+  assert.deepEqual(listSnapLines(Date.parse(MARK)), ["a.ts: @v3 at 2026-06-02T00:00:00Z"]);
 });
