@@ -13,6 +13,7 @@ import { openLinkedNodeAfterLoad } from "./layer1-components/bubbles/layer1-link
 import { installCopyLinkButton, readNodeLinkIdentity } from "./layer1-components/bubbles/layer1-node-link.ts";
 import { attachLeaderVisibility } from "./layer1-components/bubbles/layer1-leader-visibility.ts";
 import { attachBusyShield } from "./layer1-components/popups/layer1-busy-shield.ts";
+import { showDockerNoticeWhenDockerIsMissing } from "./layer1-components/popups/layer1-docker-notice.ts";
 import { attachClearResultsButton } from "./layer1-components/top-bars/layer1-clear-results.ts";
 import { attachLayer1CancelButton, hideLayer1Progress, readLayer1ViewStream, renderLayer1Progress } from "./layer1-components/loading-bar/layer1-progress.ts";
 import { resetStepConsole, StepConsoleScope } from "./layer1-components/loading-bar/layer1-step-console.ts";
@@ -188,6 +189,7 @@ export async function initLayer1Page(): Promise<void> {
   attachSettingsControls();
   attachViewControls();
   installDelegatedHandlers();
+  void showDockerNoticeWhenDockerIsMissing();
   attachFolderPickers(loadViewAfterRefCheck);
   getRequiredElementById("load").addEventListener("click", loadViewInBackground);
   // LAST and in this order: sources derive from server roots, saved settings only fill empty boxes.
