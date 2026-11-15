@@ -7,7 +7,7 @@ import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
 import { buildDiskNowCommit, buildInverseCommit, buildInverseFile, ensureBarsMarkup, TEST_INSTANT_MIDDLE, TEST_INSTANT_NEWEST, TEST_INSTANT_OLDEST } from "./layer1-bars-test-helpers.ts";
 import { BARS_RULER_LOADING_CLASS, BARS_SELECTED_TICK_CLASS } from "../webapp/layer1-components/bars-view/layer1-bars-ruler.ts";
 import { BARS_HISTORY_STAGES, BARS_LAST_STAGE_INDEX } from "../webapp/layer1-components/bars-view/layer1-bars-wire.ts";
-import { BARS_READING_LOGS_TEXT } from "../webapp/layer1-components/bars-view/layer1-bars-header.ts";
+import { BARS_NO_RULER_ROWS_TEXT, BARS_READING_LOGS_TEXT } from "../webapp/layer1-components/bars-view/layer1-bars-header.ts";
 import type { RulerRow } from "../webapp/layer1-components/ruler/layer1-ruler-rows.ts";
 
 // layer1-page.ts boots at MODULE SCOPE (through the strip), so absorb that first boot here against a throwaway DOM.
@@ -437,6 +437,40 @@ test("test_the_loaded_callback_fires_once_after_the_result_line_with_the_project
     await loadBarsHistory(state, SOURCE_PARAMS, buildRecordingWait(snapshots));
     // The callback ran once, with the project dir, before the first stage wait.
     assert.deepEqual(calls, [{ projectDir: PROJECT_DIR, waitCountAtCall: 0 }]);
+});
+
+test("test_a_load_with_no_ruler_rows_draws_no_rows_and_writes_the_no_events_header", async () => {
+    // Scenario: the real ruler has no ticks and the stream sends a result line with one file.
+    document.getElementById("timelineRulerComponent")!.replaceChildren();
+    await loadWithRecordedWaits([STARTED_LINE, RESULT_LINE]);
+    // No file row is drawn and the state holds no models and no ruler rows.
+    assert.equal(document.querySelectorAll(".barsFilePath").length, 0);
+    assert.deepEqual(state.models, []);
+    assert.deepEqual(state.rulerRows, []);
+    assert.equal(state.selectedRowIndex, 0);
+    // The state keeps the files of the result line.
+    assert.equal(state.files.length, 1);
+    // The header line says there are no events.
+    assert.equal(readLineText("barsHeaderLine"), BARS_NO_RULER_ROWS_TEXT);
+});
+
+test("test_a_load_with_no_ruler_rows_still_fires_the_loaded_callback", async () => {
+    // Scenario: the real ruler has no ticks; a callback is stored.
+    const calls: string[] = [];
+    registerBarsHistoryLoadedCallback((projectDir) => calls.push(projectDir));
+    document.getElementById("timelineRulerComponent")!.replaceChildren();
+    await loadWithRecordedWaits([STARTED_LINE, RESULT_LINE]);
+    // The callback ran once with the project dir.
+    assert.deepEqual(calls, [PROJECT_DIR]);
+});
+
+test("test_a_load_with_no_ruler_rows_clears_the_loading_class", async () => {
+    // Scenario: the real ruler has no ticks.
+    document.getElementById("timelineRulerComponent")!.replaceChildren();
+    await loadWithRecordedWaits([STARTED_LINE, RESULT_LINE]);
+    // The loading class is gone and loading is off.
+    assert.equal(isRulerLoading(), false);
+    assert.equal(state.isHistoryLoading, false);
 });
 
 test("test_a_failed_load_does_not_fire_the_loaded_callback", async () => {
