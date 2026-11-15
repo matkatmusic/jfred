@@ -4,11 +4,11 @@ import { findRealRulerTickRowIndex, findRulerRowIndexForInstant, listRealRulerRo
 import { getBarsViewState } from "./layer1-bars-state.ts";
 import { InverseMoment, type InverseCommitWire } from "./layer1-bars-wire.ts";
 
-// Page copy of the reader's selectInverseCommitAtInstant (engineV3/engineV3_inverse_repo_read.ts). commits is newest first.
+// Page copy of the reader's selectInverseCommitAtInstant (engineV3/engineV3_inverse_repo_read.ts); it reads readerInstant. commits is newest first.
 export function selectInverseCommitAtInstant(commits: readonly InverseCommitWire[], instantMs: number): InverseCommitWire | undefined {
     for (const [index, commit] of commits.entries()) {
-        if (commit.instant !== null) {
-            if (Date.parse(commit.instant) <= instantMs) {
+        if (commit.readerInstant !== null) {
+            if (Date.parse(commit.readerInstant) <= instantMs) {
                 if (commit.moment === InverseMoment.atEvent) {
                     return commit;
                 }
@@ -45,7 +45,7 @@ export function isCommitAChangeOfFile(commits: readonly InverseCommitWire[], com
     const commit = commits[commitIndex]!;
     for (let olderIndex = commitIndex + 1; olderIndex < commits.length; olderIndex++) {
         const olderCommit = commits[olderIndex]!;
-        if (olderCommit.instant !== null) {
+        if (olderCommit.readerInstant !== null) {
             if (olderCommit.moment !== InverseMoment.atEvent) {
                 return true;
             }
@@ -66,7 +66,7 @@ function collectChangedRowIndexesSinceTip(rows: readonly RulerRow[], tipMs: numb
     for (const model of getBarsViewState().models) {
         const tipTreeHash = readTreeHashAtInstant(model.commits, tipMs);
         for (const [commitIndex, commit] of model.commits.entries()) {
-            const rowIndex = findRulerRowIndexForInstant(rows, commit.instant);
+            const rowIndex = findRulerRowIndexForInstant(rows, commit.readerInstant);
             const rowNewestMs = rowNewestMsList[rowIndex]!;
             if (rowNewestMs > tipMs) {
                 if (!changedRowIndexes.has(rowIndex)) {
