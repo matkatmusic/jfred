@@ -27,7 +27,11 @@ import { fillSourceBoxesFromUrl, readSourceParams, attachFolderPickers } from ".
 import { closeRulerExpansion, registerTickExpansion } from "./layer1-components/ruler/layer1-tick-files.ts";
 import { registerTimeSourceToggle } from "./layer1-components/top-bars/layer1-time-toggle.ts";
 import { installProjectSettingsToggle } from "./layer1-components/top-bars/layer1-project-settings-toggle.ts";
-import { installReverseToggle } from "./layer1-components/top-bars/layer1-reverse-toggle.ts";
+import { isReverseOn, installReverseToggle, turnReverseOff } from "./layer1-components/top-bars/layer1-reverse-toggle.ts";
+import { installBarsViewSlider, isBarsViewOn, registerBarsViewModeChange } from "./layer1-components/bars-view/layer1-bars-mode.ts";
+import { installBarsView, loadBarsViewIfNeeded, refreshBarsAfterRulerRedrawIfNeeded } from "./layer1-components/bars-view/layer1-bars-view.ts";
+import { repaintCutMarks } from "./layer1-components/commits-column/layer1-cut-paint.ts";
+import { refreshJfredStrip } from "./layer1-components/commits-column/layer1-jfred-strip.ts";
 import { installReverseModifyingToggle } from "./layer1-components/top-bars/layer1-reverse-modifying-toggle.ts";
 import { clearFolderFilterState, renderLayer1View } from "./layer1-view-render.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
@@ -148,6 +152,20 @@ function attachSettingsControls(): void {
   void fillRefsFromRepo();
 }
 
+function loadBarsViewInBackground(): void {
+  if (isBarsViewOn()) {
+    if (isReverseOn()) {
+      turnReverseOff();
+    }
+    else {
+      refreshBarsAfterRulerRedrawIfNeeded();
+    }
+  }
+  refreshJfredStrip();
+  repaintCutMarks();
+  void loadBarsViewIfNeeded();
+}
+
 function attachViewControls(): void {
   attachLayer1CancelButton();
   attachClearResultsButton(loadViewInBackground);
@@ -157,6 +175,9 @@ function attachViewControls(): void {
   initFileNavResize();
   attachBucketJumpButtons();
   initFindFileBox();
+  installBarsViewSlider();
+  installBarsView();
+  registerBarsViewModeChange(loadBarsViewInBackground);
 }
 
 // All three are delegated, since every bubble, tick and leader is replaced on each render.
