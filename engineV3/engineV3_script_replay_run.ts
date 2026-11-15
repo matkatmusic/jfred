@@ -600,7 +600,10 @@ export async function executeScriptReplayCommandLine(argumentList: string[], con
         console.log(`removed ${command.storeFolder.toString()} and ${removedContainerCount} containers`);
         return;
     }
-    const projectFiles = listProjectFilesOnDiskAndInLogs(command.projectFolder, [command.jsonlsFolder]);
+    const projectFiles = listProjectFilesOnDiskAndInLogs(command.projectFolder, [command.jsonlsFolder]).map((projectFile) => ({
+        file: projectFile.file,
+        transcriptFile: new Path(resolve(command.recordedProjectFolder.toString(), relative(command.projectFolder.toString(), projectFile.file.toString()))),
+    }));
     const fileNames = projectFiles.map((projectFile) => relative(command.projectFolder.toString(), projectFile.file.toString()));
     buildInverseReposForFiles(command.projectFolder, projectFiles, [command.jsonlsFolder], [command.fileHistoryFolder], command.storeFolder, new Date(), createTerminalBarsSink(process.stdout, fileNames));
     const settings: ScriptReplaySettings = {
