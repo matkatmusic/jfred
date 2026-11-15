@@ -6,7 +6,7 @@ import { COMMITS } from "../../src/viewer_api_layer1_fixture_data.ts";
 import { type HeadlessPage, type MouseHeadlessPage } from "./cdp.ts";
 
 const TICK_LIST_EXPRESSION = `[...document.querySelectorAll('#timelineRulerComponent .tick')].reverse()`;
-const TICK_LABEL_PATTERN = /^(\d\d-\d\d) (\d\d:\d\d:\d\d\.\d{3}) \(\d+\)$/;
+const TICK_LABEL_PATTERN = /^(\d\d-\d\d) (\d\d:\d\d:\d\d\.\d{3})$/;
 
 export function countElements(page: HeadlessPage, selector: string): Promise<number> {
     return page.evaluate<number>(`document.querySelectorAll(${JSON.stringify(selector)}).length`);
@@ -39,7 +39,7 @@ export function readFileRowValue(page: HeadlessPage, path: string, selector: str
 }
 
 export function readTickTexts(page: HeadlessPage): Promise<string[]> {
-    return page.evaluate<string[]>(`${TICK_LIST_EXPRESSION}.map((tick) => tick.childNodes[0].textContent)`);
+    return page.evaluate<string[]>(`${TICK_LIST_EXPRESSION}.map((tick) => tick.dataset.fullTime)`);
 }
 
 export function readSelectedTickIndexes(page: HeadlessPage): Promise<number[]> {
@@ -54,7 +54,7 @@ export function readFixtureYear(): number {
     return new Date(firstCommit.at).getUTCFullYear();
 }
 
-// A row label is "MM-DD HH:MM:SS.mmm (events)" in UTC: the row's oldest instant, which the model maps back to that same row.
+// A tick's data-full-time is "MM-DD HH:MM:SS.mmm" in UTC: the row's oldest instant, which the model maps back to that same row.
 export function parseTickLabelToInstant(tickText: string, year: number): string {
     const match = TICK_LABEL_PATTERN.exec(tickText);
     if (match === null) {

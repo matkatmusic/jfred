@@ -22,12 +22,12 @@ export async function executeTickClickChecks(page: MouseHeadlessPage, outDir: st
     await saveBarsScreenshot(page, outDir, "02-after-tick-click");
 }
 
-// Fires a click with the shift key state on the first commit dot of the file whose title ends with titleEnd (any when null).
+// Fires a click with the shift key state on the first commit dot of the file whose title contains titleEnd (any when null); a dot title ends with the row text "MM-DD HH:MM:SS.mmm (n)".
 async function dispatchCommitDotClick(page: MouseHeadlessPage, path: string, titleEnd: string | null, isShiftKey: boolean): Promise<void> {
     await page.evaluate(`(() => {
         const dots = [...${buildFileRowExpression(path)}.querySelectorAll('.BarDot.grp-commit')];
-        const dot = dots.find((candidate) => ${JSON.stringify(titleEnd)} === null || candidate.title.endsWith(${JSON.stringify(titleEnd)}));
-        if (dot === undefined) throw new Error('no commit dot with title end ' + ${JSON.stringify(titleEnd)});
+        const dot = dots.find((candidate) => ${JSON.stringify(titleEnd)} === null || candidate.title.includes(${JSON.stringify(titleEnd)}));
+        if (dot === undefined) throw new Error('no commit dot with title containing ' + ${JSON.stringify(titleEnd)});
         dot.dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: ${isShiftKey} }));
     })()`);
 }
