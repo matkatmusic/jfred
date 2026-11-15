@@ -109,6 +109,7 @@ export function rememberJfredCommits(view: WireLayer1View): void {
   if (readJfredBranch().isArmed) {
     setArmed(false);
     getRequiredElementById("commit-mode").classList.remove("current");
+    getRequiredElementById("barsTimelineArea").classList.remove("commitModeOn");
     repaintCutMarks();
     refreshJfredStrip();
   }
