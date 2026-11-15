@@ -24,6 +24,15 @@ test("test_notice_is_shown_with_the_problem_text_when_docker_is_missing", async 
     assert.equal(notice.textContent, PROBLEM_TEXT);
 });
 
+test("test_problem_without_text_throws", async () => {
+    // The server names a problem but sends no text.
+    initLayer1Dom();
+    installFetchRoutes({ "/api/layer1-docker-readiness": { problem: "docker-not-installed" } });
+    // Showing the notice throws, and no notice is on the page.
+    await assert.rejects(showDockerNoticeWhenDockerIsMissing());
+    assert.equal(document.querySelectorAll("#dockerNotice").length, 0);
+});
+
 test("test_no_notice_when_docker_is_ready", async () => {
     // The server says Docker is ready: the reply has no problem.
     initLayer1Dom();
