@@ -124,7 +124,7 @@ test("test_selecting_a_row_moves_the_target_line", () => {
     // Step: select row 3 of 5 rows.
     selectBarsRow(state, 3);
     // Step: the target line sits at 3 / 4 of the bar.
-    assert.equal(findRequired(".barsFileRow .barsTargetSegment").style.left, "75%");
+    assert.equal(findRequired("#barsTargetLine").style.getPropertyValue("--bars-target-percent"), "75");
 });
 
 test("test_selecting_a_row_writes_the_header_and_the_status_text", () => {

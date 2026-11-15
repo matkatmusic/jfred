@@ -9,6 +9,18 @@ const FILL_TRANSITION_WAIT_MS = 700;
 const CHANGED_FILE_FILL_WIDTH = `[...document.querySelectorAll('.barsFileRow:not(.barsFoldedRow) .barsFill')]
     .map((fill) => parseFloat(getComputedStyle(fill).width))`;
 
+const TARGET_LINE_SPAN_READ = `(() => {
+    const shownRows = [...document.querySelectorAll('.barsFileRow')].filter((row) => row.offsetHeight > 0);
+    const lines = document.querySelectorAll('#barsTargetLine');
+    const lineBox = lines[0].getBoundingClientRect();
+    return {
+        lineCount: lines.length,
+        segmentCount: document.querySelectorAll('.barsTargetSegment').length,
+        topGap: lineBox.top - shownRows[0].getBoundingClientRect().top,
+        bottomGap: lineBox.bottom - shownRows[shownRows.length - 1].getBoundingClientRect().bottom,
+    };
+})()`;
+
 export async function executeTickClickChecks(page: MouseHeadlessPage, outDir: string): Promise<void> {
     await clickTickWithMouse(page, 3);
     await waitMilliseconds(FILL_TRANSITION_WAIT_MS);
@@ -19,6 +31,8 @@ export async function executeTickClickChecks(page: MouseHeadlessPage, outDir: st
     reportCheck("tick click: every .barsHistoryBlock has display none", await countShownElements(page, ".barsHistoryBlock") === 0);
     const fillWidths = await page.evaluate<number[]>(CHANGED_FILE_FILL_WIDTH);
     reportCheck("tick click: the fill width of a changed file is greater than 0", fillWidths.some((width) => width > 0), fillWidths);
+    const lineSpan = await page.evaluate<{ lineCount: number; segmentCount: number; topGap: number; bottomGap: number }>(TARGET_LINE_SPAN_READ);
+    reportCheck("tick click: one #barsTargetLine spans from the first shown bar row to the last, and no .barsTargetSegment exists", lineSpan.lineCount === 1 && lineSpan.segmentCount === 0 && lineSpan.topGap <= 1 && lineSpan.bottomGap >= -1, lineSpan);
     await saveBarsScreenshot(page, outDir, "02-after-tick-click");
 }
 

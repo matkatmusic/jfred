@@ -12,7 +12,7 @@ export type BarRowElements = {
     pathElement: HTMLElement;
     progressBarElement: HTMLElement;   // the FileReconstructionProgressBar
     fillElement: HTMLElement;
-    targetElement: HTMLElement | undefined;   // undefined on a stream row
+    // targetElement: HTMLElement | undefined;   // undefined on a stream row
     rightElement: HTMLElement;
 };
 export type BarModelRowOptions = { selectedRowIndex: number; isPlaceholder: boolean; isFolded: boolean; rightText: string };
@@ -112,7 +112,7 @@ export function buildStreamBarRow(path: string): BarRowElements {
     midColumn.append(lifetimeBar);
     const rowElement = buildDiv("barsFileRow");
     rowElement.append(leftColumn, midColumn, rightElement);
-    return { rowElement, markElement, pathElement, progressBarElement, fillElement, targetElement: undefined, rightElement };
+    return { rowElement, markElement, pathElement, progressBarElement, fillElement, rightElement };
 }
 
 // Full row of the mockup (buildFileRow): see the file section. fileIndex goes to data-file-index on the path and on every dot.
@@ -146,16 +146,16 @@ export function buildModelBarRow(model: BarFileModel, fileIndex: number, rulerRo
     for (const [dotIndex, dot] of model.dots.entries()) {
         dotStrip.append(buildBarDot(dot, fileIndex, dotIndex, rulerRows, options.isPlaceholder));
     }
-    const targetElement = buildDiv("barsTargetSegment");
-    targetElement.style.left = computeBarPercent(options.selectedRowIndex, rowCount) + "%";
+    // const targetElement = buildDiv("barsTargetSegment");
+    // targetElement.style.left = computeBarPercent(options.selectedRowIndex, rowCount) + "%";
     const midColumn = buildDiv("barsColMid");
-    midColumn.append(lifetimeBar, dotStrip, targetElement);
+    midColumn.append(lifetimeBar, dotStrip);
 
     const rightElement = buildDiv("barsColRight");
     rightElement.textContent = options.rightText;
     const rowElement = buildDiv(options.isFolded ? "barsFileRow barsFoldedRow" : "barsFileRow");
     rowElement.append(leftColumn, midColumn, rightElement);
-    return { rowElement, markElement, pathElement, progressBarElement, fillElement, targetElement, rightElement };
+    return { rowElement, markElement, pathElement, progressBarElement, fillElement, rightElement };
 }
 
 export function setBarRowMark(row: BarRowElements, mark: BarRowMark): void {
