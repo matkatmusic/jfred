@@ -82,12 +82,11 @@ test("test_commit_route_takes_the_newline_from_a_snapshot_copy_that_is_newer_tha
     assert.equal(await commitFirstWrite(prepareSnapshotCopyWithoutNewline, `${SESSION_A}.jsonl`, true), "first text");
 });
 
-// task 949: disk bytes hold from the file's mtime (engine gap; bring this test back when 949 merges).
-// test("test_commit_route_takes_the_newline_from_a_disk_file_whose_mtime_is_at_or_before_the_mark", async () => {
-//     // Scenario: a disk copy modified exactly at the mark has no final newline, so the committed file has none.
-//     const prepareDiskCopy = (repoDir: string, projectDir: string): object[] => {
-//         writeFileWithPinnedMtime(projectDir, "a.txt", "first text", MARK_AT);
-//         return [];
-//     };
-//     assert.equal(await commitFirstWrite(prepareDiskCopy), "first text");
-// });
+test("test_commit_route_takes_the_newline_from_a_disk_file_whose_mtime_is_at_or_before_the_mark", async () => {
+    // Scenario: a disk copy modified exactly at the mark has no final newline, so the committed file has none.
+    const prepareDiskCopy = (repoDir: string, projectDir: string): object[] => {
+        writeFileWithPinnedMtime(projectDir, "a.txt", "first text", MARK_AT);
+        return [];
+    };
+    assert.equal(await commitFirstWrite(prepareDiskCopy), "first text");
+});
