@@ -4,12 +4,21 @@ import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom, waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
 import { buildNdjsonResponse } from "./webapp-fetch-test-helpers.ts";
+import { buildInverseCommit, buildInverseFile, ensureBarsMarkup } from "./layer1-bars-test-helpers.ts";
 import type { WireRulerTick } from "../webapp/layer1-wire.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
 initLayer1Dom();
-const { openPendingMessage, renderJfredEntries, renderJfredStrip } = await import("../webapp/layer1-components/commits-column/layer1-jfred-strip.ts");
+await import("../webapp/layer1-page.ts");
+const { DELETE_QUESTION, openPendingMessage, renderJfredEntries, renderJfredStrip } = await import("../webapp/layer1-components/commits-column/layer1-jfred-strip.ts");
 const { loadJfredBranch, readJfredBranch, setArmed, setPending } = await import("../webapp/layer1-components/commits-column/layer1-jfred-state.ts");
+const { handleBarsHistoryLoaded, rememberJfredCommits } = await import("../webapp/layer1-components/commits-column/layer1-jfred-mode.ts");
+const { storeRow } = await import("../webapp/layer1-components/ruler/layer1-tick-events.ts");
+const { BarsViewMode, isBarsViewOn, setBarsViewMode } = await import("../webapp/layer1-components/bars-view/layer1-bars-mode.ts");
+const { buildBarFileModels } = await import("../webapp/layer1-components/bars-view/layer1-bars-model.ts");
+const { listRealRulerRows } = await import("../webapp/layer1-components/bars-view/layer1-bars-ruler.ts");
+const { getBarsViewState } = await import("../webapp/layer1-components/bars-view/layer1-bars-state.ts");
+const { rememberDrawnView } = await import("../webapp/layer1-components/bubbles/layer1-diff-wash.ts");
 
 const TICKS: WireRulerTick[] = [
   { instant: "2026-06-01T09:00:00.000Z", axisPx: 100, eventCount: 1 },
@@ -32,6 +41,8 @@ const CANNED_VIEW = {
 
 beforeEach(() => {
   initLayer1Dom();
+  if (isBarsViewOn())
+    setBarsViewMode(BarsViewMode.bubbles);
   loadJfredBranch(CANNED_VIEW);
   setArmed(true);
 });
@@ -252,4 +263,166 @@ test("test_run_reply_with_a_missing_executable_opens_the_notice_before_the_commi
   assert.deepEqual(readSentPathnames(), [NEEDS_PATHNAME, RUN_PATHNAME]);
   await clickPopupButton("missingExecutablesCloseButton");
   assert.deepEqual(readSentPathnames(), [NEEDS_PATHNAME, RUN_PATHNAME, COMMIT_PATHNAME]);
+});
+
+const DRAWN_COMMIT_HASH = "feedface00112233";
+const COLUMN_SELECTOR = "#jfredCommitsDrawerComponent";
+const STRIP_SELECTOR = "#barsStickyHeader #barsCutStrip";
+
+function addRealRulerTick(wireTick: WireRulerTick): HTMLElement {
+  const tick = document.createElement("div");
+  tick.className = "tick";
+  document.getElementById("timelineRulerComponent")!.append(tick);
+  storeRow(tick, { axisPx: wireTick.axisPx, text: "t", eventCount: 1, axisPxList: [wireTick.axisPx], instants: [wireTick.instant] });
+  return tick;
+}
+
+// The Bars view with the four TICKS as real ruler rows (row 0 is the newest). File a.ts is edited on row 0 and committed on row 3. The branch is the canned one, so the tip is TICKS[2].
+function buildBarsViewPage(): HTMLElement[] {
+  initLayer1Dom();
+  ensureBarsMarkup();
+  getBarsViewState().isLoadNeeded = false;
+  setBarsViewMode(BarsViewMode.bars);
+  const ticks = TICKS.map(addRealRulerTick);
+  const rows = listRealRulerRows();
+  const state = getBarsViewState();
+  const commits = [
+    buildInverseCommit({ instant: TICKS[3]!.instant, eventType: "EditRow", treeHash: "t-new" }),
+    buildInverseCommit({ instant: TICKS[0]!.instant, eventType: "GitCommit", treeHash: "t-old" }),
+  ];
+  state.models = buildBarFileModels([buildInverseFile("a.ts", commits)], rows);
+  state.rulerRows = rows;
+  rememberDrawnView({
+    pairs: [{ path: "a.ts", commits: [{ instant: TICKS[0]!.instant, hash: DRAWN_COMMIT_HASH, axisPx: TICKS[0]!.axisPx }], onDisk: { instant: TICKS[3]!.instant, axisPx: 0 } }],
+    gitOrphans: [],
+    diskOrphans: [],
+    ruler: [],
+  });
+  loadJfredBranch(CANNED_VIEW);
+  rememberJfredCommits(CANNED_VIEW);
+  handleBarsHistoryLoaded((document.getElementById("dir") as HTMLInputElement).value.trim());
+  return ticks;
+}
+
+async function clickCommitModeButton(): Promise<void> {
+  document.getElementById("commit-mode")!.click();
+  await waitForAsyncWork();
+}
+
+function findStripScissors(rowIndex: number): HTMLElement {
+  return document.querySelector<HTMLElement>(`#barsCutStrip .barsCutScissors[data-row-index="${rowIndex}"]`)!;
+}
+
+test("test_in_bars_view_turning_on_commit_mode_adds_no_column_to_the_ruler_container", async () => {
+  // Verify: Commit Mode on in the Bars view leaves the old column out of the DOM.
+  buildBarsViewPage();
+  await clickCommitModeButton();
+  assert.equal(readJfredBranch().isArmed, true);
+  assert.equal(document.querySelector(COLUMN_SELECTOR) === null, true);
+});
+
+test("test_in_bars_view_turning_on_commit_mode_draws_the_pinned_strip", async () => {
+  // Verify: Commit Mode on in the Bars view puts #barsCutStrip inside #barsStickyHeader.
+  buildBarsViewPage();
+  await clickCommitModeButton();
+  assert.equal(document.querySelectorAll(STRIP_SELECTOR).length, 1);
+});
+
+test("test_in_bars_view_the_pinned_commit_button_posts_the_commit_request", async () => {
+  // Verify: a mark through the strip scissors, then the strip Commit button sends needs, then the commit with markInstant and both hashes.
+  installReplayRoutes(NO_TASKS_LINE, RUN_REPLY_LINE);
+  buildBarsViewPage();
+  await clickCommitModeButton();
+  findStripScissors(0).click();
+  document.getElementById("barsCutCommitButton")!.click();
+  await settleCommitFlow();
+  assert.deepEqual(readSentPathnames(), [NEEDS_PATHNAME, COMMIT_PATHNAME]);
+  assert.equal(sentCalls[1]!.body.markInstant, TICKS[3]!.instant);
+  assert.equal(sentCalls[1]!.body.baseShortHash, "a1b2c3d4");
+  assert.equal(sentCalls[1]!.body.parentShortHash, "c0ffee02");
+});
+
+test("test_in_bars_view_a_click_on_a_strip_scissors_sets_the_pending_mark_like_a_ruler_click", async () => {
+  // Verify: the scissors of row 0 sets the pending mark at the newest instant of that ruler row.
+  buildBarsViewPage();
+  await clickCommitModeButton();
+  findStripScissors(0).click();
+  assert.equal(readJfredBranch().pending?.instant, listRealRulerRows()[0]!.instants.at(-1));
+  assert.equal(readJfredBranch().pending?.instant, TICKS[3]!.instant);
+});
+
+test("test_in_bars_view_a_click_on_a_strip_scissors_sets_the_base_when_the_branch_has_no_base", async () => {
+  // Verify: with no base, the scissors of the commit row 3 sets the base from the drawn view commit.
+  buildBarsViewPage();
+  await clickCommitModeButton();
+  loadJfredBranch(EMPTY_VIEW);
+  renderJfredEntries();
+  findStripScissors(3).click();
+  assert.deepEqual(readJfredBranch().base, { instant: TICKS[0]!.instant, shortHash: DRAWN_COMMIT_HASH.slice(0, 8) });
+});
+
+test("test_in_bars_view_a_click_on_a_strip_scissors_selects_its_bars_row", async () => {
+  // Verify: the scissors of row 0 selects Bars row 0 and marks the newest real tick as selected.
+  const ticks = buildBarsViewPage();
+  await clickCommitModeButton();
+  findStripScissors(0).click();
+  assert.equal(getBarsViewState().selectedRowIndex, 0);
+  assert.equal(ticks[3]!.classList.contains("barsSelected"), true);
+});
+
+test("test_in_bars_view_the_details_pane_commit_button_posts_the_same_request_as_the_strip_button", async () => {
+  // Verify: the pane button and the strip button send the same commit body.
+  installReplayRoutes(NO_TASKS_LINE, RUN_REPLY_LINE);
+  buildBarsViewPage();
+  await clickCommitModeButton();
+  findStripScissors(0).click();
+  document.getElementById("barsCutCommitButton")!.click();
+  await settleCommitFlow();
+  const stripButtonBody = { ...sentCalls[1]!.body, message: sentCalls[1]!.body.message.split("Commit-Date")[0] };
+  installReplayRoutes(NO_TASKS_LINE, RUN_REPLY_LINE);
+  buildBarsViewPage();
+  await clickCommitModeButton();
+  findStripScissors(0).click();
+  document.getElementById("jfred-commit-button")!.click();
+  await settleCommitFlow();
+  assert.deepEqual(readSentPathnames(), [NEEDS_PATHNAME, COMMIT_PATHNAME]);
+  assert.deepEqual({ ...sentCalls[1]!.body, message: sentCalls[1]!.body.message.split("Commit-Date")[0] }, stripButtonBody);
+});
+
+test("test_in_bars_view_the_delete_label_opens_the_delete_question", async () => {
+  // Verify: a click on the strip delete label opens the yes/no row with DELETE_QUESTION.
+  buildBarsViewPage();
+  await clickCommitModeButton();
+  document.querySelector<HTMLElement>("#barsCutStrip .barsCutDeleteBranch")!.click();
+  assert.equal(document.getElementById("yesno-row")!.textContent!.includes(DELETE_QUESTION), true);
+});
+
+test("test_switching_from_bars_to_bubbles_with_commit_mode_on_draws_the_column_and_removes_the_strip", async () => {
+  // Verify: the slider callback redraws the Commit Mode UI for the Bubbles view.
+  buildBarsViewPage();
+  await clickCommitModeButton();
+  assert.equal(document.querySelectorAll(STRIP_SELECTOR).length, 1);
+  setBarsViewMode(BarsViewMode.bubbles);
+  assert.equal(document.querySelector("#barsCutStrip") === null, true);
+  assert.equal(document.querySelectorAll(COLUMN_SELECTOR).length, 1);
+});
+
+test("test_in_bubbles_view_the_column_still_draws", () => {
+  // Verify: with Commit Mode on in the Bubbles view the column draws and the strip does not.
+  renderJfredStrip(TICKS);
+  assert.equal(document.querySelectorAll(COLUMN_SELECTOR).length, 1);
+  assert.equal(document.querySelector("#barsCutStrip") === null, true);
+});
+
+test("test_moving_the_slider_with_commit_mode_on_moves_the_strip", async () => {
+  // Verify: Bars shows the strip; Bubbles removes it and draws the column; Bars again draws the strip and removes the column.
+  buildBarsViewPage();
+  await clickCommitModeButton();
+  assert.equal(document.querySelectorAll(STRIP_SELECTOR).length, 1);
+  setBarsViewMode(BarsViewMode.bubbles);
+  assert.equal(document.querySelector("#barsCutStrip") === null, true);
+  assert.equal(document.querySelectorAll(COLUMN_SELECTOR).length, 1);
+  setBarsViewMode(BarsViewMode.bars);
+  assert.equal(document.querySelectorAll(STRIP_SELECTOR).length, 1);
+  assert.equal(document.querySelector(COLUMN_SELECTOR) === null, true);
 });
