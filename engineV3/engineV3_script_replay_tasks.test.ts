@@ -97,13 +97,13 @@ function makeGapSidecar(gapRecords: ReplayGapRecord[]): ReplayGapsSidecar {
 
 type TranscriptRun = { second: number; command: string; cwd: string };
 
-function writeTranscript(fixture: Fixture, runs: TranscriptRun[]): Path {
+function writeTranscript(fixture: Fixture, runs: TranscriptRun[], fileName = "session.jsonl"): Path {
     const lines = runs.map((run, index) => {
         const toolUse = { type: "tool_use", id: `toolu_run_${index}`, name: "Bash", input: { command: run.command }, caller: { type: "direct" } };
         const record = { type: "assistant", uuid: `uuid_run_${index}`, timestamp: makeInstant(run.second).toISOString(), cwd: run.cwd, message: { role: "assistant", content: [toolUse] } };
         return JSON.stringify(record);
     });
-    const transcriptPath = join(fixture.scratchFolder.toString(), "session.jsonl");
+    const transcriptPath = join(fixture.scratchFolder.toString(), fileName);
     writeFileSync(transcriptPath, lines.join("\n") + "\n");
     return new Path(transcriptPath);
 }
@@ -121,7 +121,7 @@ test("test_unfilled_gap_task_is_listed_with_its_waiting_file", (t) => {
     const taskRecord = makeTaskRecord(50, 7);
     makeRepoWithSidecar(fixture, projectFile, "a.txt", [3], makeGapSidecar([{ newerPosition: 0, olderPosition: 3, droppedPositions: [1, 2], scriptTasks: [taskRecord] }]));
     // The function lists the tasks up to a late instant.
-    const tasks = listScriptReplayTasks(fixture.storeFolder, fixture.projectFolder, [projectFile], fixture.projectFolder, makeInstant(500));
+    const tasks = listScriptReplayTasks(fixture.storeFolder, fixture.projectFolder, [projectFile], fixture.projectFolder, makeInstant(500), [fixture.scratchFolder]);
     // It returns one task with the record, its instant, and one waiting file named by the file.
     assert.equal(tasks.length, 1);
     assert.deepEqual(tasks[0]!.record, taskRecord);
@@ -137,7 +137,7 @@ test("test_filled_gap_task_is_not_listed", (t) => {
     const projectFile = makeProjectFile(fixture, "a.txt");
     makeRepoWithSidecar(fixture, projectFile, "a.txt", [1, 2, 3], makeGapSidecar([{ newerPosition: 0, olderPosition: 3, droppedPositions: [1, 2], scriptTasks: [makeTaskRecord(50, 7)] }]));
     // The function lists the tasks.
-    const tasks = listScriptReplayTasks(fixture.storeFolder, fixture.projectFolder, [projectFile], fixture.projectFolder, makeInstant(500));
+    const tasks = listScriptReplayTasks(fixture.storeFolder, fixture.projectFolder, [projectFile], fixture.projectFolder, makeInstant(500), [fixture.scratchFolder]);
     // It returns no task.
     assert.deepEqual(tasks, []);
 });
@@ -154,7 +154,7 @@ test("test_one_task_for_three_files_lists_three_waiting_files", (t) => {
         makeRepoWithSidecar(fixture, projectFiles[index]!, fileName, [3], makeGapSidecar([{ newerPosition: 0, olderPosition: 3, droppedPositions: [1, 2], scriptTasks: [taskRecord] }]));
     }
     // The function lists the tasks.
-    const tasks = listScriptReplayTasks(fixture.storeFolder, fixture.projectFolder, projectFiles, fixture.projectFolder, makeInstant(500));
+    const tasks = listScriptReplayTasks(fixture.storeFolder, fixture.projectFolder, projectFiles, fixture.projectFolder, makeInstant(500), [fixture.scratchFolder]);
     // It returns one task with three waiting files, one per file.
     assert.equal(tasks.length, 1);
     assert.deepEqual(tasks[0]!.waitingFiles.map((waitingFile) => waitingFile.relativePath), fileNames);
@@ -169,7 +169,7 @@ test("test_task_after_to_instant_is_not_listed", (t) => {
     const scriptTasks = [makeTaskRecord(10, 1), makeTaskRecord(20, 2), makeTaskRecord(30, 3)];
     makeRepoWithSidecar(fixture, projectFile, "a.txt", [3], makeGapSidecar([{ newerPosition: 0, olderPosition: 3, droppedPositions: [1, 2], scriptTasks }]));
     // The function lists the tasks up to the instant of the second task.
-    const tasks = listScriptReplayTasks(fixture.storeFolder, fixture.projectFolder, [projectFile], fixture.projectFolder, makeInstant(20));
+    const tasks = listScriptReplayTasks(fixture.storeFolder, fixture.projectFolder, [projectFile], fixture.projectFolder, makeInstant(20), [fixture.scratchFolder]);
     // It returns the first two tasks in time order and not the third.
     assert.deepEqual(listLines(tasks.map((task) => task.record)), [1, 2]);
 });
@@ -188,7 +188,7 @@ test("test_birth_candidates_are_the_last_five_write_capable_runs_before_the_olde
     runs.push({ second: 20, command: WRITE_CAPABLE_COMMAND, cwd: projectCwd });
     const transcriptPath = writeTranscript(fixture, runs);
     // The function lists the candidates for an oldest event at second 10.
-    const candidates = listBirthCandidateRecords(transcriptPath, makeInstant(10), fixture.projectFolder);
+    const candidates = listBirthCandidateRecords([transcriptPath], makeInstant(10), fixture.projectFolder);
     // It returns the runs of seconds 3 to 7, which are lines 3 to 7, in time order.
     assert.equal(MAX_BIRTH_CANDIDATES_PER_FILE, 5);
     assert.deepEqual(listLines(candidates), [3, 4, 5, 6, 7]);
@@ -204,7 +204,7 @@ test("test_birth_candidate_outside_project_cwd_is_dropped", (t) => {
         { second: 2, command: WRITE_CAPABLE_COMMAND, cwd: fixture.scratchFolder.toString() },
     ]);
     // The function lists the candidates.
-    const candidates = listBirthCandidateRecords(transcriptPath, makeInstant(10), fixture.projectFolder);
+    const candidates = listBirthCandidateRecords([transcriptPath], makeInstant(10), fixture.projectFolder);
     // It returns only the run inside the project.
     assert.deepEqual(listLines(candidates), [1]);
 });
@@ -258,7 +258,7 @@ test("test_missing_sidecar_throws_with_the_build_hint", (t) => {
     createInverseRepo(repoFolder, "a.txt", { state: diskNowState, position: 0 }, makeInstant(1000));
     // The function lists the tasks. It throws, and the message says to build the repos first.
     assert.throws(
-        () => listScriptReplayTasks(fixture.storeFolder, fixture.projectFolder, [projectFile], fixture.projectFolder, makeInstant(500)),
+        () => listScriptReplayTasks(fixture.storeFolder, fixture.projectFolder, [projectFile], fixture.projectFolder, makeInstant(500), [fixture.scratchFolder]),
         /build the inverse repos first/,
     );
 });
@@ -278,10 +278,31 @@ test("test_bornless_file_lists_its_birth_candidates_as_tasks", (t) => {
     const bornless: BornlessRecord = { nextFreePosition: 1, oldestInstant: makeInstant(10).toISOString(), oldestJsonlPath: transcriptPath.toString() };
     makeRepoWithSidecar(fixture, projectFile, "a.txt", [], { gaps: [], bornless });
     // The function lists the tasks.
-    const tasks = listScriptReplayTasks(fixture.storeFolder, fixture.projectFolder, [projectFile], fixture.projectFolder, makeInstant(500));
+    const tasks = listScriptReplayTasks(fixture.storeFolder, fixture.projectFolder, [projectFile], fixture.projectFolder, makeInstant(500), [fixture.scratchFolder]);
     // It returns two tasks in time order, each waiting file marked as a birth candidate.
     assert.deepEqual(listLines(tasks.map((task) => task.record)), [1, 2]);
     for (const task of tasks) {
         assert.deepEqual(task.waitingFiles, [{ relativePath: "a.txt", reason: ScriptReplayTaskReason.BirthCandidate }]);
     }
+});
+
+test("test_birth_candidate_is_found_in_an_earlier_transcript_of_the_project", (t) => {
+    // Scenario: the script that made a file ran in an earlier transcript than the one that holds the file's oldest event.
+    // Steps:
+    // The earlier transcript has one write-capable run at second 1.
+    const fixture = makeFixture(t);
+    const projectCwd = fixture.projectFolder.toString();
+    const earlierTranscriptPath = writeTranscript(fixture, [{ second: 1, command: WRITE_CAPABLE_COMMAND, cwd: projectCwd }], "earlier.jsonl");
+    // The later transcript has one read-only run at second 10, which is the oldest event of a.txt.
+    const laterTranscriptPath = writeTranscript(fixture, [{ second: 10, command: "cat a.txt", cwd: projectCwd }], "later.jsonl");
+    // The repo of a.txt is bornless and names the later transcript as the oldest log.
+    const projectFile = makeProjectFile(fixture, "a.txt");
+    const bornless: BornlessRecord = { nextFreePosition: 1, oldestInstant: makeInstant(10).toISOString(), oldestJsonlPath: laterTranscriptPath.toString() };
+    makeRepoWithSidecar(fixture, projectFile, "a.txt", [], { gaps: [], bornless });
+    // The function lists the tasks with the folder that holds both transcripts.
+    const tasks = listScriptReplayTasks(fixture.storeFolder, fixture.projectFolder, [projectFile], fixture.projectFolder, makeInstant(500), [fixture.scratchFolder]);
+    // It returns the run of the earlier transcript as a birth candidate that a.txt waits on.
+    assert.equal(tasks.length, 1);
+    assert.equal(tasks[0]!.record.jsonlPath, earlierTranscriptPath.toString());
+    assert.deepEqual(tasks[0]!.waitingFiles, [{ relativePath: "a.txt", reason: ScriptReplayTaskReason.BirthCandidate }]);
 });

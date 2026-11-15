@@ -1,7 +1,7 @@
 // Runs the recorded scripts a span needs, oldest first, in the locked-down container, and fills the gaps of the per-file repos.
 
 import { rmSync } from "node:fs";
-import { basename, isAbsolute, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { Path } from "../src/structures/domain.ts";
@@ -101,6 +101,13 @@ export function chooseScriptInterpreter(record: ScriptReplayTaskRecord): ScriptI
         return ScriptInterpreter.Python;
     }
     return ScriptInterpreter.Bash;
+}
+
+export function choosePythonImportFolder(record: ScriptReplayTaskRecord): string {
+    if (record.invokedScriptPath !== null) {
+        return dirname(resolve(record.cwd, record.invokedScriptPath));
+    }
+    return record.cwd;
 }
 
 function isCwdInsideFolder(cwd: Path, folder: Path): boolean {
@@ -242,6 +249,7 @@ async function executeTaskOnce(context: ReplayContext, task: ScriptReplayTask): 
     const request: ScriptReplayRequest = {
         projectRoot: context.settings.recordedProjectFolder.toString(),
         cwd: task.record.cwd,
+        pythonImportFolder: choosePythonImportFolder(task.record),
         interpreter: chooseScriptInterpreter(task.record),
         source: task.record.code,
         inputs: context.workspace.listInputFilesJustBefore(task.instant),
@@ -262,7 +270,9 @@ function readStartText(gap: ReplayGap, commits: InverseCommit[], fileName: strin
         throw new Error(`readStartText: ${fileName} has no commit at the older position ${gap.olderPosition}`);
     }
     if (olderCommit.moment !== StateMoment.AtEvent) {
-        throw new Error(`readStartText: the commit at the older position ${gap.olderPosition} of ${fileName} is not an at-event commit`);
+        if (olderCommit.moment !== StateMoment.BeforeEvent) {
+            throw new Error(`readStartText: the commit at the older position ${gap.olderPosition} of ${fileName} is not an at-event or before-event commit`);
+        }
     }
     if (olderCommit.isFileAbsent) {
         return undefined;
@@ -484,7 +494,7 @@ export async function replayScriptTasksForProject(settings: ScriptReplaySettings
     if (Number.isNaN(toInstant.getTime())) {
         throw new Error("replayScriptTasksForProject: toInstant is not a valid date");
     }
-    const tasks = listScriptReplayTasks(settings.storeFolder, settings.projectFolder, settings.projectFiles, settings.recordedProjectFolder, toInstant);
+    const tasks = listScriptReplayTasks(settings.storeFolder, settings.projectFolder, settings.projectFiles, settings.recordedProjectFolder, toInstant, settings.jsonlsFolders);
     if (tasks.length === 0) {
         return [];
     }
@@ -613,7 +623,7 @@ export async function executeScriptReplayCommandLine(argumentList: string[], con
         containerNamePrefix,
     };
     if (command.kind === ScriptReplayCommandKind.ListOnly) {
-        for (const task of listScriptReplayTasks(settings.storeFolder, settings.projectFolder, settings.projectFiles, settings.recordedProjectFolder, command.toInstant)) {
+        for (const task of listScriptReplayTasks(settings.storeFolder, settings.projectFolder, settings.projectFiles, settings.recordedProjectFolder, command.toInstant, settings.jsonlsFolders)) {
             console.log(`${task.record.instant} ${task.record.taskId} ${task.waitingFiles.map((waitingFile) => waitingFile.relativePath).join(" ")}`);
         }
         return;
