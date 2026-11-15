@@ -80,8 +80,11 @@ export const README_NODE_FACTS = `[...${README_BUBBLE}.querySelectorAll('i.node.
         outlineStyle: s.outlineStyle, outlineColor: s.outlineColor, outlineWidth: s.outlineWidth, backgroundImage: s.backgroundImage };
 })`;
 
-export const NEVER_PROVABLE_RULE_COUNT = `[...document.styleSheets].flatMap(sheet => [...sheet.cssRules])
-    .filter(rule => rule.selectorText?.includes('.never-provable')).length`;
+export const NEVER_PROVABLE_RULE_COUNT = `(() => {
+    const walk = rules => [...rules].flatMap(rule => rule.styleSheet ? walk(rule.styleSheet.cssRules) : [rule]);
+    return [...document.styleSheets].flatMap(sheet => walk(sheet.cssRules))
+        .filter(rule => rule.selectorText?.includes('.never-provable')).length;
+})()`;
 export const SHOW_BOX_KINDS = `[...document.querySelectorAll('#timelineViewControls input[data-kind]')].map(i => i.dataset.kind)`;
 
 export interface PopupFacts {
