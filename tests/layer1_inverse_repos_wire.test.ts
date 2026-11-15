@@ -15,10 +15,12 @@ import { buildWriteRecordPair } from "./tool-call-record-pair-builders.ts";
 import { createTempDir } from "./overrides-test-helpers.ts";
 
 const COMMIT_HASH = "0123456789abcdef0123456789abcdef01234567";
+const TREE_HASH = "89abcdef0123456789abcdef0123456789abcdef";
 
 function buildInverseCommit(instant: Date | undefined): InverseCommit {
     return {
         commitHash: new Uuid(COMMIT_HASH),
+        treeHash: new Uuid(TREE_HASH),
         position: 3,
         eventType: FileEventType.WriteRow,
         moment: StateMoment.BeforeEvent,
@@ -53,6 +55,7 @@ test("test_inverse_commit_wire_maps_instant_to_iso_string", () => {
     const wire = buildInverseCommitWire(buildInverseCommit(new Date("2026-07-24T10:01:00.000Z")));
     assert.deepEqual(wire, {
         commitHash: COMMIT_HASH,
+        treeHash: TREE_HASH,
         eventType: "WriteRow",
         moment: "before-event",
         confidence: "proven",
@@ -62,6 +65,13 @@ test("test_inverse_commit_wire_maps_instant_to_iso_string", () => {
         isRemoved: false,
         movedAwayTo: null,
     });
+});
+
+test("test_inverse_commit_wire_sends_the_tree_hash_as_text", () => {
+    // Scenario: a commit with a known tree hash.
+    const wire = buildInverseCommitWire(buildInverseCommit(undefined));
+    // The wire holds the tree hash as text.
+    assert.equal(wire.treeHash, TREE_HASH);
 });
 
 test("test_inverse_commit_wire_maps_undefined_instant_to_null", () => {

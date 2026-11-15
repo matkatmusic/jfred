@@ -14,6 +14,7 @@ export type BarsViewState = {
     rowElements: BarRowElements[];     // parallel to models; written by renderBarsRowList
     selectedRowIndex: number;          // index into rulerRows. The real ruler holds no selected row of its own, so the Bars view keeps this one.
     selectedDotElement: HTMLElement | undefined;
+    isRulerRefreshNeeded: boolean;     // true when the real ruler was drawn again while Bars view was off; S13 reads the rows again at the next mode change
 };
 
 export function createBarsViewState(): BarsViewState {
@@ -29,6 +30,7 @@ export function createBarsViewState(): BarsViewState {
         rowElements: [],
         selectedRowIndex: 0,
         selectedDotElement: undefined,
+        isRulerRefreshNeeded: false,
     };
 }
 
