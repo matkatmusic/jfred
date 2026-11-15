@@ -359,6 +359,15 @@ test("test_a_failed_load_removes_the_loading_class_and_turns_loading_off_and_sti
     assert.equal(state.isHistoryLoading, false);
 });
 
+test("test_a_failed_history_stream_shows_the_error_line", async () => {
+    // Scenario: the stream sends an error line.
+    installStreamRoute("/api/layer1-inverse-repos", [STARTED_LINE, ERROR_LINE]);
+    // The load still throws.
+    await assert.rejects(loadBarsHistory(state, SOURCE_PARAMS, waitImmediately), { message: "boom" });
+    // The status line names the reason.
+    assert.equal(document.getElementById("barsStatusLine")!.textContent, "==> Change history did not load: boom");
+});
+
 test("test_an_older_aborted_load_does_not_remove_the_loading_class_of_a_newer_load", async () => {
     // Scenario: load A waits on a stream with no line; load B starts and aborts A.
     const streamA = installControlledStream();
