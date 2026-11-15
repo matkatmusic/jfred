@@ -29,6 +29,16 @@ test("builder output parses as JavaScript", () => {
     assert.doesNotThrow(() => parseAsync(probes.buildTimeToggle("author")));
 });
 
+test("test_cut_rule_texts_finds_rules_inside_import_sheets", () => {
+    // Steps: a page whose only top-level rule is an @import holding one cut rule and one other rule.
+    const importedRules = [{ selectorText: ".cut-ok", style: { cssText: "color: red;" } }, { selectorText: ".unrelated", style: { cssText: "color: blue;" } }];
+    const fakeDocument = { styleSheets: [{ cssRules: [{ styleSheet: { cssRules: importedRules } }] }] };
+    // Run the probe against it and read the rule texts.
+    const ruleTexts = new Function("document", `return (${probes.CUT_RULE_TEXTS});`)(fakeDocument) as string[];
+    // Only the cut rule inside the imported sheet is listed.
+    assert.deepEqual(ruleTexts, ["color: red;"]);
+});
+
 // not behavior: it only checks that builder output strings contain certain text.
 // test("a tick is found by label prefix, and each builder carries its argument", () => {
 //     assert.ok(probes.buildFindTick("06-03 18:20:00.000").includes('startsWith("06-03 18:20:00.000")'));

@@ -158,6 +158,8 @@ async function validateMarkFlow(page: HeadlessPage): Promise<void> {
 
 // Commit mode is on when this runs; the first click turns it off.
 async function validateCommitMode(page: HeadlessPage): Promise<void> {
+  // Chrome's resource buffer stops at 250 entries; REQUEST_COUNT needs every entry
+  await page.evaluate("performance.setResourceTimingBufferSize(100000)");
   await page.evaluate(COMMIT_MODE_CLICK);
   await validateUnarmedPaint(page);
   await validateNormalClick(page, "L9 Commit mode off: a click on a two-event tick opens its file list and a second click closes it");

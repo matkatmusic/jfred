@@ -8,7 +8,8 @@ import {
 } from "../scripts/visual/layer9-flow-checks.ts";
 import { REQUEST_COUNT } from "../scripts/visual/layer7-probes.ts";
 import {
-    COMMIT_MODE_CLICK, MARK_FACTS, MODE_STATE, STRIP_COUNT, TICKFILES_COUNT, TICK_LABELS, TICK_STATES, buildBeaconInstantCount, buildFindTick, buildRefusalClick,
+    // COMMIT_MODE_CLICK, MARK_FACTS, MODE_STATE, STRIP_COUNT, TICKFILES_COUNT, TICK_LABELS, TICK_STATES, buildBeaconInstantCount, buildFindTick, buildRefusalClick,
+    COMMIT_MODE_CLICK, MARK_FACTS, MODE_STATE, STRIP_COUNT, TICKFILES_COUNT, TICK_LABELS, TICK_STATES, buildFindTick, buildRefusalClick,
     type EntryFacts, type MarkFacts, type RefusalFacts, type TickState,
 } from "../scripts/visual/layer9-probes.ts";
 import { CUT_REFUSAL_TEXT, CutRefusal } from "../webapp/layer1-components/commits-column/layer1-cut-rules.ts";
@@ -18,7 +19,9 @@ import { makeScriptedPage, runCheck, type Answers } from "./layer9-fake-page.ts"
 // const makeState = (label: string, classes = "tick", extra: Partial<TickState> = {}): TickState => ({ text: `${label} (1)`, classes, title: "", opacity: 1, after: "none", ...extra });
 const makeState = (label: string, classes = "tick", extra: Partial<TickState> = {}): TickState => ({ text: "01-01-2026:00:00 (1)", fullTime: label, classes, title: "", opacity: 1, after: "none", ...extra });
 const REASON: Record<string, CutRefusal> = {
-    [TICK_LABELS.createdOnly]: CutRefusal.noVerifiedNode, [TICK_LABELS.derivedOnly]: CutRefusal.noVerifiedNode,
+    // K7: with a tip these ticks refuse with noChangeSinceTip (d245b83)
+    // [TICK_LABELS.createdOnly]: CutRefusal.noVerifiedNode, [TICK_LABELS.derivedOnly]: CutRefusal.noVerifiedNode,
+    [TICK_LABELS.createdOnly]: CutRefusal.noChangeSinceTip, [TICK_LABELS.derivedOnly]: CutRefusal.noChangeSinceTip,
     [TICK_LABELS.behindTip]: CutRefusal.notForward, [TICK_LABELS.atTip]: CutRefusal.notForward,
 };
 // On the test page a refused tick's title is the refusal text, a newline, then the full time.
@@ -32,7 +35,8 @@ const ARMED_MARKS: TickState[] = [
     makeState("07-02 00:00:00.000", "tick cut-set cut-no", { opacity: 0.38, title: "reason\n07-02 00:00:00.000" }),
 ];
 const ARMED: TickState[] = [
-    makeScissors(TICK_LABELS.late), makeScissors(TICK_LABELS.early), makeDim(TICK_LABELS.createdOnly, CutRefusal.noVerifiedNode), makeDim(TICK_LABELS.derivedOnly, CutRefusal.noVerifiedNode),
+    // makeScissors(TICK_LABELS.late), makeScissors(TICK_LABELS.early), makeDim(TICK_LABELS.createdOnly, CutRefusal.noVerifiedNode), makeDim(TICK_LABELS.derivedOnly, CutRefusal.noVerifiedNode),
+    makeScissors(TICK_LABELS.late), makeScissors(TICK_LABELS.early), makeDim(TICK_LABELS.createdOnly, CutRefusal.noChangeSinceTip), makeDim(TICK_LABELS.derivedOnly, CutRefusal.noChangeSinceTip),
     makeDim(TICK_LABELS.behindTip, CutRefusal.notForward), makeDim(TICK_LABELS.atTip, CutRefusal.notForward), ...ARMED_MARKS,
 ];
 
@@ -45,7 +49,9 @@ const PENDING_FACTS: MarkFacts = {
     entries: [...BASE_ENTRIES, makeEntry("pending", null, "c0ffee02")],
 };
 const COMMITTED_FACTS: MarkFacts = {
-    drawer: { isOpen: true, text: MESSAGE, hasButton: false }, pending: { entries: 0, ticks: 0 }, chains: 3, requests: 101,
+    // drawer: { isOpen: true, text: MESSAGE, hasButton: false }, pending: { entries: 0, ticks: 0 }, chains: 3, requests: 101,
+    // W4: one Commit click sends script-replay-needs, then jfred-commit
+    drawer: { isOpen: true, text: MESSAGE, hasButton: false }, pending: { entries: 0, ticks: 0 }, chains: 3, requests: 102,
     entries: [...BASE_ENTRIES, makeEntry("commit", "c0ffee03", "c0ffee02")],
 };
 const MOVED_FACTS: MarkFacts = PENDING_FACTS;
@@ -148,7 +154,9 @@ test("isRefusalShown needs the exact text, a shown toast and no pending mark, ti
 
 const runPending = (first: MarkFacts, moved: MarkFacts, requestsBefore = 100) =>
     failuresOf(() => validatePendingMark(makeScriptedPage(new Map<string, unknown[]>([
-        [REQUEST_COUNT, [requestsBefore]], [MARK_FACTS, [first, moved]], [buildBeaconInstantCount(ENTRY_INSTANT, ENTRY_INSTANT), [1]],
+        // [REQUEST_COUNT, [requestsBefore]], [MARK_FACTS, [first, moved]], [buildBeaconInstantCount(ENTRY_INSTANT, ENTRY_INSTANT), [1]],
+        // K7: the check expects the fixed count 1 and no longer asks the page for beacon instants
+        [REQUEST_COUNT, [requestsBefore]], [MARK_FACTS, [first, moved]],
     ]))));
 
 test("validatePendingMark passes the good marks and fails each single bad fact", async () => {
@@ -181,7 +189,9 @@ test("validateCommit passes the good commit and fails each single bad fact", asy
 
 test("test_unchanged_question_needs_one_row_naming_the_next_instant_and_one_new_request", () => {
     // Setup: the pending facts before Commit; after Commit one row asks, the mark stays and one request goes out.
-    const asked = { ...PENDING_FACTS, requests: 101 };
+    // const asked = { ...PENDING_FACTS, requests: 101 };
+    // W4: the Commit click sends two requests (needs + commit)
+    const asked = { ...PENDING_FACTS, requests: 102 };
     const row = { rows: 1, text: "Move the mark to 2026-06-03T18:20:00?" };
     // The good case passes.
     assert.equal(isUnchangedQuestionRight(PENDING_FACTS, asked, row), true);
