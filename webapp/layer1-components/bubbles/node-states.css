@@ -57,9 +57,11 @@
   */
   .n-script .run-mark { position: absolute; inset-inline-start: -3.5px; inset-block-start: -3.5px; inline-size: 13px; block-size: 13px; overflow: visible; pointer-events: none; color: var(--ink, #0b0b0b);
     filter: drop-shadow(.6px 0 0 var(--surface, #fcfcfb)) drop-shadow(-.6px 0 0 var(--surface, #fcfcfb)) drop-shadow(0 .6px 0 var(--surface, #fcfcfb)) drop-shadow(0 -.6px 0 var(--surface, #fcfcfb)); }
-  .n-script .run-mark.mark-replay-failed, .n-script .run-mark.mark-original-failed { color: var(--c-mismatch, #d03b3b); }
+  /* .n-script .run-mark.mark-replay-failed, .n-script .run-mark.mark-original-failed { color: var(--c-mismatch, #d03b3b); } */
+  .n-script .run-mark.mark-replay-failed, .n-script .run-mark.mark-original-failed, .n-script .run-mark.mark-mismatch { color: var(--c-mismatch, #d03b3b); }
   .n-script .run-mark.mark-verified { color: var(--c-edit, #4d8c1f); }
-  .n-script .run-mark.mark-mismatch, .n-script .run-mark.mark-injected-unverified { color: var(--c-echo, #eda100); }
+  /* .n-script .run-mark.mark-mismatch, .n-script .run-mark.mark-injected-unverified { color: var(--c-echo, #eda100); } */
+  .n-script .run-mark.mark-injected-unverified { color: var(--c-echo, #eda100); }
   .n-script .run-mark.mark-not-replayed { color: var(--ink2, #52514e); }
   .n-script .run-mark.mark-deleted { color: var(--c-mismatch, #d03b3b); }
   .n-script .run-mark.mark-changed-not-text { color: var(--ink2, #52514e); }

@@ -134,3 +134,8 @@ test("listColourLiteralRules keeps hex, rgb and hsl rules and drops token rules"
     assert.equal(found.length, 3);
     assert.deepEqual(listColourLiteralRules(GOOD_RULES), []);
 });
+
+test("listColourLiteralRules ignores a hex colour that is the fallback inside var() and keeps a bare one", () => {
+    assert.deepEqual(listColourLiteralRules(["a { color: var(--ink, #0b0b0b); }"]), []);
+    assert.equal(listColourLiteralRules(["a { color: var(--ink, #0b0b0b); border-color: #fff; }"]).length, 1);
+});
