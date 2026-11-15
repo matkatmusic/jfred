@@ -49,6 +49,8 @@ async function moveSlider(page: HeadlessPage, value: string): Promise<void> {
 }
 
 export async function executeSliderToBubblesChecks(page: HeadlessPage, outDir: string): Promise<void> {
+    const sliderWidth = await page.evaluate<number>(`document.getElementById('barsViewSliderInput').getBoundingClientRect().width`);
+    reportCheck("the Bars/Bubbles slider is about as wide as the edit label: #barsViewSliderInput width <= 56 px", sliderWidth <= 56, sliderWidth);
     await moveSlider(page, SLIDER_BUBBLES);
     const sizedFileboxCount = await page.evaluate<number>(`[...document.querySelectorAll('.filebox')]
         .filter((box) => box.getBoundingClientRect().width > 0 && box.getBoundingClientRect().height > 0).length`);
