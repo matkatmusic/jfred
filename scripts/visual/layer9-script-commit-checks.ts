@@ -42,7 +42,8 @@ const INSTALL_FETCH = `(() => {
 })()`;
 const RESTORE_FETCH = `(window.fetch = window.__realFetch, true)`;
 const REPLAY_LOG = `window.__replayLog`;
-const COMMIT_BUTTON_CLICK = `document.getElementById('jfred-commit-button').click()`;
+const COMMIT_MODE_ENABLED = `document.getElementById('commit-mode').disabled === false`;
+const COMMIT_BUTTON_CLICK =`document.getElementById('jfred-commit-button').click()`;
 const NO_PENDING_ENTRY = `document.querySelectorAll('#jfredCommitsDrawerComponent .jnode.j-pending').length === 0`;
 
 const buildPopupSelector = (component: string) => `[data-component="${component}"]`;
@@ -75,6 +76,7 @@ async function waitForFreshPage(page: HeadlessPage, pageUrl: string): Promise<vo
 async function openPendingMarkOnFreshPage(page: HeadlessPage, pageUrl: string): Promise<string> {
   await waitForFreshPage(page, pageUrl);
   await page.evaluate(INSTALL_FETCH);
+  await page.waitFor(COMMIT_MODE_ENABLED, WAIT_MS);
   await page.evaluate(COMMIT_MODE_CLICK);
   await page.evaluate(DISMISS_RUN_CONSENT);
   await page.evaluate(buildClickTick(TICK_LABELS.late));
