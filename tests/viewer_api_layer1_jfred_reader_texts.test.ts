@@ -175,3 +175,15 @@ test("test_next_changing_instant_skips_a_later_absent_commit_of_a_file_unknown_a
   // Every later commit is absent, so nothing changes.
   assert.equal(nextInstant, undefined);
 });
+
+test("test_next_changing_instant_ignores_a_lone_before_event_commit_whose_newer_state_is_unknown", (t) => {
+  // Scenario: a file is absent on disk now and has one before-event commit with text at second 200.
+  const fixture = makeFixture(t);
+  const file = new Path(join(fixture.projectFolder.toString(), "src/a.txt"));
+  makeRepo(getInverseRepoFolderForFile(fixture.storeFolder, fixture.projectFolder, file), "a.txt", undefined, [makeOrderedState(1, 200, StateMoment.BeforeEvent, "two\n")]);
+  const projectFile: ProjectFile = { file, transcriptFile: file };
+  // The mark is second 150, where the file is in neither texts nor absentPaths.
+  const nextInstant = findNextChangingInstantInRepos(fixture.projectFolder, fixture.storeFolder, [projectFile], makeInstant(150), new Map(), new Set());
+  // The text holds before second 200 and the state after it is unknown, so the reader gives no text at second 200 and nothing changes.
+  assert.equal(nextInstant, undefined);
+});
