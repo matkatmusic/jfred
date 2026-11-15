@@ -19,11 +19,12 @@ export const pythonWritePrimitive = new RegExp(
         "|\\b(?:exec|eval)\\s*\\(|__import__|writeFileSync|appendFileSync",
 );
 
-// A shell construct that writes files: a write-verb word, `sed -i`, `perl -pi`, or a redirect to a file path.
+// A shell construct that writes files: a write-verb word, `sed -i`, `perl -pi`, or a redirect to a file path (bare or quoted, never /dev/null).
 // ponytail: raw-text scan, same ceiling as pythonWritePrimitive — these tokens inside python strings, and float comparisons (`x > 0.5`), read as may-write. Accepted false may-writes (item-68 rule: narrow read-only, never widen); each costs only a wasted sandbox attempt.
 export const shellWritePrimitive = new RegExp(
   "\\b(?:mv|cp|rm|mkdir|touch|tee)\\b|(?<![\\w-])ln\\b|\\bsed[ \\t]+-i\\b|\\bperl[ \\t]+-[pnlaws]*i" +
-        "|>{1,2}[ \\t]*(?!/dev/null\\b)[\\w~-]*[./][\\w./~-]*",
+        "|>{1,2}[ \\t]*(?!/dev/null\\b)[\\w~-]*[./][\\w./~-]*" +
+        "|>{1,2}[ \\t]*[\"'](?!/dev/null[\"'])",
 );
 
 // A whole `import …` line: group 1 is everything after `import`. Use only with `.matchAll()`.
