@@ -7,6 +7,7 @@ import { openToast } from "../details-drawer/layer1-diff-pane-support.ts";
 import { moveOpenDetailsPane } from "../details-drawer/layer1-details-pane.ts";
 import { moveMiniMapToRulerEdge } from "../minimap/layer1-minimap-position.ts";
 import { toggleKindBox } from "../show-row/layer1-kind-filter.ts";
+import { isReverseOn, turnReverseOff } from "../top-bars/layer1-reverse-toggle.ts";
 import { repaintCutMarks } from "./layer1-cut-paint.ts";
 import { installCutMarkClick } from "./layer1-cut-marks.ts";
 import { refreshJfredStrip } from "./layer1-jfred-strip.ts";
@@ -68,6 +69,18 @@ async function toggleCommitMode(): Promise<void> {
     }
   }
   setArmed(!readJfredBranch().isArmed);
+  if (readJfredBranch().isArmed) {
+    if (isReverseOn())
+      turnReverseOff();
+    (getRequiredElementById("time-committer") as HTMLButtonElement).disabled = true;
+    (getRequiredElementById("time-author") as HTMLButtonElement).disabled = true;
+    (getRequiredElementById("reverse-toggle") as HTMLButtonElement).disabled = true;
+  }
+  else {
+    (getRequiredElementById("time-committer") as HTMLButtonElement).disabled = false;
+    (getRequiredElementById("time-author") as HTMLButtonElement).disabled = false;
+    (getRequiredElementById("reverse-toggle") as HTMLButtonElement).disabled = false;
+  }
   getRequiredElementById("commit-mode").classList.toggle("current", readJfredBranch().isArmed);
   getRequiredElementById("barsTimelineArea").classList.toggle("commitModeOn", readJfredBranch().isArmed);
   repaintCutMarks();
@@ -108,6 +121,9 @@ export function rememberJfredCommits(view: WireLayer1View): void {
   setCommitModeEnabled(false);
   if (readJfredBranch().isArmed) {
     setArmed(false);
+    (getRequiredElementById("time-committer") as HTMLButtonElement).disabled = false;
+    (getRequiredElementById("time-author") as HTMLButtonElement).disabled = false;
+    (getRequiredElementById("reverse-toggle") as HTMLButtonElement).disabled = false;
     getRequiredElementById("commit-mode").classList.remove("current");
     getRequiredElementById("barsTimelineArea").classList.remove("commitModeOn");
     repaintCutMarks();
