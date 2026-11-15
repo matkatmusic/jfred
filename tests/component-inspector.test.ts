@@ -79,14 +79,18 @@ test("test_entering_a_part_pushes_it_and_escape_pops_it", () => {
     assert.ok(!document.documentElement.classList.contains("ci-zoomed"));
 });
 
-test("test_entering_a_nested_part_requires_entering_its_parent_first", () => {
-    // Scenario: at the root, a click on Nav enters Page (its outermost tagged ancestor), not Nav.
+test("test_one_double_click_on_a_nested_part_enters_it_and_its_parent", () => {
+    // Scenario: at the root, one double click on Nav's text enters Page and then Nav; only Nav keeps the entered mark.
     startInspector();
     switchInspectorOn();
     doubleClickElement("navText");
-    assert.ok(document.getElementById("page")!.classList.contains("ci-entered"));
-    assert.ok(!document.getElementById("nav")!.classList.contains("ci-entered"));
-    // A second click now enters Nav.
+    // assert.ok(document.getElementById("page")!.classList.contains("ci-entered"));
+    assert.ok(!document.getElementById("page")!.classList.contains("ci-entered"));
+    // assert.ok(!document.getElementById("nav")!.classList.contains("ci-entered"));
+    assert.ok(document.getElementById("nav")!.classList.contains("ci-entered"));
+    // A second double click on the same text changes nothing.
+    // doubleClickElement("navText");
+    // assert.ok(document.getElementById("nav")!.classList.contains("ci-entered"));
     doubleClickElement("navText");
     assert.ok(document.getElementById("nav")!.classList.contains("ci-entered"));
 });
@@ -96,10 +100,12 @@ test("test_entering_a_nested_part_whites_out_its_siblings", () => {
     // Turn the inspector on.
     startInspector();
     switchInspectorOn();
-    // Enter the outer tagged part, Page.
+    // One double click enters Page and then Nav.
     doubleClickElement("navText");
-    // Enter the nested tagged child of Page, Nav.
-    doubleClickElement("navText");
+    // // Enter the outer tagged part, Page.
+    // doubleClickElement("navText");
+    // // Enter the nested tagged child of Page, Nav.
+    // doubleClickElement("navText");
     // Header is a sibling of Nav inside Page: it is hidden; Nav stays visible.
     assert.equal(window.getComputedStyle(document.getElementById("header")!).visibility, "hidden");
     assert.equal(window.getComputedStyle(document.getElementById("nav")!).visibility, "visible");
@@ -346,14 +352,15 @@ test("test_a_single_click_does_not_enter_the_part", () => {
 });
 
 test("test_a_double_click_enters_the_hovered_candidate", () => {
-    // Scenario: a double click enters the candidate, one level below the entered part.
+    // Scenario: a double click enters the part the hover box shows, with its parents below it in the stack.
     startInspector();
     switchInspectorOn();
-    // Hover the text inside Nav: the candidate is Page.
+    // Hover the text inside Nav: the hover box shows Nav.
     hoverElement("navText");
     doubleClickElement("navText");
-    // Page is entered and the page is zoomed.
-    assert.ok(document.getElementById("page")!.classList.contains("ci-entered"));
+    // Nav is entered and the page is zoomed.
+    // assert.ok(document.getElementById("page")!.classList.contains("ci-entered"));
+    assert.ok(document.getElementById("nav")!.classList.contains("ci-entered"));
     assert.ok(document.documentElement.classList.contains("ci-zoomed"));
 });
 
@@ -365,28 +372,34 @@ test("test_a_double_click_removes_the_lock", async () => {
     clickElement("navText");
     await flushPromises();
     assert.equal(readInfoRowText(), "Page.Nav (/abs/nav.html:7)");
-    // Enter Page with a double click.
+    // Enter Nav with a double click.
     doubleClickElement("navText");
     await flushPromises();
-    assert.equal(readInfoRowText(), "Page (/abs/nav.html:7)");
+    // assert.equal(readInfoRowText(), "Page (/abs/nav.html:7)");
+    assert.equal(readInfoRowText(), "Page.Nav (/abs/nav.html:7)");
 });
 
 test("test_escape_removes_the_lock_before_leaving_an_entered_part", async () => {
-    // Scenario: with Page entered and Nav locked, the first Escape unlocks and the second leaves Page.
+    // Scenario: with Nav entered and Nav locked, the first Escape unlocks, the second leaves Nav, the third leaves Page.
     startInspector();
     switchInspectorOn();
-    // Enter Page with a double click.
+    // Enter Nav (and Page below it) with a double click.
     doubleClickElement("navText");
     // Lock Nav with a single click.
     clickElement("navText");
     await flushPromises();
     assert.equal(readInfoRowText(), "Page.Nav (/abs/nav.html:7)");
-    // The first Escape removes the lock only: the row shows the stack top and Page stays entered.
+    // The first Escape removes the lock only: the row shows the stack top and Nav stays entered.
     pressEscape();
     await flushPromises();
-    assert.equal(readInfoRowText(), "Page (/abs/nav.html:7)");
+    // assert.equal(readInfoRowText(), "Page (/abs/nav.html:7)");
+    // assert.ok(document.getElementById("page")!.classList.contains("ci-entered"));
+    assert.equal(readInfoRowText(), "Page.Nav (/abs/nav.html:7)");
+    assert.ok(document.getElementById("nav")!.classList.contains("ci-entered"));
+    // The second Escape leaves Nav; Page is the entered part.
+    pressEscape();
     assert.ok(document.getElementById("page")!.classList.contains("ci-entered"));
-    // The second Escape leaves Page.
+    // The third Escape leaves Page.
     pressEscape();
     assert.equal(document.querySelector(".ci-entered"), null);
 });
@@ -414,4 +427,52 @@ test("test_copy_writes_the_locked_part_text", async () => {
     await flushPromises();
     await clickCopyAndFlushPromises();
     assert.deepEqual(copiedTexts, ["{ Nav, /abs/nav.html, 7, Page.Nav }"]);
+});
+
+const DEEP_PAGE = `
+    <div id="page" data-component="Page">
+        <div id="header" data-component="Header"><button id="toggle" data-component-inspector-toggle>names</button></div>
+        <div id="nav" data-component="Nav"><span id="navText" data-component="NavText"></span></div>
+        <div id="rows" data-component-inspector-rows></div>
+    </div>`;
+
+function startInspectorOnDeepPage(): void {
+    openPageWithMarkup(DEEP_PAGE);
+    installComponentInspector();
+}
+
+function readVisibility(id: string): string {
+    return window.getComputedStyle(document.getElementById(id)!).visibility;
+}
+
+test("test_one_double_click_enters_the_shown_part_and_whites_out_the_rest", async () => {
+    // Scenario: one double click on a deep part enters that part, and everything outside it is hidden.
+    // Turn the inspector on over a page with Page > (Header, Nav > NavText).
+    startInspectorOnDeepPage();
+    switchInspectorOn();
+    // Double-click NavText once.
+    doubleClickElement("navText");
+    await flushPromises();
+    // NavText is visible and Header is hidden.
+    assert.equal(readVisibility("navText"), "visible");
+    assert.equal(readVisibility("header"), "hidden");
+    // The info row names NavText.
+    assert.equal(readInfoRowText(), "Page.Nav.NavText (/abs/nav.html:7)");
+});
+
+test("test_escape_after_entering_a_deep_part_goes_up_one_level", async () => {
+    // Scenario: after one double click on a deep part, Escape makes its parent the entered part.
+    // Turn the inspector on and double-click NavText once.
+    startInspectorOnDeepPage();
+    switchInspectorOn();
+    doubleClickElement("navText");
+    // Press Escape once.
+    pressEscape();
+    await flushPromises();
+    // Nav is the entered part: Nav is visible and Header is hidden.
+    assert.ok(document.getElementById("nav")!.classList.contains("ci-entered"));
+    assert.equal(readVisibility("nav"), "visible");
+    assert.equal(readVisibility("header"), "hidden");
+    // The info row shows Nav's level.
+    assert.equal(readInfoRowText(), "Page.Nav (/abs/nav.html:7)");
 });

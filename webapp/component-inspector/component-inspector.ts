@@ -1,7 +1,7 @@
 // Component inspector: with the page's "names" switch on, hover and click walk the page one data-component level at a time.
 
 import { createElement } from "../app-dom.ts";
-import { buildCopyText, buildHierarchyText, ComponentSource, findHoverCandidate, readComponentName } from "./component-inspector-pick.ts";
+import { buildCopyText, buildHierarchyText, ComponentSource, findPartsToEnter, readComponentName } from "./component-inspector-pick.ts";
 
 const INSPECTOR_CSS = `
 .ci-own { font: 12px/1.3 system-ui, sans-serif; }
@@ -219,11 +219,10 @@ function lockDeepestPartOnClick(eventType: string, target: Element): void {
   }
 }
 
-function pushCandidateOnDoubleClick(eventType: string, target: Element): void {
+function pushShownPartOnDoubleClick(eventType: string, target: Element): void {
   if (eventType === "dblclick") {
-    const candidate = findHoverCandidate(target, readStackTop());
-    if (candidate !== null) {
-      pushEnteredPart(candidate);
+    for (const part of findPartsToEnter(target, readStackTop())) {
+      pushEnteredPart(part);
     }
   }
 }
@@ -236,7 +235,7 @@ function blockPageEvent(event: Event): void {
       event.preventDefault();
       event.stopPropagation();
       lockDeepestPartOnClick(event.type, target);
-      pushCandidateOnDoubleClick(event.type, target);
+      pushShownPartOnDoubleClick(event.type, target);
     }
   }
 }

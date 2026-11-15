@@ -28,6 +28,23 @@ export function findHoverCandidate(target: Element | null, stackTop: Element | n
   return null;
 }
 
+// The tagged parts from just inside `stackTop` down to the part under `target`, outermost first; empty when that part is not inside `stackTop`.
+export function findPartsToEnter(target: Element | null, stackTop: Element | null): Element[] {
+  const partsToEnter: Element[] = [];
+  let part: Element | null = target?.closest(TAGGED_SELECTOR) ?? null;
+  while (part !== null) {
+    if (part === stackTop) {
+      return partsToEnter;
+    }
+    partsToEnter.unshift(part);
+    part = findNearestTaggedAncestor(part);
+  }
+  if (stackTop === null) {
+    return partsToEnter;
+  }
+  return [];
+}
+
 // Names of all tagged ancestors-or-self, outermost first, joined by ".".
 export function buildHierarchyText(part: Element): string {
   const names: string[] = [];
