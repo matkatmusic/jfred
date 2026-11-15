@@ -17,17 +17,45 @@ export type BarRowElements = {
 };
 export type BarModelRowOptions = { selectedRowIndex: number; isPlaceholder: boolean; isFolded: boolean; rightText: string };
 
-function buildDiv(className: string, extraAttributes: Record<string, string> = {}): HTMLElement {
-    const firstClassName = className.split(" ")[0] as string;
-    return createElement("div", { class: className, "data-component": firstClassName, ...extraAttributes });
+function buildDiv(className: string, componentTag: { "data-component": string }): HTMLElement {
+    return createElement("div", { class: className, ...componentTag });
+}
+
+function buildBarsFillDiv(): HTMLElement {
+    return buildDiv("barsFill", { "data-component": "barsFill" });
+}
+
+function buildFileReconstructionProgressBarDiv(): HTMLElement {
+    return buildDiv("FileReconstructionProgressBar", { "data-component": "FileReconstructionProgressBar" });
+}
+
+function buildProjectLifetimeBarDiv(): HTMLElement {
+    return buildDiv("ProjectLifetimeBar", { "data-component": "ProjectLifetimeBar" });
+}
+
+function buildBarsColLeftDiv(): HTMLElement {
+    return buildDiv("barsColLeft", { "data-component": "barsColLeft" });
+}
+
+function buildBarsColMidDiv(): HTMLElement {
+    return buildDiv("barsColMid", { "data-component": "barsColMid" });
+}
+
+function buildBarsColRightDiv(): HTMLElement {
+    return buildDiv("barsColRight", { "data-component": "barsColRight" });
+}
+
+function buildBarsFileRowDiv(isFolded: boolean): HTMLElement {
+    const className = isFolded ? "barsFileRow barsFoldedRow" : "barsFileRow";
+    return buildDiv(className, { "data-component": "barsFileRow" });
 }
 
 function buildMarkElement(mark: BarRowMark): HTMLElement {
-    return buildDiv("barsMark " + mark);
+    return buildDiv("barsMark " + mark, { "data-component": "barsMark" });
 }
 
 function buildPathElement(path: string, fileIndex: number | undefined): HTMLElement {
-    const pathElement = buildDiv("barsFilePath");
+    const pathElement = buildDiv("barsFilePath", { "data-component": "barsFilePath" });
     pathElement.textContent = path;
     pathElement.title = path;
     if (fileIndex !== undefined) {
@@ -49,7 +77,7 @@ function buildBarDot(dot: BarDotModel, fileIndex: number, dotIndex: number, rule
     if (isPlaceholder) {
         className += " dotPlaceholder";
     }
-    const dotElement = buildDiv(className);
+    const dotElement = buildDiv(className, { "data-component": "BarDot" });
     dotElement.style.left = computeBarPercent(dot.rowIndex, rulerRows.length) + "%";
     dotElement.title = BAR_DOT_LABELS[dot.kind] + "  " + formatRowText(rulerRows, dot.rowIndex);
     dotElement.dataset.fileIndex = String(fileIndex);
@@ -60,7 +88,7 @@ function buildBarDot(dot: BarDotModel, fileIndex: number, dotIndex: number, rule
 
 function buildHistoryBlock(change: BarDotModel, model: BarFileModel, rulerRows: readonly RulerRow[]): HTMLElement {
     const barSpanRows = Math.max(model.bornRowIndex - model.startRowIndex, 1);
-    const blockElement = buildDiv("barsHistoryBlock hb-" + change.kind);
+    const blockElement = buildDiv("barsHistoryBlock hb-" + change.kind, { "data-component": "barsHistoryBlock" });
     blockElement.style.left = ((change.rowIndex - model.startRowIndex) / barSpanRows) * 100 + "%";
     blockElement.style.width = 100 / barSpanRows + "%";
     blockElement.style.setProperty("--blockOpacity", String(change.alpha));
@@ -73,11 +101,11 @@ function buildMarkSign(mark: BarMarkModel, rulerRows: readonly RulerRow[]): HTML
     const rowText = formatRowText(rulerRows, mark.rowIndex);
     let signElement: HTMLElement;
     if (mark.kind === BarMarkKind.removed) {
-        signElement = buildDiv("barsMinusSign");
+        signElement = buildDiv("barsMinusSign", { "data-component": "barsMinusSign" });
         signElement.textContent = "-";
         signElement.title = "removed  " + rowText;
     } else {
-        signElement = buildDiv("barsMovedAwaySign");
+        signElement = buildDiv("barsMovedAwaySign", { "data-component": "barsMovedAwaySign" });
         signElement.textContent = "←";
         signElement.title = `moved away to ${mark.movedAwayTo}  ${rowText}`;
     }
@@ -86,7 +114,7 @@ function buildMarkSign(mark: BarMarkModel, rulerRows: readonly RulerRow[]): HTML
 }
 
 function buildPlusSign(model: BarFileModel, rowCount: number): HTMLElement {
-    const plusSign = buildDiv("barsPlusSign");
+    const plusSign = buildDiv("barsPlusSign", { "data-component": "barsPlusSign" });
     plusSign.textContent = "+";
     plusSign.style.left = computeBarPercent(model.bornRowIndex, rowCount) + "%";
     return plusSign;
@@ -96,21 +124,21 @@ function buildPlusSign(model: BarFileModel, rowCount: number): HTMLElement {
 export function buildStreamBarRow(path: string): BarRowElements {
     const markElement = buildMarkElement(BarRowMark.waiting);
     const pathElement = buildPathElement(path, undefined);
-    const fillElement = buildDiv("barsFill");
+    const fillElement = buildBarsFillDiv();
     fillElement.style.width = "0%";
-    const progressBarElement = buildDiv("FileReconstructionProgressBar");
+    const progressBarElement = buildFileReconstructionProgressBarDiv();
     progressBarElement.style.left = "0%";
     progressBarElement.style.width = "100%";
     progressBarElement.append(fillElement);
-    const lifetimeBar = buildDiv("ProjectLifetimeBar");
+    const lifetimeBar = buildProjectLifetimeBarDiv();
     lifetimeBar.append(progressBarElement);
-    const rightElement = buildDiv("barsColRight");
+    const rightElement = buildBarsColRightDiv();
     rightElement.textContent = "waiting";
-    const leftColumn = buildDiv("barsColLeft");
+    const leftColumn = buildBarsColLeftDiv();
     leftColumn.append(markElement, pathElement);
-    const midColumn = buildDiv("barsColMid");
+    const midColumn = buildBarsColMidDiv();
     midColumn.append(lifetimeBar);
-    const rowElement = buildDiv("barsFileRow");
+    const rowElement = buildBarsFileRowDiv(false);
     rowElement.append(leftColumn, midColumn, rightElement);
     return { rowElement, markElement, pathElement, progressBarElement, fillElement, rightElement };
 }
@@ -120,20 +148,20 @@ export function buildModelBarRow(model: BarFileModel, fileIndex: number, rulerRo
     const rowCount = rulerRows.length;
     const markElement = buildMarkElement(options.isFolded ? BarRowMark.waiting : BarRowMark.done);
     const pathElement = buildPathElement(model.path, fileIndex);
-    const leftColumn = buildDiv("barsColLeft");
+    const leftColumn = buildBarsColLeftDiv();
     leftColumn.append(markElement, pathElement);
 
     const startPercent = computeBarPercent(model.startRowIndex, rowCount);
-    const progressBarElement = buildDiv("FileReconstructionProgressBar");
+    const progressBarElement = buildFileReconstructionProgressBarDiv();
     progressBarElement.style.left = startPercent + "%";
     progressBarElement.style.width = computeBarPercent(model.bornRowIndex, rowCount) - startPercent + "%";
-    const fillElement = buildDiv("barsFill");
+    const fillElement = buildBarsFillDiv();
     fillElement.style.width = "0%";
     progressBarElement.append(fillElement);
     for (const change of model.changes) {
         progressBarElement.append(buildHistoryBlock(change, model, rulerRows));
     }
-    const lifetimeBar = buildDiv("ProjectLifetimeBar");
+    const lifetimeBar = buildProjectLifetimeBarDiv();
     lifetimeBar.append(progressBarElement);
     if (model.isPlusShown) {
         lifetimeBar.append(buildPlusSign(model, rowCount));
@@ -142,18 +170,18 @@ export function buildModelBarRow(model: BarFileModel, fileIndex: number, rulerRo
         lifetimeBar.append(buildMarkSign(mark, rulerRows));
     }
 
-    const dotStrip = buildDiv("barsDotStrip");
+    const dotStrip = buildDiv("barsDotStrip", { "data-component": "barsDotStrip" });
     for (const [dotIndex, dot] of model.dots.entries()) {
         dotStrip.append(buildBarDot(dot, fileIndex, dotIndex, rulerRows, options.isPlaceholder));
     }
     // const targetElement = buildDiv("barsTargetSegment");
     // targetElement.style.left = computeBarPercent(options.selectedRowIndex, rowCount) + "%";
-    const midColumn = buildDiv("barsColMid");
+    const midColumn = buildBarsColMidDiv();
     midColumn.append(lifetimeBar, dotStrip);
 
-    const rightElement = buildDiv("barsColRight");
+    const rightElement = buildBarsColRightDiv();
     rightElement.textContent = options.rightText;
-    const rowElement = buildDiv(options.isFolded ? "barsFileRow barsFoldedRow" : "barsFileRow");
+    const rowElement = buildBarsFileRowDiv(options.isFolded);
     rowElement.append(leftColumn, midColumn, rightElement);
     return { rowElement, markElement, pathElement, progressBarElement, fillElement, rightElement };
 }
