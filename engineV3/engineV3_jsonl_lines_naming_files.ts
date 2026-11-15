@@ -10,7 +10,7 @@ import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
 import type { JSONLLine } from "./engineV3.ts";
 import { CWD_KEY_TEXT, KNOWN_RECORD_TYPE_SET, countNewlinesBefore, type LineSpan } from "./engineV3_replay_reverse.ts";
 
-const ERRORED_RESULT_KEY_TEXT = '"is_error":true';
+export const ERRORED_RESULT_KEY_TEXT = '"is_error":true';
 
 function readTranscriptBytesFromDisk(transcriptFile: Path): Buffer {
     return readFileSync(transcriptFile.toString());

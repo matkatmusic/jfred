@@ -14,6 +14,7 @@ import { collectErroredToolUseIds } from "../src/structures/tool-results.ts";
 import { KNOWN_RECORD_TYPES, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import { executeGit, type CommitHash, type JSONLLine } from "./engineV3.ts";
 import { loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
+import { ERRORED_RESULT_KEY_TEXT } from "./engineV3_jsonl_lines_naming_files.ts";
 import { collectWriteEditResultLines } from "./engineV3_replay_tool_results.ts";
 import type { ReverseSettings } from "./engineV3_replay_settings.ts";
 import { getReverseStatesForFile } from "./engineV3_replay_reverse_events.ts";
@@ -594,13 +595,20 @@ function listRecordsNamingText(transcriptFile: Path, needleText: string): JSONLL
   return records;
 }
 
-// A Write/Edit call and its result both carry the file path, so every line the walk needs holds the file's base name.
+// A Write/Edit call and its result both carry the file path, so every line the walk needs holds the file's base name. An error result names no file, so its line is added too.
 export function loadJSONLLinesNamingFile(file: Path, jsonlsFolders: Path[]): JSONLLine[] {
   const needleText = JSON.stringify(basename(file.toString())).slice(1, -1);
   const recordLists: JSONLLine[][] = [];
   for (const transcriptFile of listTranscriptFiles(jsonlsFolders.map((jsonlsFolder) => jsonlsFolder.toString()))) {
     const records = listRecordsNamingText(transcriptFile, needleText);
     if (records.length > 0) {
+      const knownLineNumbers = new Set(records.map((record) => getRecordSource(record)!.lineNumber));
+      for (const erroredRecord of listRecordsNamingText(transcriptFile, ERRORED_RESULT_KEY_TEXT)) {
+        if (!knownLineNumbers.has(getRecordSource(erroredRecord)!.lineNumber)) {
+          records.push(erroredRecord);
+        }
+      }
+      records.sort((leftRecord, rightRecord) => getRecordSource(leftRecord)!.lineNumber - getRecordSource(rightRecord)!.lineNumber);
       recordLists.push(records);
     }
   }
