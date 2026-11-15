@@ -182,3 +182,13 @@ test("test_the_header_clear_button_posts_to_clear_results_and_reloads_the_view",
     assert.deepEqual(requestedPaths.slice(0, 1), ["/api/layer1-clear-results"]);
     assert.ok(requestedPaths.includes("/api/layer1-view"));
 });
+
+test("test_page_enables_commit_mode_when_the_bars_history_load_ends", async () => {
+    // Steps: load the page on a real view with a commit list; the stubbed history load ends with an empty result line.
+    await loadPageWithView({ ...EMPTY_VIEW, jfredCommits: { commits: [] } }, BOTH_ROOTS_SEARCH);
+    await waitForAsyncWork();
+    // The button was shown disabled by the render, and the callback of the Bars view then enabled it.
+    const commitModeButton = document.getElementById("commit-mode") as HTMLButtonElement;
+    assert.equal(commitModeButton.hidden, false);
+    assert.equal(commitModeButton.disabled, false);
+});

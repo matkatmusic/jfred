@@ -8,6 +8,7 @@ import { initLayer1Dom, waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
 initLayer1Dom();
 const { renderLayer1View } = await import("../webapp/layer1-view-render.ts");
 const { appendCommit, deleteJfredBranch, readJfredBranch, setArmed } = await import("../webapp/layer1-components/commits-column/layer1-jfred-state.ts");
+const { handleBarsHistoryLoaded } = await import("../webapp/layer1-components/commits-column/layer1-jfred-mode.ts");
 const { setCachedProjectSettings } = await import("../webapp/layer1-settings.ts");
 const { moveDetailsPaneToRightEdge } = await import("../webapp/layer1-components/details-drawer/layer1-details-pane.ts");
 
@@ -34,6 +35,15 @@ const LOADER_PATHNAMES = ["/api/layer1-edits", "/api/layer1-script-runs", "/api/
 
 function getButton(): HTMLButtonElement {
   return document.getElementById("commit-mode") as HTMLButtonElement;
+}
+
+function readDirValue(): string {
+  return (document.getElementById("dir") as HTMLInputElement).value.trim();
+}
+
+// Stands in for the end of the change history load of the loaded project.
+function enableCommitModeForLoadedProject(): void {
+  handleBarsHistoryLoaded(readDirValue());
 }
 
 function buildEmptyStreamResponse(pathname: string): Response {
@@ -114,6 +124,7 @@ test("test_the_click_draws_the_strip_and_a_second_click_removes_it", async () =>
   installLoaderRoutes();
   setArmed(false);
   await renderLayer1View(CANNED_VIEW as never);
+  enableCommitModeForLoadedProject();
   getButton().click();
   await waitUntil(() => readJfredBranch().isArmed);
   assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jnode").length, 3);
@@ -128,6 +139,7 @@ test("test_the_button_toggles_current_and_the_armed_state", async () => {
   installLoaderRoutes();
   setArmed(false);
   await renderLayer1View(CANNED_VIEW as never);
+  enableCommitModeForLoadedProject();
   getButton().click();
   await waitUntil(() => readJfredBranch().isArmed);
   assert.equal(readJfredBranch().isArmed, true);
@@ -149,6 +161,7 @@ test("test_the_commit_mode_button_moves_the_minimap", async () => {
   const fullRect = { left: 0, right: 321, top: 0, bottom: 0, width: 321, height: 0, x: 0, y: 0, toJSON() { return {}; } };
   Object.defineProperty(rulerContainer, "getBoundingClientRect", { configurable: true, value: () => fullRect });
   // Click the button and wait for commit mode to turn on.
+  enableCommitModeForLoadedProject();
   getButton().click();
   await waitUntil(() => readJfredBranch().isArmed);
   // The minimap left edge is the ruler container edge.
@@ -183,6 +196,7 @@ test("test_an_open_details_pane_gets_narrower_when_the_commits_drawer_goes_on", 
     moveDetailsPaneToRightEdge();
     assert.equal(pane.style.width, "350px");
     // Turning commit mode on re-places the open pane: 35% of (1200 - 304).
+    enableCommitModeForLoadedProject();
     getButton().click();
     await waitUntil(() => readJfredBranch().isArmed);
     assert.equal(pane.style.width, "313.6px");
@@ -198,8 +212,12 @@ test("test_a_second_render_keeps_the_fake_commits", async () => {
   // Verify: a later render with the same wire view must not reload the canned branch.
   initLayer1Dom();
   appendCommit({ instant: "2026-06-03T18:20:00.000Z", shortHash: "c0ffee03", parentShortHash: "c0ffee02", message: "three" });
-  setArmed(true);
+  installLoaderRoutes();
+  setArmed(false);
   await renderLayer1View(CANNED_VIEW as never);
+  enableCommitModeForLoadedProject();
+  getButton().click();
+  await waitUntil(() => readJfredBranch().isArmed);
   assert.equal(readJfredBranch().commits.length, 3);
   assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jnode").length, 4);
 });
@@ -253,6 +271,7 @@ test("test_real_view_reload_restores_the_base_from_the_saved_hash_when_the_serve
   seedSavedHash(PROJECT_DIR, SAVED_HASH);
   await renderLayer1View(buildRealViewWithSavedCommit({ commits: [] }));
   assert.deepEqual(readJfredBranch().base, { instant: SAVED_COMMIT_INSTANT, shortHash: SAVED_HASH.slice(0, 8) });
+  enableCommitModeForLoadedProject();
   getButton().click();
   await waitUntil(() => readJfredBranch().isArmed);
   assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jnode.j-base").length, 1);
@@ -286,4 +305,96 @@ test("test_real_view_reload_ignores_a_saved_hash_for_another_project_folder", as
   await renderLayer1View(buildRealViewWithSavedCommit({ commits: [] }));
   assert.equal(readJfredBranch().base, undefined);
   assert.deepEqual(posted, []);
+});
+
+test("test_commit_mode_button_is_disabled_before_the_history_load_result", async () => {
+  // Verify: a render shows the button, and it cannot be clicked until the history load ends.
+  initLayer1Dom();
+  setArmed(false);
+  await renderLayer1View(CANNED_VIEW as never);
+  assert.equal(getButton().hidden, false);
+  assert.equal(getButton().disabled, true);
+});
+
+test("test_click_on_the_disabled_commit_mode_button_arms_nothing", async () => {
+  // Verify: a click on the disabled button does not run the toggle.
+  initLayer1Dom();
+  installLoaderRoutes();
+  setArmed(false);
+  await renderLayer1View(CANNED_VIEW as never);
+  getButton().click();
+  await waitUntil(() => readJfredBranch().isArmed);
+  assert.equal(readJfredBranch().isArmed, false);
+});
+
+test("test_commit_mode_button_is_enabled_after_the_result_for_the_loaded_project", async () => {
+  // Verify: the result for the project in the dir box enables the button.
+  initLayer1Dom();
+  setArmed(false);
+  (document.getElementById("dir") as HTMLInputElement).value = PROJECT_DIR;
+  await renderLayer1View(CANNED_VIEW as never);
+  handleBarsHistoryLoaded(PROJECT_DIR);
+  assert.equal(getButton().disabled, false);
+});
+
+test("test_result_for_another_project_leaves_the_button_disabled", async () => {
+  // Verify: a result for a project that is not in the dir box changes nothing.
+  initLayer1Dom();
+  setArmed(false);
+  (document.getElementById("dir") as HTMLInputElement).value = PROJECT_DIR;
+  await renderLayer1View(CANNED_VIEW as never);
+  handleBarsHistoryLoaded("/work/other-project");
+  assert.equal(getButton().disabled, true);
+});
+
+test("test_failed_history_load_keeps_the_button_disabled", async () => {
+  // Verify: no result call after a render means the button stays disabled.
+  initLayer1Dom();
+  setArmed(false);
+  (document.getElementById("dir") as HTMLInputElement).value = PROJECT_DIR;
+  await renderLayer1View(CANNED_VIEW as never);
+  await waitForAsyncWork();
+  assert.equal(getButton().disabled, true);
+});
+
+test("test_new_project_load_disables_the_button_again", async () => {
+  // Verify: the next render is a new project load, so the enabled button goes back to disabled.
+  initLayer1Dom();
+  setArmed(false);
+  (document.getElementById("dir") as HTMLInputElement).value = PROJECT_DIR;
+  await renderLayer1View(CANNED_VIEW as never);
+  handleBarsHistoryLoaded(PROJECT_DIR);
+  assert.equal(getButton().disabled, false);
+  await renderLayer1View(CANNED_VIEW as never);
+  assert.equal(getButton().disabled, true);
+});
+
+test("test_new_project_load_disarms_commit_mode", async () => {
+  // Verify: the next render turns Commit mode off and removes the class current from the button.
+  initLayer1Dom();
+  installLoaderRoutes();
+  setArmed(false);
+  await renderLayer1View(CANNED_VIEW as never);
+  enableCommitModeForLoadedProject();
+  getButton().click();
+  await waitUntil(() => readJfredBranch().isArmed);
+  assert.equal(getButton().classList.contains("current"), true);
+  await renderLayer1View(CANNED_VIEW as never);
+  assert.equal(readJfredBranch().isArmed, false);
+  assert.equal(getButton().classList.contains("current"), false);
+});
+
+test("test_new_project_load_removes_the_commit_mode_on_class", async () => {
+  // Verify: the next render removes the class commitModeOn from the Bars timeline area.
+  initLayer1Dom();
+  installLoaderRoutes();
+  setArmed(false);
+  await renderLayer1View(CANNED_VIEW as never);
+  enableCommitModeForLoadedProject();
+  getButton().click();
+  await waitUntil(() => readJfredBranch().isArmed);
+  const timelineArea = document.getElementById("barsTimelineArea") as HTMLElement;
+  assert.equal(timelineArea.classList.contains("commitModeOn"), true);
+  await renderLayer1View(CANNED_VIEW as never);
+  assert.equal(timelineArea.classList.contains("commitModeOn"), false);
 });

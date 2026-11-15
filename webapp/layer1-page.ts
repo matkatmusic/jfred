@@ -30,6 +30,8 @@ import { installProjectSettingsToggle } from "./layer1-components/top-bars/layer
 import { isReverseOn, installReverseToggle, turnReverseOff } from "./layer1-components/top-bars/layer1-reverse-toggle.ts";
 import { installBarsViewSlider, isBarsViewOn, registerBarsViewModeChange } from "./layer1-components/bars-view/layer1-bars-mode.ts";
 import { installBarsView, loadBarsViewIfNeeded, refreshBarsAfterRulerRedrawIfNeeded } from "./layer1-components/bars-view/layer1-bars-view.ts";
+import { registerBarsHistoryLoadedCallback } from "./layer1-components/bars-view/layer1-bars-load.ts";
+import { handleBarsHistoryLoaded } from "./layer1-components/commits-column/layer1-jfred-mode.ts";
 import { repaintCutMarks } from "./layer1-components/commits-column/layer1-cut-paint.ts";
 import { refreshJfredStrip } from "./layer1-components/commits-column/layer1-jfred-strip.ts";
 import { installReverseModifyingToggle } from "./layer1-components/top-bars/layer1-reverse-modifying-toggle.ts";
@@ -177,6 +179,7 @@ function attachViewControls(): void {
   initFindFileBox();
   installBarsViewSlider();
   installBarsView();
+  registerBarsHistoryLoadedCallback(handleBarsHistoryLoaded);
   registerBarsViewModeChange(loadBarsViewInBackground);
 }
 
