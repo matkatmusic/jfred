@@ -165,7 +165,7 @@ function writeStateCommit(repoFolder: Path, fileName: string, orderedState: Orde
   const { state, position } = orderedState;
   let messageInstant: Date | undefined = commitInstant;
   if (state.event.type === FileEventType.DiskNow) {
-    messageInstant = undefined;
+    messageInstant = state.event.instant;
   }
   const treeHash = writeStateTree(repoFolder, fileName, state);
   const message = formatCommitMessage(state, position, messageInstant);

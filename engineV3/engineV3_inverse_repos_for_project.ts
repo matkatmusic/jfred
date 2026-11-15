@@ -21,10 +21,10 @@ import { buildReplayGapsSidecar, isReplayGapsSidecarPresent, writeReplayGapsSide
 export type FileInverseRepoResult = { file: Path; repoFolder: Path; eventCount: number; stateCount: number; commitCount: number; unknownStateCount: number; wasReused: boolean };
 
 // The inputs a repo was built from: the bytes on disk, the log path of the file, and the log files with size and modified time.
-type InverseRepoStampInputs = { diskBytesHash: string; transcriptFile: string; logFilesHash: string; formatVersion: number };
+type InverseRepoStampInputs = { diskBytesHash: string; diskModifiedMilliseconds: number | null; transcriptFile: string; logFilesHash: string; formatVersion: number };
 type InverseRepoStamp = { inputs: InverseRepoStampInputs; eventCount: number; stateCount: number; commitCount: number; unknownStateCount: number };
 
-export const INVERSE_REPO_FORMAT_VERSION = 2;
+export const INVERSE_REPO_FORMAT_VERSION = 3;
 const STAMP_FILE_NAME = "jfred-stamp.json";
 const ABSENT_DISK_BYTES_HASH = "absent";
 
@@ -100,6 +100,13 @@ function getDiskBytesHash(file: Path): string {
     return hashText(readFileSync(file.toString()));
 }
 
+function getDiskModifiedInstant(file: Path): Date | undefined {
+    if (!existsSync(file.toString())) {
+        return undefined;
+    }
+    return statSync(file.toString()).mtime;
+}
+
 // Log files only grow when new lines arrive, so their size and modified time change with every new line of the project.
 function getLogFilesHash(jsonlsFolders: Path[]): string {
     const logFileLines = listTranscriptFiles(jsonlsFolders.map((jsonlsFolder) => jsonlsFolder.toString())).map((logFile) => {
@@ -123,9 +130,11 @@ function writeInverseRepoStamp(repoFolder: Path, stamp: InverseRepoStamp): void 
 
 function isStampBuiltFromInputs(stamp: InverseRepoStamp, inputs: InverseRepoStampInputs): boolean {
     if (stamp.inputs.diskBytesHash === inputs.diskBytesHash) {
-        if (stamp.inputs.transcriptFile === inputs.transcriptFile) {
-            if (stamp.inputs.logFilesHash === inputs.logFilesHash) {
-                return stamp.inputs.formatVersion === inputs.formatVersion;
+        if (stamp.inputs.diskModifiedMilliseconds === inputs.diskModifiedMilliseconds) {
+            if (stamp.inputs.transcriptFile === inputs.transcriptFile) {
+                if (stamp.inputs.logFilesHash === inputs.logFilesHash) {
+                    return stamp.inputs.formatVersion === inputs.formatVersion;
+                }
             }
         }
     }
@@ -177,7 +186,8 @@ export function buildInverseReposForFiles(projectFolder: Path, projectFiles: Pro
     const results: FileInverseRepoResult[] = [];
     for (const [index, { file, transcriptFile }] of projectFiles.entries()) {
         const repoFolder = repoFolders[index]!;
-        const inputs: InverseRepoStampInputs = { diskBytesHash: getDiskBytesHash(file), transcriptFile: transcriptFile.toString(), logFilesHash, formatVersion: INVERSE_REPO_FORMAT_VERSION };
+        const diskModifiedInstant = getDiskModifiedInstant(file);
+        const inputs: InverseRepoStampInputs = { diskBytesHash: getDiskBytesHash(file), diskModifiedMilliseconds: diskModifiedInstant === undefined ? null : diskModifiedInstant.getTime(), transcriptFile: transcriptFile.toString(), logFilesHash, formatVersion: INVERSE_REPO_FORMAT_VERSION };
         const existingStamp = readInverseRepoStamp(repoFolder);
         const relativeFile = getRelativePathInProject(projectFolder, file);
         const projectRelativeFile = relativeFile.split(sep).join("/");
@@ -202,7 +212,9 @@ export function buildInverseReposForFiles(projectFolder: Path, projectFiles: Pro
                 fileStepsDone += 1;
                 reportProgress({ kind: DocumentResponseKind.progress, label: relativeFile, file: projectRelativeFile, fileStepsDone, fileStepsTotal: commitCount });
             };
-            buildInverseRepoByEventKind(repoFolder, basename(file.toString()), states, diskNowInstant, reportStepDone);
+            const diskNowState = states[0]!;
+            const statesWithDiskNowInstant = [{ ...diskNowState, event: { ...diskNowState.event, instant: diskModifiedInstant } }, ...states.slice(1)];
+            buildInverseRepoByEventKind(repoFolder, basename(file.toString()), statesWithDiskNowInstant, diskNowInstant, reportStepDone);
             writeReplayGapsSidecar(repoFolder, buildReplayGapsSidecar(states));
             result = { file, repoFolder, eventCount: events.length, stateCount: states.length, commitCount, unknownStateCount, wasReused: false };
             writeInverseRepoStamp(repoFolder, { inputs, eventCount: result.eventCount, stateCount: result.stateCount, commitCount: result.commitCount, unknownStateCount });

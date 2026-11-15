@@ -14,9 +14,9 @@ function readBarsMarkup(): string {
     return readBarsPartMarkup("bars-view-slider.html") + readBarsPartMarkup("bars-view.html");
 }
 
-// Defaults: commitHash "c0", treeHash "t0", eventType "GitCommit", moment "at-event", confidence "proven", position 0, instant TEST_INSTANT_NEWEST, isFileAbsent false, isRemoved false, movedAwayTo null.
+// Defaults: commitHash "c0", treeHash "t0", eventType "GitCommit", moment "at-event", confidence "proven", position 0, instant TEST_INSTANT_NEWEST, readerInstant = instant, isFileAbsent false, isRemoved false, movedAwayTo null.
 export function buildInverseCommit(overrides: Partial<InverseCommitWire> = {}): InverseCommitWire {
-    return {
+    const commit: InverseCommitWire = {
         commitHash: "c0",
         treeHash: "t0",
         eventType: "GitCommit",
@@ -24,20 +24,25 @@ export function buildInverseCommit(overrides: Partial<InverseCommitWire> = {}): 
         confidence: "proven",
         position: 0,
         instant: TEST_INSTANT_NEWEST,
+        readerInstant: null,
         isFileAbsent: false,
         isRemoved: false,
         movedAwayTo: null,
         ...overrides,
     };
+    if (overrides.readerInstant === undefined) {
+        commit.readerInstant = commit.instant;
+    }
+    return commit;
 }
 
 export function buildInverseFile(file: string, commits: InverseCommitWire[]): InverseRepoFileWire {
     return { file, commits };
 }
 
-// A DiskNow commit: eventType "DiskNow", position 0, instant null. Pass { isFileAbsent: true } for a deleted file.
+// A DiskNow commit: eventType "DiskNow", position 0, instant null, readerInstant null unless given. Pass { isFileAbsent: true } for a deleted file.
 export function buildDiskNowCommit(overrides: Partial<InverseCommitWire> = {}): InverseCommitWire {
-    return buildInverseCommit({ eventType: "DiskNow", position: 0, instant: null, ...overrides });
+    return buildInverseCommit({ eventType: "DiskNow", position: 0, instant: null, readerInstant: null, ...overrides });
 }
 
 // Installs a bare happy-dom window (globals window, document, location, HTMLElement) whose body holds the two part files.
