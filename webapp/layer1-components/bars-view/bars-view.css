@@ -6,6 +6,10 @@
     vertical-align: middle;
 }
 
+#barsViewSliderInput {
+    width: 54px;
+}
+
 .barsViewComponent {
     display: none;
 }
