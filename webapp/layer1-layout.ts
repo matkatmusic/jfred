@@ -74,6 +74,7 @@ export function buildLayer1Layout(): void {
     canvasBox.add(getRequiredElementById("ranges"));
     canvasBox.add(timelineRulerContainerBox);
     canvasBox.add(fileBubbleContainerBox);
+    canvasBox.add(getRequiredElementById("barsViewComponent"), { grow: 1 });
     // Step 22: the details pane floats over the bubbles, so it lives inside their container.
     fileBubbleContainerBox.add(getRequiredElementById("detailsPaneContainer"));
     timelineContainerBox.add(canvasBox);

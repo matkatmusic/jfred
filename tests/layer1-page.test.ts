@@ -129,7 +129,8 @@ test("test_a_file_name_label_shows_the_basename_and_reveals_the_full_path_on_hov
     assert.equal(findBucketTitled("No repository match")?.getAttribute("data-path"), null);
 });
 
-const EMPTY_VIEW = { pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] };
+// One ruler tick, because the Bars load that follows every render needs a ruler row.
+const EMPTY_VIEW = { pairs: [], gitOrphans: [], diskOrphans: [], ruler: [{ instant: "2026-06-01T09:00:00.000Z", axisPx: 10, eventCount: 1 }] };
 
 function readStepRowTexts(hostId: string): string[] {
     return listMatching(`#${hostId} .step-row`).map((row) => row.textContent ?? "");

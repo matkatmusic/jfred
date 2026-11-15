@@ -11,7 +11,8 @@ const { appendCommit, deleteJfredBranch, readJfredBranch, setArmed } = await imp
 const { setCachedProjectSettings } = await import("../webapp/layer1-settings.ts");
 const { moveDetailsPaneToRightEdge } = await import("../webapp/layer1-components/details-drawer/layer1-details-pane.ts");
 
-const REAL_VIEW = { pairs: [], gitOrphans: [], diskOrphans: [], ruler: [] };
+// One ruler tick, because the Bars load that follows every render needs a ruler row.
+const REAL_VIEW = { pairs: [], gitOrphans: [], diskOrphans: [], ruler: [{ instant: "2026-06-01T09:00:00.000Z", axisPx: 10, eventCount: 1 }] };
 const CANNED_VIEW = {
   ...REAL_VIEW,
   jfredCommits: {
@@ -36,7 +37,7 @@ function getButton(): HTMLButtonElement {
 }
 
 function buildEmptyStreamResponse(pathname: string): Response {
-  const reply = pathname === "/api/layer1-script-runs" ? { pairs: [], results: [] } : { pairs: [] };
+  const reply = pathname === "/api/layer1-script-runs" ? { pairs: [], results: [] } : pathname === "/api/layer1-inverse-repos" ? { files: [] } : { pairs: [] };
   const encoded = new TextEncoder().encode(JSON.stringify(reply) + "\n");
   const body = new ReadableStream({
     start(controller) {
@@ -56,6 +57,8 @@ function installLoaderRoutes(): { pathname: string; body: unknown }[] {
       posted.push({ pathname, body: JSON.parse(String(init.body)) });
       return { ok: true, status: 200, text: async () => "" } as unknown as Response;
     }
+    if (pathname === "/api/layer1-inverse-repos")
+      return buildEmptyStreamResponse(pathname);
     if (LOADER_PATHNAMES.includes(pathname))
       return buildEmptyStreamResponse(pathname);
     return { ok: false, status: 404, text: async () => `not stubbed ${pathname}` } as unknown as Response;
