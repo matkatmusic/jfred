@@ -13,6 +13,7 @@ const WAIT_MS = 10_000;
 const HIDE_LABEL = "hide ignored nodes";
 const IGNORED_NODE_TOTAL = 2;
 const COLOUR_LITERAL = /#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(/;
+const VAR_HEX_FALLBACK = /(var\(--[\w-]+),\s*#[0-9a-fA-F]{3,8}\)/g;
 
 export function isHideControlRight(facts: IgnoredFacts): boolean {
   const isOn = facts.isChecked && facts.hasAttribute;
@@ -44,7 +45,8 @@ export function isFilterUntouched(base: IgnoredFacts, other: IgnoredFacts): bool
 export function listColourLiteralRules(ruleTexts: string[]): string[] {
   const literals: string[] = [];
   for (const text of ruleTexts) {
-    const hasLiteral = COLOUR_LITERAL.test(text);
+    // const hasLiteral = COLOUR_LITERAL.test(text);
+    const hasLiteral = COLOUR_LITERAL.test(text.replace(VAR_HEX_FALLBACK, "$1)"));
     if (hasLiteral)
       literals.push(text);
   }
