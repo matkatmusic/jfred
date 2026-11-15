@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { COMMITS } from "../src/viewer_api_layer1_fixture_data.ts";
 import { FIXTURE_ROUTES } from "../src/viewer_api_layer1_fixture_routes.ts";
 import { EngineV3StepKind } from "../webapp/layer1-components/engine-v3/layer1-wire-engine-v3.ts";
+import type { WireScriptReplayNeeds } from "../webapp/layer1-wire-script-replay.ts";
 
 test("test_the_engine_v3_steps_route_answers_with_the_commit_steps_and_six_session_steps", () => {
     // Steps: call the route handler with a recording response, parse the body, list the kinds.
@@ -43,4 +44,22 @@ test("test_fixture_mode_answers_the_inverse_repos_history_with_a_result_line", (
     for (const file of resultLine.files) {
         assert.ok(file.commits.length > 0, `${file.file} has no commits`);
     }
+});
+
+test("test_fixture_mode_answers_script_replay_needs_with_no_tasks", () => {
+    // Steps: call the route the way the page does (progress lines, POST) with a recording response.
+    let statusCode = 0;
+    let body = "";
+    const response = {
+        writeHead: (status: number) => { statusCode = status; return response; },
+        end: (text: string) => { body = text; },
+    };
+    const handleRoute = FIXTURE_ROUTES.get("/api/layer1-script-replay-needs");
+    assert.ok(handleRoute, "the route is not in the fixture route table");
+    handleRoute({} as never, response as never, new URLSearchParams("dir=/fixture/demo/worktree"));
+    // The reply is 200 and its last NDJSON line is the result: no problem and an empty tasks list, so the page skips the consent popup.
+    assert.equal(statusCode, 200);
+    const lines = body.trim().split("\n");
+    const resultLine = JSON.parse(lines[lines.length - 1]!) as WireScriptReplayNeeds;
+    assert.deepEqual(resultLine, { tasks: [] });
 });
