@@ -93,7 +93,7 @@ export function buildCommitReply(input: CommitInput, onProgress: ProgressSink): 
 function writeOrFindNextReply(input: CommitInput, built: BuiltReconstruction, sessionFiles: Path[], engineTexts: Map<string, string>, onProgress: ProgressSink): WireJfredCommitReplyOf<Date> {
   const findNewlinePaths = createNewlinePathFinder(input, sessionFiles);
   reportStage(onProgress, "comparing the files with the parent commit");
-  const commit = writeJfredMarkCommit(input.repoDir, input.request, new Date(), engineTexts, findNewlinePaths);
+  const commit = writeJfredMarkCommit(input.repoDir, input.request, new Date(), engineTexts, findNewlinePaths, new Set<string>());
   if (commit !== undefined) {
     return { outcome: JfredCommitOutcome.committed, commit };
   }

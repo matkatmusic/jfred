@@ -1,7 +1,7 @@
 // Phase 3d of task 361: create a commit on the hidden jfred branch, or delete the whole branch.
 
 import { runJfredGit } from "./viewer_api_layer1_jfred_git.ts";
-import { listChangedFiles } from "./viewer_api_layer1_jfred_compare.ts";
+import { listChangedFiles, listDeletedPaths } from "./viewer_api_layer1_jfred_compare.ts";
 import { buildTreeWithFiles } from "./viewer_api_layer1_jfred_tree.ts";
 import { listJfredBranchCommits } from "./viewer_api_layer1_jfred_read.ts";
 import { COMMIT_HASH_PATTERN } from "./viewer_api_layer1_file.ts";
@@ -70,14 +70,17 @@ function moveJfredBranch(repoDir: Path, commitHash: string, tipHash: string | un
   runJfredGit(repoDir, ["update-ref", JFRED_BRANCH_REF, commitHash, tipHash ?? ABSENT_REF_HASH]);
 }
 
-// Undefined means no file changed and nothing was written; the branch is append-only.
-export function writeJfredMarkCommit(repoDir: Path, request: WireJfredCommitRequest, committedAt: Date, engineTexts: ReadonlyMap<string, string>, findNewlinePaths: (relativePaths: string[]) => Set<string>): WireJfredCommitOf<Date> | undefined {
+// Undefined means no file was written and none was deleted; the branch is append-only.
+export function writeJfredMarkCommit(repoDir: Path, request: WireJfredCommitRequest, committedAt: Date, engineTexts: ReadonlyMap<string, string>, findNewlinePaths: (relativePaths: string[]) => Set<string>, absentPaths: ReadonlySet<string>): WireJfredCommitOf<Date> | undefined {
   const tipHash = readJfredTipHash(repoDir);
   const parentHash = findParentHash(repoDir, request, tipHash);
   const changedFiles = listChangedFiles(repoDir, parentHash, engineTexts, findNewlinePaths);
-  if (changedFiles.size === 0)
-    return undefined;
-  const treeHash = buildTreeWithFiles(repoDir, parentHash, changedFiles);
+  const deletedPaths = listDeletedPaths(repoDir, parentHash, engineTexts, absentPaths);
+  if (changedFiles.size === 0) {
+    if (deletedPaths.length === 0)
+      return undefined;
+  }
+  const treeHash = buildTreeWithFiles(repoDir, parentHash, changedFiles, deletedPaths);
   assertTreeChanged(repoDir, parentHash, treeHash);
   const commitHash = createCommitObject(repoDir, treeHash, parentHash, request, committedAt);
   moveJfredBranch(repoDir, commitHash, tipHash);
