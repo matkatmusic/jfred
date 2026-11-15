@@ -48,3 +48,93 @@
     background: var(--surface); pointer-events: none; }
   /* .canvas:has(> .jfred-strip) .alabel { background: var(--page); } */
   .canvas:has(.jfredCommitsDrawerComponent) .ranges { z-index: 9; }
+
+  /* Bars view strip */
+  .barsCutStrip {
+      display: flex;
+      height: 34px;
+      align-items: center;
+      white-space: normal;
+      font-size: 11px;
+      line-height: 15px;
+      color: var(--c-jfred);
+  }
+  .barsCutStrip .barsColMid {
+      height: 34px;
+      position: relative;
+  }
+  .barsCutStrip .barsColRight {
+      height: auto;
+      overflow: visible;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0 6px;
+      color: var(--c-jfred);
+  }
+  .barsCutDeleteBranch {
+      color: var(--muted);
+      cursor: pointer;
+  }
+  .barsCutDeleteBranch:hover {
+      color: var(--ink);
+      text-decoration: underline;
+  }
+  .barsCutBranchLine {
+      position: absolute;
+      top: 20px;
+      height: 3px;
+      background: var(--c-jfred);
+  }
+  .barsCutDottedLine {
+      position: absolute;
+      top: 20.5px;
+      height: 0;
+      border-top: 2px dotted var(--c-jfred);
+  }
+  .barsCutCap {
+      position: absolute;
+      top: 15.5px;
+      width: 3px;
+      height: 12px;
+      margin-left: -1.5px;
+      background: var(--c-jfred);
+  }
+  .barsCutHashLabel {
+      position: absolute;
+      top: 0;
+      line-height: 13px;
+      transform: translateX(-50%);
+      color: var(--c-jfred);
+  }
+  .barsCutScissors {
+      position: absolute;
+      top: 14.5px;
+      font-size: 14px;
+      line-height: 14px;
+      transform: translateX(-50%);
+      color: var(--ink);
+      cursor: pointer;
+  }
+  .barsCutScissors.scissorsMark {
+      color: var(--c-jfred);
+  }
+  .barsCutScissors.scissorsExcluded {
+      color: var(--ink2);
+      opacity: 0.35;
+  }
+  .barsCutHint {
+      color: var(--muted);
+  }
+  .barsCutCommitButton {
+      margin-left: auto;
+      background: var(--surface);
+      color: var(--c-jfred);
+      border: 1px solid var(--c-jfred);
+      border-radius: 4px;
+      padding: 0 8px;
+      font-size: 11px;
+      line-height: 15px;
+      cursor: pointer;
+  }
+  .appWindow.barsViewOn .jfredCommitsDrawerComponent { display: none; }
