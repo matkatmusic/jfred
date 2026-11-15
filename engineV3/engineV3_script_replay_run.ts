@@ -137,7 +137,7 @@ export function getScriptReplayRefusal(record: ScriptReplayTaskRecord, recordedP
     return undefined;
 }
 
-function formatMissingExecutableLine(name: string): string {
+export function formatMissingExecutableLine(name: string): string {
     return `script replay: missing executable or Python module ${name} in ${SANDBOX_IMAGE}: add it to sandbox-image/Dockerfile`;
 }
 
