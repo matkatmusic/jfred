@@ -3,19 +3,22 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  EXPECTED_NODES, findNodeFacts, isExpectedNodeSet, isMismatchAlone, isNodeExpected, isStateFilterAbsent,
+  EXPECTED_NODES, findNodeFacts, isExpectedNodeSet,
+  // isMismatchAlone,
+  isMismatchMarkRed, isNodeExpected, isRatedMarksDistinct, isStateFilterAbsent,
   // listNodeClasses,
-  listNodeSignatures,
+  // listNodeSignatures,
   // listNodeSizes,
   listRunStateClasses, listUniqueValues,
 } from "../scripts/visual/layer6-node-facts.ts";
-import { MISMATCH_ID, PENDING_ID, VERIFIED_ID, type NodeFacts } from "../scripts/visual/layer6-probes.ts";
+import { INJECTED_ID, MISMATCH_ID, ORIGINAL_FAILED_ID, PENDING_ID, VERIFIED_ID, type NodeFacts } from "../scripts/visual/layer6-probes.ts";
 
 function createNode(overrides: Partial<NodeFacts>): NodeFacts {
   return {
     id: "node-a", classes: "node", width: 10, height: 20,
     borderStyle: "solid", borderColor: "red", borderWidth: "1px",
     outlineStyle: "none", outlineColor: "blue", outlineWidth: "0px", backgroundImage: "none",
+    markKey: "none", markColour: "none",
     ...overrides,
   };
 }
@@ -68,20 +71,50 @@ test("isExpectedNodeSet_rejects_a_set_missing_one_node", () => {
   assert.equal(isExpectedNodeSet(nodes), false);
 });
 
-test("isMismatchAlone_accepts_only_the_mismatch_node_with_double_outline_and_fill", () => {
-  const nodes = [
-    createNode({ id: MISMATCH_ID, outlineStyle: "double", backgroundImage: "linear-gradient(red, blue)" }),
-    createNode({ id: PENDING_ID }),
+// Replaced by the mark tests below: the per-state outlines are gone.
+// test("isMismatchAlone_accepts_only_the_mismatch_node_with_double_outline_and_fill", () => {
+//   const nodes = [
+//     createNode({ id: MISMATCH_ID, outlineStyle: "double", backgroundImage: "linear-gradient(red, blue)" }),
+//     createNode({ id: PENDING_ID }),
+//   ];
+//   assert.equal(isMismatchAlone(nodes), true);
+// });
+//
+// test("isMismatchAlone_rejects_a_second_node_with_the_double_outline", () => {
+//   const nodes = [
+//     createNode({ id: MISMATCH_ID, outlineStyle: "double", backgroundImage: "linear-gradient(red, blue)" }),
+//     createNode({ id: PENDING_ID, outlineStyle: "double" }),
+//   ];
+//   assert.equal(isMismatchAlone(nodes), false);
+// });
+
+function createRatedNodes(): NodeFacts[] {
+  return [
+    createNode({ id: VERIFIED_ID, markKey: "mark-verified", markColour: "green" }),
+    createNode({ id: MISMATCH_ID, markKey: "mark-mismatch", markColour: "red" }),
+    createNode({ id: ORIGINAL_FAILED_ID, markKey: "mark-original-failed", markColour: "red" }),
+    createNode({ id: INJECTED_ID, markKey: "mark-injected-unverified", markColour: "amber" }),
+    createNode({ id: PENDING_ID, markKey: "mark-not-run", markColour: "white" }),
   ];
-  assert.equal(isMismatchAlone(nodes), true);
+}
+
+test("isRatedMarksDistinct_accepts_four_rated_nodes_with_their_own_marks", () => {
+  assert.equal(isRatedMarksDistinct(createRatedNodes()), true);
 });
 
-test("isMismatchAlone_rejects_a_second_node_with_the_double_outline", () => {
-  const nodes = [
-    createNode({ id: MISMATCH_ID, outlineStyle: "double", backgroundImage: "linear-gradient(red, blue)" }),
-    createNode({ id: PENDING_ID, outlineStyle: "double" }),
-  ];
-  assert.equal(isMismatchAlone(nodes), false);
+test("isRatedMarksDistinct_rejects_a_rated_node_that_shows_the_wrong_mark", () => {
+  const nodes = createRatedNodes();
+  nodes[0] = createNode({ id: VERIFIED_ID, markKey: "mark-mismatch", markColour: "red" });
+  assert.equal(isRatedMarksDistinct(nodes), false);
+});
+
+test("isMismatchMarkRed_accepts_a_unique_mismatch_mark_in_the_red_colour", () => {
+  assert.equal(isMismatchMarkRed(createRatedNodes(), "red"), true);
+});
+
+test("isMismatchMarkRed_rejects_an_amber_mark_and_a_missing_node", () => {
+  assert.equal(isMismatchMarkRed(createRatedNodes(), "rgb(228, 106, 106)"), false);
+  assert.equal(isMismatchMarkRed([createNode({ id: PENDING_ID })], "red"), false);
 });
 
 test("isStateFilterAbsent_accepts_kinds_without_state_words", () => {
@@ -118,10 +151,10 @@ test("isStateFilterAbsent_rejects_an_empty_list_and_a_state_word", () => {
 //   assert.deepEqual(listNodeSignatures([createNode({})]), ["solid|red|1px|none|blue|0px|none"]);
 // });
 
-test("listNodeSignatures_differs_when_the_outline_style_differs", () => {
-  const [plain, doubled] = listNodeSignatures([createNode({}), createNode({ outlineStyle: "double" })]);
-  assert.notEqual(plain, doubled);
-});
+// test("listNodeSignatures_differs_when_the_outline_style_differs", () => {
+//   const [plain, doubled] = listNodeSignatures([createNode({}), createNode({ outlineStyle: "double" })]);
+//   assert.notEqual(plain, doubled);
+// });
 
 test("listUniqueValues_drops_repeats_and_keeps_order", () => {
   assert.deepEqual(listUniqueValues(["a", "b", "a"]), ["a", "b"]);

@@ -23,6 +23,7 @@ const BASE_POPUP: PopupFacts = {
 
 const buildNode = (id: string, borderColor: string, outlineColor: string): NodeFacts => ({
   id, classes: "", width: 1, height: 1, borderStyle: "", borderColor, borderWidth: "", outlineStyle: "", outlineColor, outlineWidth: "", backgroundImage: "",
+  markKey: "", markColour: "",
 });
 const NODES = [buildNode(MISMATCH_ID, "red", ""), buildNode(VERIFIED_ID, "", "green"), buildNode(ORIGINAL_FAILED_ID, "", "grey")];
 
@@ -64,9 +65,10 @@ async function runOutcomes(wrongBlockId: string): Promise<string[]> {
 
 const listFailedChecks = (lines: string[]): string[] => lines.filter((line) => line.startsWith("FAIL")).map((line) => line.split("  ")[1] ?? "");
 
-test("validateOutcomes passes all twelve checks on a good page", async () => {
+test("validateOutcomes passes all eleven checks on a good page", async () => {
   const lines = await runOutcomes("");
-  assert.equal(lines.filter((line) => line.startsWith("PASS")).length, 12);
+  // assert.equal(lines.filter((line) => line.startsWith("PASS")).length, 12);
+  assert.equal(lines.filter((line) => line.startsWith("PASS")).length, 11);
   assert.deepEqual(listFailedChecks(lines), []);
 });
 

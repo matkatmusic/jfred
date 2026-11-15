@@ -9,16 +9,25 @@ import { type HeadlessPage } from "../scripts/visual/cdp.ts";
 import { failures } from "../scripts/visual/mockup-checks.ts";
 import { validateNodeStates } from "../scripts/visual/layer6-node-checks.ts";
 import {
-    DERIVED_ID, HIDE_CONSENT, INJECTED_ID, MISMATCH_ID, NEVER_PROVABLE_ID, ORIGINAL_FAILED_ID, PENDING_ID, SHOW_CONSENT, VERIFIED_ID, type NodeFacts,
+    DERIVED_ID, HIDE_CONSENT, INJECTED_ID, MISMATCH_ID, MISMATCH_TOKEN_COLOUR, NEVER_PROVABLE_ID, ORIGINAL_FAILED_ID, PENDING_ID, SHOW_CONSENT, VERIFIED_ID, type NodeFacts,
 } from "../scripts/visual/layer6-probes.ts";
 
 const SCREENSHOT_FILE = join(dirname(fileURLToPath(import.meta.url)), "..", "scripts", "visual", "out", "mockup-12-layer6-node-states.png");
 
+const RED = "rgb(228, 106, 106)";
+const MARK_KEYS: Record<string, string> = {
+    [PENDING_ID]: "mark-not-run", [VERIFIED_ID]: "mark-verified", [DERIVED_ID]: "mark-not-run", [MISMATCH_ID]: "mark-mismatch",
+    [ORIGINAL_FAILED_ID]: "mark-original-failed", [INJECTED_ID]: "mark-injected-unverified",
+};
+const MARK_COLOURS: Record<string, string> = {
+    none: "none", "mark-verified": "rgb(98, 163, 49)", "mark-mismatch": RED, "mark-original-failed": RED, "mark-injected-unverified": "rgb(201, 133, 0)",
+};
 const makeNode = (id: string, extraClass: string, index: number): NodeFacts => ({
     // id, classes: `node n-script ${extraClass}`.trim(), width: 15, height: 15,
     id, classes: `node n-script ${extraClass}`.trim(), width: 13, height: 13,
     borderStyle: "solid", borderColor: `rgb(${index}, 0, 0)`, borderWidth: "2px",
     outlineStyle: "none", outlineColor: "rgb(0, 0, 0)", outlineWidth: "0px", backgroundImage: "none",
+    markKey: MARK_KEYS[id] ?? "none", markColour: MARK_COLOURS[MARK_KEYS[id] ?? "none"] ?? "rgb(255, 255, 255)",
 });
 type NodeChanges = Record<string, Partial<NodeFacts>>;
 const GOOD_CHANGES: NodeChanges = {
@@ -53,6 +62,8 @@ const makeFakePage = (answers: PageAnswers, scrolls: string[]): HeadlessPage => 
             return scrolls.push(expression);
         if (expression.includes("run-state-"))
             return answers.stateTotal;
+        if (expression === MISMATCH_TOKEN_COLOUR)
+            return RED;
         if (expression.includes("getComputedStyle"))
             return answers.nodes;
         if (expression.includes(".never-provable"))
@@ -125,13 +136,27 @@ test("validateNodeStates fails the set and state-class checks when a node has th
     ]);
 });
 
-test("validateNodeStates fails the look checks when two nodes look the same and mismatch has no double outline", async () => {
-    const changes = { [DERIVED_ID]: { borderColor: "rgb(2, 0, 0)" }, [MISMATCH_ID]: { outlineStyle: "none" } };
+// Replaced by the two mark tests below: the per-state outlines are gone.
+// test("validateNodeStates fails the look checks when two nodes look the same and mismatch has no double outline", async () => {
+//     const changes = { [DERIVED_ID]: { borderColor: "rgb(2, 0, 0)" }, [MISMATCH_ID]: { outlineStyle: "none" } };
+//     const { newFailures } = await runChecks(makeAnswers(changes));
+//     assert.deepEqual(newFailures, [
+//         "L6 the 7 nodes have 7 different computed looks",
+//         "L6 mismatch stands out: it alone has a double outline and a filled core",
+//     ]);
+// });
+
+test("validateNodeStates fails only the red check when the mismatch mark is amber", async () => {
+    const changes = { [MISMATCH_ID]: { markColour: "rgb(201, 133, 0)" } };
     const { newFailures } = await runChecks(makeAnswers(changes));
-    assert.deepEqual(newFailures, [
-        "L6 the 7 nodes have 7 different computed looks",
-        "L6 mismatch stands out: it alone has a double outline and a filled core",
-    ]);
+    assert.deepEqual(newFailures, ["L6 mismatch has its own mark, in red"]);
+});
+
+test("validateNodeStates fails both mark checks when verified shows the mismatch mark", async () => {
+    const changes = { [VERIFIED_ID]: { markKey: "mark-mismatch" } };
+    const { newFailures } = await runChecks(makeAnswers(changes));
+    assert.equal(newFailures.length, 2);
+    assert.equal(newFailures[1], "L6 mismatch has its own mark, in red");
 });
 
 test("validateNodeStates fails the reuse and filter checks for a second rule, a solid ring and a state filter", async () => {
