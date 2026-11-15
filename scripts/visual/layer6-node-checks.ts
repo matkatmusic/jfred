@@ -3,12 +3,12 @@
 import { type HeadlessPage } from "./cdp.ts";
 import { reportCheck, saveScreenshot } from "./mockup-checks.ts";
 import {
-  COUNT_CONSENT_DIALOGS, COUNT_CONSOLES, COUNT_CONSOLE_BUTTONS, HIDE_CONSENT, NEVER_PROVABLE_ID, NEVER_PROVABLE_RULE_COUNT, README_BUBBLE,
+  COUNT_CONSENT_DIALOGS, COUNT_CONSOLES, COUNT_CONSOLE_BUTTONS, HIDE_CONSENT, MISMATCH_TOKEN_COLOUR, NEVER_PROVABLE_ID, NEVER_PROVABLE_RULE_COUNT, README_BUBBLE,
   README_NODE_FACTS, SHOW_BOX_KINDS, SHOW_CONSENT, type NodeFacts,
 } from "./layer6-probes.ts";
 import { WAIT_MS } from "./layer6-steps.ts";
 import {
-  findNodeFacts, isExpectedNodeSet, isMismatchAlone, isStateFilterAbsent, listNodeClasses, listNodeSignatures, listNodeSizes,
+  findNodeFacts, isExpectedNodeSet, isMismatchMarkRed, isRatedMarksDistinct, isStateFilterAbsent, listMarkSignatures, listNodeClasses, listNodeSizes,
   listUniqueValues,
 } from "./layer6-node-facts.ts";
 
@@ -43,9 +43,15 @@ function validateNodeLooks(nodes: NodeFacts[]): void {
   // const isSameSize = sizes.length === 1 && nodes[0]?.width === 15;
   const isSameSize = sizes.length === 1 && nodes[0]?.width === 13;
   reportCheck("L6 all 7 are the same node: equal width and height", isSameSize, sizes);
-  const signatures = listUniqueValues(listNodeSignatures(nodes));
-  reportCheck("L6 the 7 nodes have 7 different computed looks", signatures.length === 7, signatures);
-  reportCheck("L6 mismatch stands out: it alone has a double outline and a filled core", isMismatchAlone(nodes), nodes);
+  // const signatures = listUniqueValues(listNodeSignatures(nodes));
+  // reportCheck("L6 the 7 nodes have 7 different computed looks", signatures.length === 7, signatures);
+  // reportCheck("L6 mismatch stands out: it alone has a double outline and a filled core", isMismatchAlone(nodes), nodes);
+}
+
+async function validateNodeMarks(page: HeadlessPage, nodes: NodeFacts[]): Promise<void> {
+  reportCheck("L6 the 4 rated states (verified, mismatch, original-failed, injected-unverified) show 4 different marks", isRatedMarksDistinct(nodes), listMarkSignatures(nodes));
+  const redColour = await page.evaluate<string>(MISMATCH_TOKEN_COLOUR);
+  reportCheck("L6 mismatch has its own mark, in red", isMismatchMarkRed(nodes, redColour), { redColour, nodes });
 }
 
 async function validateReuseAndFilters(page: HeadlessPage, nodes: NodeFacts[]): Promise<void> {
@@ -63,6 +69,7 @@ export async function validateNodeStates(page: HeadlessPage): Promise<NodeFacts[
   const nodes = await page.evaluate<NodeFacts[]>(README_NODE_FACTS);
   await validateNodeSet(page, nodes);
   validateNodeLooks(nodes);
+  await validateNodeMarks(page, nodes);
   await validateReuseAndFilters(page, nodes);
   return nodes;
 }
