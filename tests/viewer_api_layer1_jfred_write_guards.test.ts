@@ -26,7 +26,7 @@ function commitMark(repo: TempRepo, parentShortHash: string | undefined, texts: 
     const request: WireJfredCommitRequest = { baseShortHash: repo.commitHashes[1]!.slice(0, 8), markInstant: MARK_INSTANT, message: MESSAGE, allowScripts: false };
     if (parentShortHash !== undefined)
         request.parentShortHash = parentShortHash;
-    return writeJfredMarkCommit(new Path(repo.repoDir), request, COMMITTED_AT, new Map(Object.entries(texts)), () => new Set(newlinePaths));
+    return writeJfredMarkCommit(new Path(repo.repoDir), request, COMMITTED_AT, new Map(Object.entries(texts)), () => new Set(newlinePaths), new Set<string>());
 }
 
 function readParentTextsWithoutFinalNewline(repo: TempRepo): Record<string, string> {
