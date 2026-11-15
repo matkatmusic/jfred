@@ -2,6 +2,7 @@
 
 import { type IncomingMessage, type ServerResponse } from "node:http";
 import { type Layer1RefsView, type RepoCommitRow, SourceKind } from "../webapp/layer1-wire.ts";
+import type { WireScriptReplayNeeds } from "../webapp/layer1-wire-script-replay.ts";
 import { sendFixtureDiff, sendFixtureFile, sendFixtureRecord } from "./viewer_api_layer1_fixture_file.ts";
 import { buildFixtureLayer1View } from "./viewer_api_layer1_fixture_view.ts";
 import { StateConfidence, StateMoment } from "../engineV3/engineV3_file_known_states.ts";
@@ -133,6 +134,7 @@ export const FIXTURE_ROUTES = new Map<string, FixtureRouteHandler>([
   ["/api/layer1-script-run", (request, response) => receiveFixtureScriptRun(request, response)],
   ["/api/layer1-script-needs", (request, response) => receiveFixtureScriptNeeds(request, response)],
   ["/api/layer1-clear-results", (_request, response) => sendFixtureClearResults(response)],
+  ["/api/layer1-script-replay-needs", (_request, response) => sendNdjsonBuild(response, (): WireScriptReplayNeeds => ({ tasks: [] }))],
   ["/api/layer1-jfred-commit", (request, response) => receiveFixtureJfredCommit(request, response)],
   ["/api/layer1-engine-v3-steps", (_request, response) => sendJson(response, 200, { steps: buildFixtureEngineV3Steps() })],
   ["/api/scan-source",(_request, response, query) => sendFixtureScanSource(response, query)],
