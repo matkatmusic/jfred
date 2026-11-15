@@ -107,6 +107,9 @@ export const buildTimeToggle = (value: "author" | "committer") => `(() => {
     document.getElementById('time-${value}').click();
 })()`;
 export const TOGGLE_SETTLED = `document.querySelector('.filebox') !== null && document.querySelector('.filebox') !== window.__boxBefore`;
+export interface TimeButtonFacts { isCommitterDisabled: boolean; isAuthorDisabled: boolean; isReverseDisabled: boolean; isCommitterCurrent: boolean }
+export const TIME_BUTTON_FACTS =`({ isCommitterDisabled: document.getElementById('time-committer').disabled, isAuthorDisabled: document.getElementById('time-author').disabled,
+    isReverseDisabled: document.getElementById('reverse-toggle').disabled, isCommitterCurrent: document.getElementById('time-committer').classList.contains('current') })`;
 
 export const ENTRY_FACTS = `(() => {
     const ticks = [...${TICKS}];

@@ -8,6 +8,7 @@ import { isRefusalShown } from "./layer9-flow-checks.ts";
 import {
   COMMIT_MODE_CLICK, CutClass, DELETE_CLICK, DELETE_OPEN, ENTRY_FACTS, FIXTURE_BASE_HASH, MARK_FACTS, MODE_STATE, STRIP_HEAD_FACTS, TICK_LABELS, TICK_STATES, TOGGLE_SETTLED, YESNO_NO,
   buildClickTick, buildRefusalClick, buildTimeToggle, type EntryFacts, type MarkFacts, type RefusalFacts, type StripHeadFacts, type TickState,
+  TIME_BUTTON_FACTS, buildClickById, type TimeButtonFacts,
 } from "./layer9-probes.ts";
 import { CutRefusal } from "../../webapp/layer1-components/commits-column/layer1-cut-rules.ts";
 import { JfredEntryKind } from "../../webapp/layer1-components/commits-column/layer1-jfred-entries.ts";
@@ -67,9 +68,14 @@ async function rerenderThroughTimeToggle(page: HeadlessPage): Promise<void> {
 }
 
 export async function validateCommitSurvivesRerender(page: HeadlessPage): Promise<void> {
-  await rerenderThroughTimeToggle(page);
+  // time flips are locked while Commit Mode is on (P5)
+  // await rerenderThroughTimeToggle(page);
+  // const entries = await page.evaluate<EntryFacts[]>(ENTRY_FACTS);
+  // reportCheck("L9 after a re-render through the time toggle the fake commit is still in the strip", isBranchKept(entries), entries);
+  await page.evaluate(buildClickById("time-author"));
   const entries = await page.evaluate<EntryFacts[]>(ENTRY_FACTS);
-  reportCheck("L9 after a re-render through the time toggle the fake commit is still in the strip", isBranchKept(entries), entries);
+  const buttons = await page.evaluate<TimeButtonFacts>(TIME_BUTTON_FACTS);
+  reportCheck("L9 with Commit mode on, a click on the disabled author button changes nothing: the committer button stays current and the fake commit is still in the strip", isBranchKept(entries) && buttons.isAuthorDisabled && buttons.isCommitterCurrent, [entries, buttons]);
 }
 
 export function isDeleteQuestionOpen(rowCount: number, before: EntryFacts[], after: EntryFacts[], requestsBefore: number, requestsAfter: number): boolean {
