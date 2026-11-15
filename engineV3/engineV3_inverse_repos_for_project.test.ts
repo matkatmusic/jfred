@@ -1,7 +1,7 @@
 import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 
@@ -327,6 +327,32 @@ test("test_a_new_log_line_that_names_the_file_makes_was_reused_false", (t) => {
     assert.equal(results[0]!.wasReused, false);
 });
 
+test("test_the_first_commit_of_a_present_file_holds_the_modified_time_of_the_file_as_its_instant", (t) => {
+    // Scenario: the disk-now commit of a present file holds the modified time of the file.
+    // A project has a.txt with the modified time at second 50.
+    const project = makeProject(t);
+    utimesSync(project.fileA.toString(), makeInstant(50), makeInstant(50));
+    // The inverse repos are built.
+    buildProject(project);
+    // The first commit of a.txt has the instant of second 50.
+    const commitsOfA = listInverseCommits(getInverseRepoFolderForFile(project.storeFolder, project.projectFolder, project.fileA), "a.txt");
+    assert.deepEqual(commitsOfA[0]!.instant, makeInstant(50));
+});
+
+test("test_a_change_of_only_the_modified_time_makes_was_reused_false", (t) => {
+    // Scenario: the same bytes with a new modified time make the stamp differ.
+    // A project is built one time with a.txt at the modified time of second 50.
+    const project = makeProject(t);
+    utimesSync(project.fileA.toString(), makeInstant(50), makeInstant(50));
+    buildProject(project);
+    // The modified time of a.txt changes to second 60; the bytes stay.
+    utimesSync(project.fileA.toString(), makeInstant(60), makeInstant(60));
+    // The second call rebuilds a.txt and reuses b.txt.
+    const results = buildProject(project);
+    assert.equal(results[0]!.wasReused, false);
+    assert.equal(results[1]!.wasReused, true);
+});
+
 test("test_a_repo_whose_stamp_has_no_format_version_is_rebuilt", (t) => {
     // Scenario: a repo built before the format version existed is built again.
     // A project is built one time and the stamp of a.txt is noted.
@@ -574,6 +600,20 @@ test("test_a_file_that_is_gone_now_gets_a_repo_whose_first_commit_says_the_file_
     const commitsOfA = listCommitsOfCopySceneFile(scene, "a.py");
     assert.equal(commitsOfA[0]!.isFileAbsent, true);
     assert.ok(commitsOfA.some((commit) => commit.text === "A1"));
+});
+
+test("test_a_file_that_is_gone_now_has_a_first_commit_without_an_instant", (t) => {
+    // Scenario: the logs write a.py and then remove it; a.py is not on disk now, so it has no modified time.
+    const scene = makeCopyScene(t, {}, (projectFolder) => {
+        const fileA = join(projectFolder.toString(), "a.py");
+        return [
+            ...makeWriteCreateRows("w1", fileA, "A1", 1, projectFolder.toString()),
+            makeCallRecord("Bash", "r1", { command: `rm ${fileA}` }, 3, projectFolder.toString()),
+        ];
+    });
+    buildCopyScene(scene, ["a.py"]);
+    // The first commit has no instant.
+    assert.equal(listCommitsOfCopySceneFile(scene, "a.py")[0]!.instant, undefined);
 });
 
 test("test_the_results_keep_the_order_of_the_project_files_when_a_born_file_is_listed_before_its_source", (t) => {

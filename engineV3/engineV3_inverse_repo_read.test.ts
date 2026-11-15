@@ -207,6 +207,44 @@ test("test_select_returns_undefined_before_the_oldest_instant", (t) => {
     assert.equal(selectedCommit, undefined);
 });
 
+function makeDiskNowStateWithInstant(second: number, text: string): OrderedKnownState {
+    const event = { type: FileEventType.DiskNow, instant: makeInstant(second), source: undefined, commitHash: undefined, bytes: text, row: undefined, moveOrCopySourceFile: undefined, removedByScript: false, movedAwayToFile: undefined, scriptRun: undefined };
+    const state: FileKnownState = { event, moment: StateMoment.AtEvent, confidence: StateConfidence.Proven, isFileAbsent: false, text };
+    return { state, position: 0 };
+}
+
+test("test_a_time_at_or_after_the_disk_now_instant_gives_the_disk_bytes", (t) => {
+    // The disk file holds "hand edit\n" with the modified time at second 200.
+    const repoFolder = makeTempFolder(t);
+    createInverseRepo(repoFolder, FILE_NAME, makeDiskNowStateWithInstant(200, "hand edit\n"), DISK_NOW_INSTANT);
+    // An older log state holds "write text\n" at second 100.
+    insertStatesIntoInverseRepo(repoFolder, FILE_NAME, [makeOrderedState(1, 100, StateMoment.AtEvent, "write text\n")]);
+    // At exactly second 200 the disk bytes are given.
+    assert.equal(getInverseCommitAtInstant(repoFolder, FILE_NAME, makeInstant(200))!.text, "hand edit\n");
+    // At second 500, after the modified time, the disk bytes are given.
+    assert.equal(getInverseCommitAtInstant(repoFolder, FILE_NAME, makeInstant(500))!.text, "hand edit\n");
+});
+
+test("test_a_time_before_the_disk_now_instant_gives_the_older_state", (t) => {
+    // The disk file holds "hand edit\n" with the modified time at second 200.
+    const repoFolder = makeTempFolder(t);
+    createInverseRepo(repoFolder, FILE_NAME, makeDiskNowStateWithInstant(200, "hand edit\n"), DISK_NOW_INSTANT);
+    // An older log state holds "write text\n" at second 100.
+    insertStatesIntoInverseRepo(repoFolder, FILE_NAME, [makeOrderedState(1, 100, StateMoment.AtEvent, "write text\n")]);
+    // At second 199, before the modified time, the older state is given.
+    assert.equal(getInverseCommitAtInstant(repoFolder, FILE_NAME, makeInstant(199))!.text, "write text\n");
+});
+
+test("test_a_log_event_newer_than_the_disk_now_instant_still_gives_the_disk_bytes_after_it", (t) => {
+    // The disk file holds "disk text\n" with the modified time at second 200.
+    const repoFolder = makeTempFolder(t);
+    createInverseRepo(repoFolder, FILE_NAME, makeDiskNowStateWithInstant(200, "disk text\n"), DISK_NOW_INSTANT);
+    // A log state holds "log text\n" at second 300, newer than the modified time.
+    insertStatesIntoInverseRepo(repoFolder, FILE_NAME, [makeOrderedState(1, 300, StateMoment.AtEvent, "log text\n")]);
+    // At second 400 the disk bytes are given, not the log bytes.
+    assert.equal(getInverseCommitAtInstant(repoFolder, FILE_NAME, makeInstant(400))!.text, "disk text\n");
+});
+
 test("test_project_function_throws_when_a_repo_folder_is_missing", (t) => {
     // The store folder is empty, so the file has no repo folder.
     const storeFolder = makeTempFolder(t);

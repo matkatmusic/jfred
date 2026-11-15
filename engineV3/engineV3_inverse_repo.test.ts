@@ -93,6 +93,30 @@ test("test_list_returns_root_commit_first_with_disk_now_and_position_zero", (t) 
     assert.equal(commits[0]!.position, 0);
 });
 
+test("test_disk_now_state_with_an_instant_writes_it_into_the_root_commit", (t) => {
+    // The repo is created from a disk-now state that has an instant at second 40.
+    const inverseFolder = makeInverseFolder(t);
+    createInverseRepo(inverseFolder, FILE_NAME, { state: makeState(FileEventType.DiskNow, 40, "now text\n"), position: 0 }, DISK_NOW_INSTANT);
+    // The root commit has that instant.
+    assert.deepEqual(listInverseCommits(inverseFolder, FILE_NAME)[0]!.instant, makeInstant(40));
+});
+
+test("test_disk_now_state_without_an_instant_gives_a_root_commit_without_an_instant", (t) => {
+    // The repo is created from a disk-now state that has no instant.
+    const inverseFolder = makeInverseFolder(t);
+    createInverseRepo(inverseFolder, FILE_NAME, makeDiskNowState("now text\n"), DISK_NOW_INSTANT);
+    // The root commit has no instant.
+    assert.equal(listInverseCommits(inverseFolder, FILE_NAME)[0]!.instant, undefined);
+});
+
+test("test_disk_now_instant_does_not_change_the_author_date_of_the_root_commit", (t) => {
+    // The repo is created from a disk-now state that has an instant at second 40.
+    const inverseFolder = makeInverseFolder(t);
+    createInverseRepo(inverseFolder, FILE_NAME, { state: makeState(FileEventType.DiskNow, 40, "now text\n"), position: 0 }, DISK_NOW_INSTANT);
+    // The author date of the root commit is the build instant.
+    assert.equal(runGit(inverseFolder, ["log", "-1", "--format=%at", "refs/heads/inverse"]), String(DISK_NOW_INSTANT.getTime() / 1000));
+});
+
 test("test_listInverseCommits_gives_each_commit_the_tree_hash_of_git", (t) => {
     // Scenario: every listed commit carries the tree hash that git reports for it.
     // The repo has the disk-now commit and two older commits.

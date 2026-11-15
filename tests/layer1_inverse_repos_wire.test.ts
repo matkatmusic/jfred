@@ -17,12 +17,12 @@ import { createTempDir } from "./overrides-test-helpers.ts";
 const COMMIT_HASH = "0123456789abcdef0123456789abcdef01234567";
 const TREE_HASH = "89abcdef0123456789abcdef0123456789abcdef";
 
-function buildInverseCommit(instant: Date | undefined): InverseCommit {
+function buildInverseCommit(instant: Date | undefined, eventType: FileEventType = FileEventType.WriteRow): InverseCommit {
     return {
         commitHash: new Uuid(COMMIT_HASH),
         treeHash: new Uuid(TREE_HASH),
         position: 3,
-        eventType: FileEventType.WriteRow,
+        eventType,
         moment: StateMoment.BeforeEvent,
         confidence: StateConfidence.Proven,
         instant,
@@ -76,6 +76,13 @@ test("test_inverse_commit_wire_sends_the_tree_hash_as_text", () => {
 
 test("test_inverse_commit_wire_maps_undefined_instant_to_null", () => {
     const wire = buildInverseCommitWire(buildInverseCommit(undefined));
+    assert.equal(wire.instant, null);
+});
+
+test("test_inverse_commit_wire_maps_the_instant_of_a_disk_now_commit_to_null", () => {
+    // Scenario: the disk-now commit holds the modified time of the file as its instant.
+    const wire = buildInverseCommitWire(buildInverseCommit(new Date("2026-07-24T10:01:00.000Z"), FileEventType.DiskNow));
+    // The wire still sends null, so the page reads row 0.
     assert.equal(wire.instant, null);
 });
 

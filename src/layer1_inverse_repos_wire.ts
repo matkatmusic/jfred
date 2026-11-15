@@ -4,6 +4,7 @@ import { basename, relative } from "node:path";
 import { buildInverseReposForFiles, type ProjectFile } from "../engineV3/engineV3_inverse_repos_for_project.ts";
 import { listInverseCommits, type InverseCommit } from "../engineV3/engineV3_inverse_repo.ts";
 import { listProjectFilesOnDiskAndInLogs } from "../engineV3/engineV3_inverse_repos_project_files.ts";
+import { FileEventType } from "../engineV3/engineV3_replay_reverse_events.ts";
 // import { listCurrentFileState } from "./layer1_disk_walk.ts";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
 import { Path } from "./structures/domain.ts";
@@ -34,6 +35,13 @@ export type InverseStateWire = { file: string; commit: InverseCommitWire | null;
 export type InverseDiffWire = { file: string; diff: string };
 
 export function buildInverseCommitWire(commit: InverseCommit): InverseCommitWire {
+    // The page reads a null instant of the DiskNow commit as row 0.
+    let instant: string | null = null;
+    if (commit.instant !== undefined) {
+        if (commit.eventType !== FileEventType.DiskNow) {
+            instant = commit.instant.toISOString();
+        }
+    }
     return {
         commitHash: commit.commitHash.toString(),
         treeHash: commit.treeHash.toString(),
@@ -41,7 +49,7 @@ export function buildInverseCommitWire(commit: InverseCommit): InverseCommitWire
         moment: commit.moment,
         confidence: commit.confidence,
         position: commit.position,
-        instant: commit.instant === undefined ? null : commit.instant.toISOString(),
+        instant,
         isFileAbsent: commit.isFileAbsent,
         isRemoved: commit.removedByScript,
         movedAwayTo: commit.movedAwayToFile === undefined ? null : commit.movedAwayToFile.toString(),
