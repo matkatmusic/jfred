@@ -10,6 +10,8 @@ import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
 import type { JSONLLine } from "./engineV3.ts";
 import { CWD_KEY_TEXT, KNOWN_RECORD_TYPE_SET, countNewlinesBefore, type LineSpan } from "./engineV3_replay_reverse.ts";
 
+const ERRORED_RESULT_KEY_TEXT = '"is_error":true';
+
 function readTranscriptBytesFromDisk(transcriptFile: Path): Buffer {
     return readFileSync(transcriptFile.toString());
 }
@@ -47,6 +49,28 @@ function addCwdSpanToNonEmptyLists(transcriptText: string, spansByNeedleText: Ma
     }
 }
 
+// Every line with an errored tool_result is added to every non-empty list, because an error result names no file and the walk must see which calls failed.
+function addErroredResultSpansToNonEmptyLists(transcriptText: string, spansByNeedleText: Map<string, LineSpan[]>): void {
+    const erroredResultSpans: LineSpan[] = [];
+    let erroredResultPosition = transcriptText.indexOf(ERRORED_RESULT_KEY_TEXT);
+    while (erroredResultPosition !== -1) {
+        const erroredResultSpan = findLineSpanAroundInText(transcriptText, erroredResultPosition);
+        erroredResultSpans.push(erroredResultSpan);
+        erroredResultPosition = transcriptText.indexOf(ERRORED_RESULT_KEY_TEXT, erroredResultSpan.end + 1);
+    }
+    for (const spans of spansByNeedleText.values()) {
+        if (spans.length > 0) {
+            const knownStarts = new Set(spans.map((span) => span.start));
+            for (const erroredResultSpan of erroredResultSpans) {
+                if (!knownStarts.has(erroredResultSpan.start)) {
+                    spans.push(erroredResultSpan);
+                }
+            }
+            spans.sort((leftSpan, rightSpan) => leftSpan.start - rightSpan.start);
+        }
+    }
+}
+
 // A latin1 string has one char per byte, so a string index is a byte offset. One RegExp pass finds the lines holding any needle.
 function listLineSpansByNeedleText(transcriptBytes: Buffer, needleTexts: string[]): Map<string, LineSpan[]> {
     const transcriptText = transcriptBytes.toString("latin1");
@@ -69,6 +93,7 @@ function listLineSpansByNeedleText(transcriptBytes: Buffer, needleTexts: string[
         hit = anyNeedleRegExp.exec(transcriptText);
     }
     addCwdSpanToNonEmptyLists(transcriptText, spansByNeedleText);
+    addErroredResultSpansToNonEmptyLists(transcriptText, spansByNeedleText);
     return spansByNeedleText;
 }
 

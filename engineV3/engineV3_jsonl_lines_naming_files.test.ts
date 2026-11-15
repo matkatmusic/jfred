@@ -161,6 +161,20 @@ test("test_lines_from_two_transcripts_come_out_in_the_single_file_loader_merged_
     assertListsEqualSingleFileLoader(alphaFile, linesByFile.get(alphaFile.toString())!, jsonlsFolders);
 });
 
+test("test_errored_tool_result_line_is_kept_for_each_file_list", (t) => {
+    // A Bash call names f.txt, and its error result (is_error true) names no file.
+    const jsonlsFolder = makeJsonlsFolder(t);
+    const fFile = new Path("/work/f.txt");
+    const bashCall = { type: "assistant", uuid: "call-bash", timestamp: makeInstant(1).toISOString(), cwd: "/work", message: { role: "assistant", content: [{ type: "tool_use", id: "bash-1", name: "Bash", input: { command: "python3 f.txt" } }] } };
+    const errorResult = { type: "user", uuid: "error-result", timestamp: makeInstant(2).toISOString(), message: { role: "user", content: [{ type: "tool_result", tool_use_id: "bash-1", is_error: true, content: "No compound commands" }] } };
+    writeRecords(jsonlsFolder, "one.jsonl", [bashCall, errorResult]);
+    // Load f.txt through the many-file loader.
+    const linesByFile = loadJSONLLinesNamingFiles([fFile], [new Path(jsonlsFolder)]);
+    // The error result line is in f.txt's list, after the call line.
+    const uuids = linesByFile.get(fFile.toString())!.map((record) => (record as { uuid: Uuid }).uuid.toString());
+    assert.deepStrictEqual(uuids, ["call-bash", "error-result"]);
+});
+
 test("test_each_transcript_is_read_from_disk_one_time", (t) => {
     // Two transcripts name three files.
     const jsonlsFolder = makeJsonlsFolder(t);
