@@ -329,6 +329,13 @@ test("test_scissors_are_right_after_a_ruler_redraw", () => {
     assert.deepEqual(listChangedRowIndexesSinceTip(listRealRulerRows(), buildHourMs(6)), [1]);
 });
 
+test("test_an_empty_ruler_with_no_models_gives_no_scissors_and_no_throw", () => {
+    // Step: a real ruler with no rows and no file models (empty project, or a filter hides every event).
+    getBarsViewState().models = [];
+    // Step: the list of changed rows is empty and nothing throws.
+    assert.deepEqual(listChangedRowIndexesSinceTip([], buildHourMs(6)), []);
+});
+
 test("test_a_row_index_with_no_row_throws", () => {
     // Step: two rows.
     const rows = buildRulerWithRows([[12], [4]]);

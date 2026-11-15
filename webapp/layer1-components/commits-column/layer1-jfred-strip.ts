@@ -1,6 +1,9 @@
 // Task 383: the jfred commit column between the session column and the bubbles.
 
 import { createElement, getRequiredElementById } from "../../app-dom.ts";
+import { renderBarsCutStrip } from "../bars-view/layer1-bars-cut-strip.ts";
+import type { BarsCutStripHandlers } from "../bars-view/layer1-bars-cut-strip.ts";
+import { isBarsViewOn } from "../bars-view/layer1-bars-mode.ts";
 import { repaintCutMarks } from "./layer1-cut-paint.ts";
 import { openJfredMessage } from "./layer1-jfred-drawer.ts";
 import { buildJfredEntries, JfredEntryKind, listJfredEntries } from "./layer1-jfred-entries.ts";
@@ -90,7 +93,11 @@ async function sendCommitAfterScriptReplay(): Promise<WireJfredCommitReply | und
   return sendJfredCommit({ ...request, allowScripts: isRunAllowed });
 }
 
-function applyPendingCommit(): void {
+// function applyPendingCommit(): void {
+//   void sendCommitAfterScriptReplay().then(applyCommitReply, reportJfredFailure);
+// }
+
+export function applyPendingCommit(): void {
   void sendCommitAfterScriptReplay().then(applyCommitReply, reportJfredFailure);
 }
 
@@ -183,9 +190,15 @@ function applyDeleteAnswer(isYes: boolean): void {
   void sendJfredDelete().then(applyServerDelete, reportJfredFailure);
 }
 
-function executeDeleteClick(): void {
+// function executeDeleteClick(): void {
+//   void openYesNoQuestion(DELETE_QUESTION, "Yes, delete", "No").then(applyDeleteAnswer);
+// }
+
+export function executeDeleteClick(): void {
   void openYesNoQuestion(DELETE_QUESTION, "Yes, delete", "No").then(applyDeleteAnswer);
 }
+
+const barsCutStripHandlers: BarsCutStripHandlers = { commitPendingMark: applyPendingCommit, askDeleteBranch: executeDeleteClick };
 
 // The base entry has no message, so its click does nothing.
 function dispatchStripClick(event: Event): void {
@@ -240,6 +253,10 @@ function buildStripOnce(): HTMLElement {
 
 // Draws from the ticks of the last render; keeps the head even when the branch is empty.
 export function renderJfredEntries(): void {
+  if (isBarsViewOn()) {
+    renderBarsCutStrip(barsCutStripHandlers);
+    return;
+  }
   // ponytail: a handful of entries, draw all; add a window like layer1-annotation-window.ts past about 200
   buildStripOnce().replaceChildren(buildHead(), ...buildJfredEntries(readJfredBranch(), lastTicks));
 }
@@ -247,6 +264,11 @@ export function renderJfredEntries(): void {
 // Runs after renderAnnotationTrack in every stage render; Commit mode off removes the strip.
 export function renderJfredStrip(ticks: readonly WireRulerTick[]): void {
   lastTicks = ticks;
+  renderBarsCutStrip(barsCutStripHandlers);
+  if (isBarsViewOn()) {
+    document.getElementById(STRIP_ID)?.remove();
+    return;
+  }
   const isArmed = readJfredBranch().isArmed;
   if (!isArmed) {
     document.getElementById(STRIP_ID)?.remove();
