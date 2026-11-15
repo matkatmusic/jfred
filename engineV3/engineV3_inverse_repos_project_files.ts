@@ -1,13 +1,14 @@
 // Lists the files of a project: the files on disk now, then the files the logs name that are gone now.
 
 import { existsSync } from "node:fs";
-import { isAbsolute, join, relative, sep } from "node:path";
+import { basename, isAbsolute, join, relative, sep } from "node:path";
 import { isPathAlwaysExcluded, listCurrentFileState } from "../src/layer1_disk_walk.ts";
 import { isPathIgnored, readIgnoreRules, type IgnoreRule } from "../src/layer1_ignore_rules.ts";
-import { loadTranscript } from "../src/parse/loadTranscript.ts";
+import { loadTranscript, type ProgressSink } from "../src/parse/loadTranscript.ts";
 import { listEventPaths } from "../src/reconstruction_bound.ts";
 import { extractFileEvents } from "../src/reconstruction_extract.ts";
 import { Path } from "../src/structures/domain.ts";
+import { DocumentResponseKind } from "../src/structures/vocabulary_views.ts";
 import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
 import type { ProjectFile } from "./engineV3_inverse_repos_for_project.ts";
 
@@ -30,12 +31,16 @@ function makeProjectFile(file: Path): ProjectFile {
     return { file, transcriptFile: file };
 }
 
-export function listProjectFilesOnDiskAndInLogs(projectFolder: Path, jsonlsFolders: Path[]): ProjectFile[] {
+export function listProjectFilesOnDiskAndInLogs(projectFolder: Path, jsonlsFolders: Path[], reportProgress?: ProgressSink): ProjectFile[] {
     const filesOnDisk = listCurrentFileState(projectFolder).map((fileState) => new Path(join(projectFolder.toString(), fileState.relativePath.toString())));
     const listedPathTexts = new Set(filesOnDisk.map((file) => file.toString()));
     const ignoreRules = readIgnoreRules(projectFolder);
     const goneFileTexts = new Set<string>();
     for (const transcriptFile of listTranscriptFiles(jsonlsFolders.map((jsonlsFolder) => jsonlsFolder.toString()))) {
+        if (reportProgress !== undefined) {
+            const logFile = basename(transcriptFile.toString());
+            reportProgress({ kind: DocumentResponseKind.progress, label: logFile, logFile });
+        }
         const records = loadTranscript(transcriptFile.toString(), undefined, true).records;
         for (const event of extractFileEvents(records)) {
             for (const eventPath of listEventPaths(event)) {

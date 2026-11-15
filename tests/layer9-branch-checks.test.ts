@@ -6,8 +6,10 @@ import {
     isBaseKept, isBaseOnly, isBranchGone, isBranchKept, isDeleteQuestionClosed, isDeleteQuestionOpen, isModeOffClean, isStripHeadKept, validateCommitSurvivesRerender, validateDeleteAndRebase,
 } from "../scripts/visual/layer9-branch-checks.ts";
 import {
-    DELETE_OPEN, ENTRY_FACTS, MARK_FACTS, MODE_STATE, STRIP_HEAD_FACTS, TICK_LABELS, TICK_STATES, YESNO_NO, buildRefusalClick,
-    type EntryFacts, type MarkFacts, type RefusalFacts, type StripHeadFacts, type TickState,
+    // DELETE_OPEN, ENTRY_FACTS, MARK_FACTS, MODE_STATE, STRIP_HEAD_FACTS, TICK_LABELS, TICK_STATES, YESNO_NO, buildRefusalClick,
+    // type EntryFacts, type MarkFacts, type RefusalFacts, type StripHeadFacts, type TickState,
+    DELETE_OPEN, ENTRY_FACTS, MARK_FACTS, MODE_STATE, STRIP_HEAD_FACTS, TICK_LABELS, TICK_STATES, TIME_BUTTON_FACTS, YESNO_NO, buildRefusalClick,
+    type EntryFacts, type MarkFacts, type RefusalFacts, type StripHeadFacts, type TickState, type TimeButtonFacts,
 } from "../scripts/visual/layer9-probes.ts";
 import { REQUEST_COUNT } from "../scripts/visual/layer7-probes.ts";
 import { CUT_REFUSAL_TEXT, CutRefusal } from "../webapp/layer1-components/commits-column/layer1-cut-rules.ts";
@@ -29,11 +31,22 @@ const PENDING: MarkFacts = {
 
 const failuresOf = async (check: () => Promise<void>) => (await runCheck(check)).newFailures;
 
-test("validateCommitSurvivesRerender needs the commit added by the user to be in the strip after the re-render", async () => {
-    const run = (entries: EntryFacts[]) => failuresOf(() => validateCommitSurvivesRerender(makeScriptedPage(new Map([[ENTRY_FACTS, [entries]]]))));
-    assert.deepEqual(await run(KEPT), []);
-    assert.equal((await run(KEPT.slice(0, 3))).length, 1);
-    assert.equal((await run([])).length, 1);
+// 08bce8b: the check clicks the disabled author button instead of a re-render (P5)
+// test("validateCommitSurvivesRerender needs the commit added by the user to be in the strip after the re-render", async () => {
+//     const run = (entries: EntryFacts[]) => failuresOf(() => validateCommitSurvivesRerender(makeScriptedPage(new Map([[ENTRY_FACTS, [entries]]]))));
+//     assert.deepEqual(await run(KEPT), []);
+//     assert.equal((await run(KEPT.slice(0, 3))).length, 1);
+//     assert.equal((await run([])).length, 1);
+// });
+
+const LOCKED_BUTTONS: TimeButtonFacts = { isCommitterDisabled: true, isAuthorDisabled: true, isReverseDisabled: true, isCommitterCurrent: true };
+
+test("validateCommitSurvivesRerender needs the fake commit kept and the time buttons locked after a click on the disabled author button", async () => {
+    const run = (entries: EntryFacts[], buttons: TimeButtonFacts) => failuresOf(() => validateCommitSurvivesRerender(makeScriptedPage(new Map<string, unknown[]>([[ENTRY_FACTS, [entries]], [TIME_BUTTON_FACTS, [buttons]]]))));
+    assert.deepEqual(await run(KEPT, LOCKED_BUTTONS), []);
+    assert.equal((await run(KEPT.slice(0, 3), LOCKED_BUTTONS)).length, 1);
+    assert.equal((await run(KEPT, { ...LOCKED_BUTTONS, isAuthorDisabled: false })).length, 1);
+    assert.equal((await run(KEPT, { ...LOCKED_BUTTONS, isCommitterCurrent: false })).length, 1);
 });
 
 interface Setup {
