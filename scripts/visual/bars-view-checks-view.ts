@@ -69,4 +69,8 @@ export async function executeFailureChecks(page: HeadlessPage): Promise<void> {
     reportCheck(`failure path (${FAKE_ERROR_TEXT}): the loading class was set during the load`, loadingLog.includes(true), loadingLog);
     const isStillLoading = await page.evaluate<boolean>(`document.getElementById('timelineRulerComponent').classList.contains('barsRulerLoading')`);
     reportCheck("failure path: the loading class is gone after the error line", !isStillLoading);
+    const statusLineText = await page.evaluate<string>(`document.getElementById('barsStatusLine').textContent`);
+    reportCheck("failure path: #barsStatusLine starts with ==> Change history did not load:", statusLineText.startsWith("==> Change history did not load:"), statusLineText);
+    const headerLineText = await page.evaluate<string>(`document.getElementById('barsHeaderLine').textContent`);
+    console.log(`header after failed load: ${headerLineText}`);
 }
