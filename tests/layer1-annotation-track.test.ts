@@ -17,6 +17,7 @@ const { registerSessionRelayout, storeAnnotations,renderAnnotationTrack, toggleS
 const { moveDetailsPaneToRightEdge, moveOpenDetailsPane } = await import("../webapp/layer1-components/details-drawer/layer1-details-pane.ts");
 const { renderJfredStrip } = await import("../webapp/layer1-components/commits-column/layer1-jfred-strip.ts");
 const { setArmed } = await import("../webapp/layer1-components/commits-column/layer1-jfred-state.ts");
+const { BarsViewMode, setBarsViewMode } = await import("../webapp/layer1-components/bars-view/layer1-bars-mode.ts");
 
 const RECORD_COUNT = 70;
 const TICK_SPACING_PX = 50;
@@ -248,6 +249,8 @@ test("test_track_built_after_the_strip_is_placed_between_ruler_and_strip", async
     const ticks = buildTicks();
     renderRecords(buildRecords(ticks), ticks, false);
     // Turn on Commit mode and draw the strip, so the strip exists before the track.
+    // K6: the column strip draws only in the Bubbles view.
+    setBarsViewMode(BarsViewMode.bubbles);
     setArmed(true);
     renderJfredStrip(ticks);
     assert.equal(document.getElementById("sessionDotLinesComponent"), null);
@@ -256,8 +259,9 @@ test("test_track_built_after_the_strip_is_placed_between_ruler_and_strip", async
     // The ruler container holds exactly: minimap, ruler, track, strip, in that order.
     const rulerContainer = document.getElementById("timelineRulerContainer")!;
     assert.deepEqual([...rulerContainer.children].map((child) => child.id), ["minimapComponent", "timelineRulerComponent", "sessionDotLinesComponent", "jfredCommitsDrawerComponent"]);
-    // Leave Commit mode off for the other tests in this file.
+    // Leave Commit mode off and the Bars view on for the other tests in this file.
     setArmed(false);
+    setBarsViewMode(BarsViewMode.bars);
 });
 
 test("test_the_session_button_is_inside_the_timeline_view_controls", () => {
