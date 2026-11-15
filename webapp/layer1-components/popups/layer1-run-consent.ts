@@ -5,6 +5,7 @@ import { buildConsentScriptRow } from "../../app-consent-rows.ts";
 import { createElement } from "../../app-dom.ts";
 import type { WireConsentScript } from "../../app-fetch.ts";
 import { WireScriptLanguage } from "../details-drawer/layer1-script-language.ts";
+import type { WireScriptReplayNeeds, WireScriptReplayRunReply, WireScriptReplayTask } from "../../layer1-wire-script-replay.ts";
 import type { WireScriptRun } from "../../layer1-wire-script-runs.ts";
 import type { WireLayer1View } from "../../layer1-wire.ts";
 
@@ -115,4 +116,120 @@ export function openRunConsent(view: WireLayer1View): Promise<boolean> {
     appendConsentOverlay(overlay);
   };
   return new Promise(openConsentOverlay);
+}
+
+const SCRIPT_REPLAY_NOTE_TEXT = "Replay runs saved scripts (Python and shell). Each script runs in a Docker container. The container gets copies of your project files only. It has no network. It cannot read, change, or delete your other files.";
+const EARLIER_SCRIPT_TEXT = "earlier script, needed as input";
+
+function convertTaskToConsentScript(task: WireScriptReplayTask): WireConsentScript {
+  return { timestamp: task.instant, code: task.code, readOnly: false, source: task.source };
+}
+
+function buildReplayTaskRow(task: WireScriptReplayTask): HTMLElement {
+  const row = buildConsentScriptRow(convertTaskToConsentScript(task));
+  const waitingPaths: string[] = [];
+  for (const file of task.waitingFiles) {
+    waitingPaths.push(file.path);
+  }
+  row.append(createElement("div", { class: "muted", "data-component": "runConsentWaitingFilesText", text: `waiting files: ${waitingPaths.join(", ")}` }));
+  if (!task.isInSpan) {
+    row.append(createElement("div", { class: "muted", "data-component": "runConsentEarlierScriptText", text: EARLIER_SCRIPT_TEXT }));
+  }
+  return row;
+}
+
+function buildContinueWithoutRunningButton(answer: (isAllowed: boolean) => void): HTMLElement {
+  return createElement("button", { class: "toolbar-btn", "data-component": "runConsentContinueWithoutRunningButton", text: "Continue without running", onclick: () => answer(false) });
+}
+
+function buildScriptReplayProblemChildren(needs: WireScriptReplayNeeds, answer: (isAllowed: boolean) => void): HTMLElement[] {
+  if (needs.problemText === undefined) {
+    throw new Error("a script replay problem needs its problem text");
+  }
+  return [
+    createElement("p", { class: "consent-note", "data-component": "runConsentProblemText", text: needs.problemText }),
+    createElement("div", { class: "consent-header-row" }, [buildContinueWithoutRunningButton(answer)]),
+  ];
+}
+
+function buildScriptReplayTaskChildren(needs: WireScriptReplayNeeds, answer: (isAllowed: boolean) => void): HTMLElement[] {
+  const children: HTMLElement[] = [
+    createElement("div", { class: "muted consent-count", "data-component": "runConsentScriptCountText", text: `${needs.tasks.length} recorded script(s) are needed for this commit` }),
+    buildConsentButtons(answer),
+  ];
+  for (const task of needs.tasks) {
+    children.push(buildReplayTaskRow(task));
+  }
+  return children;
+}
+
+function buildScriptReplayOverlay(needs: WireScriptReplayNeeds, answer: (isAllowed: boolean) => void): HTMLElement {
+  const children: HTMLElement[] = [
+    createElement("h2", { "data-component": "runConsentTitle", text: "Replay recorded scripts?" }),
+    createElement("p", { class: "consent-note", "data-component": "runConsentNoteText", text: SCRIPT_REPLAY_NOTE_TEXT }),
+  ];
+  if (needs.problem !== undefined) {
+    children.push(...buildScriptReplayProblemChildren(needs, answer));
+  }
+  if (needs.problem === undefined) {
+    children.push(...buildScriptReplayTaskChildren(needs, answer));
+  }
+  const box = createElement("div", { class: "consent-box", "data-component": "runConsentDialog" }, children);
+  return createElement("div", { class: "modal-wrap run-consent", "data-component": "runConsentPopup" }, [box]);
+}
+
+// No module-scope answer: every commit asks again.
+export function openScriptReplayConsent(needs: WireScriptReplayNeeds): Promise<boolean> {
+  const openConsentOverlay = (resolve: (isAllowed: boolean) => void): void => {
+    const closeAndAnswer = (isAllowed: boolean): void => {
+      overlay.remove();
+      resolve(isAllowed);
+    };
+    const overlay = buildScriptReplayOverlay(needs, closeAndAnswer);
+    appendConsentOverlay(overlay);
+  };
+  return new Promise(openConsentOverlay);
+}
+
+function collectMissingExecutableNames(reply: WireScriptReplayRunReply): string[] {
+  const names: string[] = [];
+  for (const result of reply.results) {
+    if (result.missingExecutable !== undefined) {
+      if (!names.includes(result.missingExecutable)) {
+        names.push(result.missingExecutable);
+      }
+    }
+  }
+  return names;
+}
+
+function buildMissingExecutablesOverlay(names: string[], close: () => void): HTMLElement {
+  const lines: HTMLElement[] = [];
+  for (const name of names) {
+    lines.push(createElement("p", { "data-component": "missingExecutableLineText", text: `missing executable or Python module ${name} in reveng-sandbox:1: add it to sandbox-image/Dockerfile` }));
+  }
+  const box = createElement("div", { class: "consent-box", "data-component": "missingExecutablesDialog" }, [
+    createElement("h2", { "data-component": "missingExecutablesTitle", text: "Programs missing from the script image" }),
+    ...lines,
+    createElement("div", { class: "consent-header-row" }, [
+      createElement("button", { class: "toolbar-btn", "data-component": "missingExecutablesCloseButton", text: "Close", onclick: close }),
+    ]),
+  ]);
+  return createElement("div", { class: "modal-wrap run-consent", "data-component": "missingExecutablesPopup" }, [box]);
+}
+
+export function openMissingExecutablesNotice(reply: WireScriptReplayRunReply): Promise<void> {
+  const names = collectMissingExecutableNames(reply);
+  if (names.length === 0) {
+    return Promise.resolve();
+  }
+  const openNoticeOverlay = (resolve: () => void): void => {
+    const closeAndResolve = (): void => {
+      overlay.remove();
+      resolve();
+    };
+    const overlay = buildMissingExecutablesOverlay(names, closeAndResolve);
+    appendConsentOverlay(overlay);
+  };
+  return new Promise(openNoticeOverlay);
 }
