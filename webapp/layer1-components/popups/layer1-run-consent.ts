@@ -76,22 +76,36 @@ function buildConsentRows(scripts: WireConsentScript[]): HTMLElement[] {
   return rows;
 }
 
+function buildContinueWithoutRunningButton(answer: (isAllowed: boolean) => void): HTMLElement {
+  return createElement("button", { class: "toolbar-btn", "data-component": "runConsentContinueWithoutRunningButton", text: "Continue without running", onclick: () => answer(false) });
+}
+
 function buildConsentButtons(answer: (isAllowed: boolean) => void): HTMLElement {
   return createElement("div", { class: "consent-header-row" }, [
     createElement("button", { class: "toolbar-btn consent-run", "data-component": "runConsentRunButton", text: "Run scripts", onclick: () => answer(true) }),
-    createElement("button", { class: "toolbar-btn", "data-component": "runConsentContinueWithoutRunningButton", text: "Continue without running", onclick: () => answer(false) }),
+    buildContinueWithoutRunningButton(answer),
   ]);
 }
 
-function buildRunConsentOverlay(scripts: WireConsentScript[], answer: (isAllowed: boolean) => void): HTMLElement {
+function buildConsentCount(countText: string): HTMLElement {
+  return createElement("div", { class: "muted consent-count", "data-component": "runConsentScriptCountText", text: countText });
+}
+
+function buildConsentOverlayShell(noteText: string, bodyChildren: HTMLElement[]): HTMLElement {
   const box = createElement("div", { class: "consent-box", "data-component": "runConsentDialog" }, [
     createElement("h2", { "data-component": "runConsentTitle", text: "Replay recorded scripts?" }),
-    createElement("p", { class: "consent-note", "data-component": "runConsentNoteText", text: buildRunConsentText() }),
-    createElement("div", { class: "muted consent-count", "data-component": "runConsentScriptCountText", text: `${scripts.length} recorded script(s) can run on this page` }),
+    createElement("p", { class: "consent-note", "data-component": "runConsentNoteText", text: noteText }),
+    ...bodyChildren,
+  ]);
+  return createElement("div", { class: "modal-wrap run-consent", "data-component": "runConsentPopup" }, [box]);
+}
+
+function buildRunConsentOverlay(scripts: WireConsentScript[], answer: (isAllowed: boolean) => void): HTMLElement {
+  return buildConsentOverlayShell(buildRunConsentText(), [
+    buildConsentCount(`${scripts.length} recorded script(s) can run on this page`),
     buildConsentButtons(answer),
     ...buildConsentRows(scripts),
   ]);
-  return createElement("div", { class: "modal-wrap run-consent", "data-component": "runConsentPopup" }, [box]);
 }
 
 function appendConsentOverlay(overlay: HTMLElement): void {
@@ -138,10 +152,6 @@ function buildReplayTaskRow(task: WireScriptReplayTask): HTMLElement {
   return row;
 }
 
-function buildContinueWithoutRunningButton(answer: (isAllowed: boolean) => void): HTMLElement {
-  return createElement("button", { class: "toolbar-btn", "data-component": "runConsentContinueWithoutRunningButton", text: "Continue without running", onclick: () => answer(false) });
-}
-
 function buildScriptReplayProblemChildren(needs: WireScriptReplayNeeds, answer: (isAllowed: boolean) => void): HTMLElement[] {
   if (needs.problemText === undefined) {
     throw new Error("a script replay problem needs its problem text");
@@ -154,7 +164,7 @@ function buildScriptReplayProblemChildren(needs: WireScriptReplayNeeds, answer: 
 
 function buildScriptReplayTaskChildren(needs: WireScriptReplayNeeds, answer: (isAllowed: boolean) => void): HTMLElement[] {
   const children: HTMLElement[] = [
-    createElement("div", { class: "muted consent-count", "data-component": "runConsentScriptCountText", text: `${needs.tasks.length} recorded script(s) are needed for this commit` }),
+    buildConsentCount(`${needs.tasks.length} recorded script(s) are needed for this commit`),
     buildConsentButtons(answer),
   ];
   for (const task of needs.tasks) {
@@ -164,18 +174,14 @@ function buildScriptReplayTaskChildren(needs: WireScriptReplayNeeds, answer: (is
 }
 
 function buildScriptReplayOverlay(needs: WireScriptReplayNeeds, answer: (isAllowed: boolean) => void): HTMLElement {
-  const children: HTMLElement[] = [
-    createElement("h2", { "data-component": "runConsentTitle", text: "Replay recorded scripts?" }),
-    createElement("p", { class: "consent-note", "data-component": "runConsentNoteText", text: SCRIPT_REPLAY_NOTE_TEXT }),
-  ];
+  const children: HTMLElement[] = [];
   if (needs.problem !== undefined) {
     children.push(...buildScriptReplayProblemChildren(needs, answer));
   }
   if (needs.problem === undefined) {
     children.push(...buildScriptReplayTaskChildren(needs, answer));
   }
-  const box = createElement("div", { class: "consent-box", "data-component": "runConsentDialog" }, children);
-  return createElement("div", { class: "modal-wrap run-consent", "data-component": "runConsentPopup" }, [box]);
+  return buildConsentOverlayShell(SCRIPT_REPLAY_NOTE_TEXT, children);
 }
 
 // No module-scope answer: every commit asks again.
