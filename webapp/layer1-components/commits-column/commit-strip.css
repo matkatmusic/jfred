@@ -33,6 +33,7 @@
   pre.jfred-message { margin: 0; white-space: pre-wrap; font: 11px ui-monospace, Menlo, monospace; color: var(--ink); }
   .jcommit { margin: 0 0 8px; }
   #commit-mode.current { background: var(--sel-edge); border-color: var(--sel-edge); color: var(--page); }
+  #commit-mode:disabled { opacity: 0.5; cursor: not-allowed; }
   .jdelete { display: block; box-sizing: border-box; max-width: 100%; margin-top: 2px; padding: 1px 4px; font-size: 9px; line-height: 1.2;
     white-space: normal; text-align: left; color: var(--ink); background: var(--surface); }
   .jpane { padding: 8px; }

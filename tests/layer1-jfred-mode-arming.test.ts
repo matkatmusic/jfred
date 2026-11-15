@@ -8,6 +8,7 @@ import { initLayer1Dom, waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
 initLayer1Dom();
 const { renderLayer1View } = await import("../webapp/layer1-view-render.ts");
 const { readJfredBranch, setArmed } = await import("../webapp/layer1-components/commits-column/layer1-jfred-state.ts");
+const { handleBarsHistoryLoaded } = await import("../webapp/layer1-components/commits-column/layer1-jfred-mode.ts");
 
 const LOADER_PATHNAMES = ["/api/layer1-edits", "/api/layer1-script-runs", "/api/layer1-branches"];
 const KINDS_NOT_LOADED_TEXT = "Commit mode needs every node type, and one did not load. Commit mode stays off.";
@@ -18,6 +19,11 @@ function buildRealView(): never {
 
 function getButton(): HTMLButtonElement {
   return document.getElementById("commit-mode") as HTMLButtonElement;
+}
+
+// Stands in for the end of the change history load of the loaded project.
+function enableCommitModeForLoadedProject(): void {
+  handleBarsHistoryLoaded((document.getElementById("dir") as HTMLInputElement).value.trim());
 }
 
 function buildEmptyStreamResponse(pathname: string): Response {
@@ -66,6 +72,7 @@ test("test_arming_commit_mode_checks_every_kind_box_and_loads_edits", async () =
   const requested = installLoaderRoutes(undefined);
   setArmed(false);
   await renderLayer1View(buildRealView());
+  enableCommitModeForLoadedProject();
   getButton().click();
   await waitUntil(() => readJfredBranch().isArmed);
   assert.equal(readJfredBranch().isArmed, true);
@@ -81,6 +88,7 @@ test("test_arming_commit_mode_stays_off_with_a_toast_when_a_kind_does_not_load",
   installLoaderRoutes("/api/layer1-branches");
   setArmed(false);
   await renderLayer1View(buildRealView());
+  enableCommitModeForLoadedProject();
   getButton().click();
   await waitUntil(() => !document.getElementById("dtoast")!.hidden);
   assert.equal(document.getElementById("dtoast")!.textContent, KINDS_NOT_LOADED_TEXT);
@@ -95,6 +103,7 @@ test("test_turning_commit_mode_off_leaves_the_kinds_on", async () => {
   installLoaderRoutes(undefined);
   setArmed(false);
   await renderLayer1View(buildRealView());
+  enableCommitModeForLoadedProject();
   getButton().click();
   await waitUntil(() => readJfredBranch().isArmed);
   getButton().click();
