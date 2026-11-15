@@ -70,7 +70,7 @@ export function buildInverseReposWire(
     //     const file = new Path(join(projectFolder.toString(), relativePath));
     //     return { file, transcriptFile: file };
     // });
-    const projectFiles: ProjectFile[] = listProjectFilesOnDiskAndInLogs(projectFolder, jsonlFolders);
+    const projectFiles: ProjectFile[] = listProjectFilesOnDiskAndInLogs(projectFolder, jsonlFolders, reportProgress);
     reportProgress({
         kind: DocumentResponseKind.progress,
         label: LAYER1_PROGRESS_LABEL_BUILDING_INVERSE_REPOS,

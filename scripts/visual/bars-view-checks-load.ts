@@ -2,7 +2,7 @@
 
 import type { InverseRepoFileWire } from "../../webapp/layer1-components/bars-view/layer1-bars-wire.ts";
 import { type MouseHeadlessPage } from "./cdp.ts";
-import { FAKE_OTHER_STATUS_TEXT, countExpectedDots } from "./bars-view-fake-data.ts";
+import { FAKE_OTHER_STATUS_TEXT, FAKE_SECOND_LOG_FILE, countExpectedDots } from "./bars-view-fake-data.ts";
 import { armStreamGate, releaseStreamLines } from "./bars-view-fake-fetch.ts";
 import { clickTickWithMouse, countElements, countShownElements, readFirstComputedStyle, readSelectedTickIndexes, saveBarsScreenshot } from "./bars-view-page-reads.ts";
 import { reportCheck } from "./mockup-checks.ts";
@@ -78,8 +78,23 @@ async function startGatedLoad(page: MouseHeadlessPage, lines: string[]): Promise
     await page.waitFor("window.__barsReposRequests >= 1", 30_000);
 }
 
+async function checkLogFileLineWhileLogsAreRead(page: MouseHeadlessPage): Promise<void> {
+    await releaseStreamLines(page, 2);
+    const logFileLineText = await page.evaluate<string>(`document.getElementById('barsLogFileLine').textContent`);
+    reportCheck("log read: #barsLogFileLine shows the second log file name", logFileLineText === FAKE_SECOND_LOG_FILE, logFileLineText);
+    const logFileLineDisplay = await readFirstComputedStyle(page, "#barsLogFileLine", "display");
+    reportCheck("log read: #barsLogFileLine is visible", logFileLineDisplay !== "none", logFileLineDisplay);
+    const statusText = await page.evaluate<string>(`document.getElementById('barsStatusLine').textContent`);
+    reportCheck("log read: #barsStatusLine still shows the reading text", statusText.endsWith("Reading all session logs (one time)"), statusText);
+}
+
+async function checkLogFileLineIsHiddenAfterLoad(page: MouseHeadlessPage): Promise<void> {
+    const isHidden = await page.evaluate<boolean>(`document.getElementById('barsLogFileLine').hidden`);
+    reportCheck("after load: #barsLogFileLine is hidden", isHidden);
+}
+
 async function checkLoadingBeforeResult(page: MouseHeadlessPage, lines: string[]): Promise<void> {
-    await releaseStreamLines(page, lines.length - 1);
+    await releaseStreamLines(page, lines.length - 3);
     await checkRulerIsLoading(page, WHEN_BEFORE_RESULT);
     await checkRealMouseClickIsIgnored(page, WHEN_BEFORE_RESULT);
 }
@@ -95,10 +110,12 @@ async function checkLoadingDuringReveal(page: MouseHeadlessPage): Promise<void> 
 
 export async function executeLoadChecks(page: MouseHeadlessPage, files: InverseRepoFileWire[], lines: string[], outDir: string): Promise<void> {
     await startGatedLoad(page, lines);
+    await checkLogFileLineWhileLogsAreRead(page);
     await checkLoadingBeforeResult(page, lines);
     await checkLoadingDuringReveal(page);
     await page.waitFor(`!(${RULER_IS_LOADING})`, 20_000);
     await checkStatusTextsInOrder(page, files.length);
+    await checkLogFileLineIsHiddenAfterLoad(page);
     await checkRowsAndDotsCounts(page, files);
     await checkRevealedState(page, files.length);
     await saveBarsScreenshot(page, outDir, "01-after-load");

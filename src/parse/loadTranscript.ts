@@ -17,6 +17,8 @@ export type ProgressEvent = {
   file?: string;            // project-relative path of the file this event is about, forward slashes
   fileStepsDone?: number;   // steps of this file that are done
   fileStepsTotal?: number;  // all steps of this file
+  logFile?: string;         // base name of the session log being read
+  buildingFile?: string;    // project-relative path of the file whose inverse repo is being built now
 };
 export type ProgressSink = (event: ProgressEvent) => void;
 

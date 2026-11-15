@@ -43,9 +43,24 @@ function getOrCreateStreamRow(streamRowsByFile: Map<string, BarRowElements>, row
     return newRow;
 }
 
+function setBarsLogFileLine(fileName: string): void {
+    const logFileLineElement = getRequiredElementById("barsLogFileLine");
+    logFileLineElement.textContent = fileName;
+    logFileLineElement.hidden = fileName === "";
+}
+
 function showProgressLine(line: InverseProgressLine, streamRowsByFile: Map<string, BarRowElements>, rowListElement: HTMLElement): void {
     const lineKind = classifyInverseProgressLine(line);
+    if (lineKind === InverseProgressLineKind.buildingFile) {
+        setBarsLogFileLine(readDefinedValue(line.buildingFile, "buildingFile"));
+        return;
+    }
+    if (lineKind === InverseProgressLineKind.logFile) {
+        setBarsLogFileLine(readDefinedValue(line.logFile, "logFile"));
+        return;
+    }
     if (lineKind === InverseProgressLineKind.started) {
+        setBarsLogFileLine("");
         setBarsHeaderLine(describeLoadingHeader(line.total));
         return;
     }
@@ -72,6 +87,7 @@ function showProgressLine(line: InverseProgressLine, streamRowsByFile: Map<strin
 
 function writeLoadFailedStatusLine(state: BarsViewState, runId: number, error: unknown): void {
     if (state.runId === runId) {
+        setBarsLogFileLine("");
         const reason = error instanceof Error ? error.message : String(error);
         setBarsStatusLine(`Change history did not load: ${reason}`);
     }
@@ -102,6 +118,7 @@ export async function loadBarsHistory(
     loadController = controller;
     setBarsHeaderLine(describeLoadingHeader(undefined));
     setBarsStatusLine(BARS_READING_LOGS_TEXT);
+    setBarsLogFileLine("");
     showBarsReadBar(true);
     try {
         const streamRowsByFile = new Map<string, BarRowElements>();
@@ -116,6 +133,7 @@ export async function loadBarsHistory(
         if (state.runId !== runId) {
             return;
         }
+        setBarsLogFileLine("");
         state.files = result.files;
         state.rulerRows = listRealRulerRows();
         if (state.rulerRows.length === 0) {
