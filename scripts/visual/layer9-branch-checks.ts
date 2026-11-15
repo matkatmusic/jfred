@@ -124,7 +124,9 @@ async function validateNewBase(page: HeadlessPage): Promise<void> {
   const accepted = await page.evaluate<RefusalFacts>(buildRefusalClick(TICK_LABELS.base));
   const entries = await page.evaluate<EntryFacts[]>(ENTRY_FACTS);
   reportCheck("L9 a click on the commit tick shows no toast and starts one base entry", !accepted.isShown && isBaseOnly(entries), [accepted, entries]);
-  await page.evaluate(buildClickTick(TICK_LABELS.afterBase));
+  // await page.evaluate(buildClickTick(TICK_LABELS.afterBase));
+  // K7: no file changed at 06-01 09:05 since the new base, so the page refuses it; 06-01 14:30 changes a file
+  await page.evaluate(buildClickTick(TICK_LABELS.behindTip));
   const marked = await page.evaluate<MarkFacts>(MARK_FACTS);
   reportCheck("L9 the next mark is pending and the base did not move", isBaseKept(marked), marked.entries);
 }
