@@ -9,7 +9,7 @@ import { validateExistingFolderParam, sendNdjsonBuild } from "./viewer_api_layer
 import { sendJson } from "./viewer_server_routes.ts";
 
 // Beside the other server caches (jfred/.cache), never inside the user's project folder.
-const INVERSE_REPOS_CACHE_FOLDER = join(import.meta.dirname, "..", ".cache", "inverse-repos");
+export const INVERSE_REPOS_CACHE_FOLDER = join(import.meta.dirname, "..", ".cache", "inverse-repos");
 
 export function getInverseReposStoreFolder(projectFolder: Path): Path {
     const projectFolderName = projectFolder.toString().replaceAll(/[^A-Za-z0-9._-]/g, "-");
