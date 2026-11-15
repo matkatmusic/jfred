@@ -5,7 +5,8 @@ import { reportCheck } from "./mockup-checks.ts";
 import { REQUEST_COUNT } from "./layer7-probes.ts";
 import {
   COMMIT_CLICK, COMMIT_MODE_CLICK, CutClass, FOOTNOTE_PREFIX, MARK_FACTS, MODE_STATE, STRIP_COUNT, TICKFILES_COUNT, TICK_LABELS, TICK_STATES, YESNO_NO, YESNO_YES,
-  buildBeaconInstantCount, buildClickTick, buildRefusalClick, type MarkFacts, type RefusalFacts, type TickState,
+  // buildBeaconInstantCount,
+  buildClickTick, buildRefusalClick, type MarkFacts, type RefusalFacts, type TickState,
 } from "./layer9-probes.ts";
 import { CUT_REFUSAL_TEXT, CutRefusal } from "../../webapp/layer1-components/commits-column/layer1-cut-rules.ts";
 import { JfredEntryKind } from "../../webapp/layer1-components/commits-column/layer1-jfred-entries.ts";
@@ -116,7 +117,9 @@ export function isMovedMarkRight(facts: MarkFacts, independentCount: number): bo
 export function isCommitRight(before: MarkFacts, after: MarkFacts): boolean {
   const added = after.entries.at(-1);
   const isAdded = after.entries.length === 4 && added?.kind === JfredEntryKind.commit && added.parentHash === after.entries[2]?.shortHash;
-  return isAdded && after.chains === 3 && after.requests === before.requests + 1;
+  // return isAdded && after.chains === 3 && after.requests === before.requests + 1;
+  // W4: one Commit click sends script-replay-needs, then jfred-commit
+  return isAdded && after.chains === 3 && after.requests === before.requests + 2;
 }
 
 export function isMessageKept(before: MarkFacts, after: MarkFacts): boolean {
@@ -158,7 +161,9 @@ export async function validateRefusals(page: HeadlessPage): Promise<void> {
 export function isUnchangedQuestionRight(before: MarkFacts, after: MarkFacts, row: YesNoRowFacts): boolean {
   const isAsked = row.rows === 1 && row.text.includes(UNCHANGED_NEXT_INSTANT_PREFIX);
   const isKept = after.pending.entries === 1 && after.entries.length === before.entries.length;
-  return isAsked && isKept && after.requests === before.requests + 1;
+  // return isAsked && isKept && after.requests === before.requests + 1;
+  // W4: one Commit click sends script-replay-needs, then jfred-commit
+  return isAsked && isKept && after.requests === before.requests + 2;
 }
 
 // The early tick is the canned unchanged range: Commit asks, No keeps the mark, Yes moves it.
@@ -201,8 +206,11 @@ export async function validatePendingMark(page: HeadlessPage): Promise<void> {
   reportCheck("L9 a mark on 06-03 11:00 gives one pending entry, a Commit button and a message without an unmarked line", isFirstMarkRight(first), first);
   await page.evaluate(buildClickTick(TICK_LABELS.late));
   const moved = await page.evaluate<MarkFacts>(MARK_FACTS);
-  const independent = await page.evaluate<number>(buildBeaconInstantCount(moved.entries[2]!.instant, moved.entries[3]!.instant));
-  reportCheck("L9 moving the mark to 06-03 18:20 keeps one pending entry and the message says includes N unmarked changes, N equal to the beacon instants between the tip and the mark", isMovedMarkRight(moved, independent), [independent, moved]);
+  // const independent = await page.evaluate<number>(buildBeaconInstantCount(moved.entries[2]!.instant, moved.entries[3]!.instant));
+  // K7: 06-03 11:00 changes a file since the tip; 06-03 17:30 is a beacon with no file change, so N = 1
+  const independent = 1;
+  // reportCheck("L9 moving the mark to 06-03 18:20 keeps one pending entry and the message says includes N unmarked changes, N equal to the beacon instants between the tip and the mark", isMovedMarkRight(moved, independent), [independent, moved]);
+  reportCheck("L9 moving the mark to 06-03 18:20 keeps one pending entry and the message says includes 1 unmarked change: only 06-03 11:00 changes a file since the tip", isMovedMarkRight(moved, independent), [independent, moved]);
   reportCheck("L9 placing and moving a mark sends no request", first.requests === requestsBefore && moved.requests === requestsBefore, [requestsBefore, first.requests, moved.requests]);
 }
 
@@ -210,6 +218,7 @@ export async function validateCommit(page: HeadlessPage): Promise<void> {
   const before = await page.evaluate<MarkFacts>(MARK_FACTS);
   await page.evaluate(COMMIT_CLICK);
   const after = await page.evaluate<MarkFacts>(MARK_FACTS);
-  reportCheck("L9 Commit adds one entry whose parent is the last commit, joined by a chain, with one commit request", isCommitRight(before, after), after);
+  // reportCheck("L9 Commit adds one entry whose parent is the last commit, joined by a chain, with one commit request", isCommitRight(before, after), after);
+  reportCheck("L9 Commit adds one entry whose parent is the last commit, joined by a chain; the Commit click sends two requests (needs + commit)", isCommitRight(before, after), after);
   reportCheck("L9 after Commit no mark is pending, the button is gone, and the message is unchanged and ends with the footnote", isMessageKept(before, after), after.drawer);
 }
