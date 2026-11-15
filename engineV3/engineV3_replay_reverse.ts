@@ -10,6 +10,7 @@ import { mergeRecordsByTimestamp } from "../src/reconstruction_multi_source.ts";
 import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
 import { getFileHistorySnapshot, type FileHistoryBackup, type FileHistorySnapshotMessage } from "../src/structures/file-history.ts";
 import { listRunsInRecord, type ScriptRun } from "../src/reconstruction_script_execution.ts";
+import { collectErroredToolUseIds } from "../src/structures/tool-results.ts";
 import { KNOWN_RECORD_TYPES, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import { executeGit, type CommitHash, type JSONLLine } from "./engineV3.ts";
 import { loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
@@ -280,9 +281,14 @@ export function createFileNamePattern(file: Path): RegExp {
 }
 
 export function collectScriptRuns(jsonlLines: JSONLLine[]): ScriptRun[] {
+  const erroredToolUseIds = collectErroredToolUseIds(jsonlLines);
   const scriptRuns: ScriptRun[] = [];
   for (const line of jsonlLines) {
-    scriptRuns.push(...listRunsInRecord(line));
+    for (const scriptRun of listRunsInRecord(line)) {
+      if (!erroredToolUseIds.has(scriptRun.toolUseId!.toString())) {
+        scriptRuns.push(scriptRun);
+      }
+    }
   }
   return scriptRuns;
 }

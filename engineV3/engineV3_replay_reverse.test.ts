@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { readReverseSettingsFromArguments } from "./engineV3_replay_settings.ts";
 import { loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
-import { ReverseStateKind, collectBackupKnownStates, collectGitKnownStates, formatReverseStateLine, walkFileBackwards, walkFileBackwardsWithKnownStates, type KnownFileState, type ReverseFileState } from "./engineV3_replay_reverse.ts";
+import { ReverseStateKind, collectBackupKnownStates, collectGitKnownStates, collectScriptRuns, formatReverseStateLine, walkFileBackwards, walkFileBackwardsWithKnownStates, type KnownFileState, type ReverseFileState } from "./engineV3_replay_reverse.ts";
 
 type EditChange = { oldString: string; newString: string; originalFile?: string | null; replaceAll?: boolean };
 
@@ -1051,4 +1051,17 @@ test("test_collectGitKnownStates_returns_no_states_when_the_file_is_not_inside_a
     const file = makeTargetFile(t, "text");
     // collecting returns an empty list
     assert.deepEqual(collectGitKnownStates(file), []);
+});
+
+test("test_tool_call_blocked_by_a_hook_is_not_a_script_run", (t) => {
+    // Scenario: a hook blocks the first Bash call; the same command runs again and succeeds.
+    const jsonlFolder = makeTempFolder(t);
+    const command = "python3 move_files.py";
+    const blockedResultContent = [{ type: "tool_result", tool_use_id: "toolu_blocked", content: "No compound commands", is_error: true }];
+    const blockedResult = { type: "user", uuid: "result-toolu_blocked", timestamp: makeInstant(1).toISOString(), message: { role: "user", content: blockedResultContent }, cwd: jsonlFolder };
+    writeRecords(jsonlFolder, "s1.jsonl", [...makeBashRows("toolu_blocked", command, 1), blockedResult, ...makeBashRows("toolu_ran", command, 2), { ...makeResultRecord("toolu_ran", "ok", 2), cwd: jsonlFolder }]);
+    // collect the script runs
+    const scriptRuns = collectScriptRuns(loadMergedJSONLLines([jsonlFolder]).jsonlLines);
+    // only the later call is a script run
+    assert.deepEqual(scriptRuns.map((scriptRun) => scriptRun.toolUseId!.toString()), ["toolu_ran"]);
 });
