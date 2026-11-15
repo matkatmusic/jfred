@@ -4,6 +4,7 @@ import {
     BARS_RULER_LOADING_CLASS,
     BARS_SELECTED_TICK_CLASS,
     computeBarPercent,
+    findRealRulerTickAtRowIndex,
     findRealRulerTickRowIndex,
     findRulerRowIndexForInstant,
     listRealRulerRows,
@@ -71,6 +72,20 @@ test("test_the_row_index_of_a_tick_counts_from_the_newest_tick", () => {
     // The newest tick is index 0 and the oldest tick is index 2.
     assert.equal(findRealRulerTickRowIndex(ticksOldestFirst[2]!), 0);
     assert.equal(findRealRulerTickRowIndex(ticksOldestFirst[0]!), 2);
+});
+
+test("test_the_tick_at_a_row_index_is_the_tick_of_that_row", () => {
+    // Scenario: three ticks in the page, oldest first.
+    const ticksOldestFirst = buildRulerWithRows(buildThreeRows());
+    // Row 0 is the newest tick and row 2 is the oldest tick.
+    assert.equal(findRealRulerTickAtRowIndex(0), ticksOldestFirst[2]);
+    assert.equal(findRealRulerTickAtRowIndex(2), ticksOldestFirst[0]);
+});
+
+test("test_the_tick_at_a_row_index_with_no_tick_throws", () => {
+    // Scenario: three ticks in the page, so row index 3 has no tick.
+    buildRulerWithRows(buildThreeRows());
+    assert.throws(() => findRealRulerTickAtRowIndex(3), /ruler has no tick at row index 3/);
 });
 
 test("test_find_row_index_of_null_is_zero", () => {
