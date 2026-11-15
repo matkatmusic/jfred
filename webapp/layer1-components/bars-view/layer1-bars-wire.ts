@@ -19,8 +19,12 @@ export type InverseEventType = (typeof InverseEventType)[keyof typeof InverseEve
 export const InverseConfidence = { proven: "proven", confirmed: "confirmed", derived: "derived", unknown: "unknown" } as const;
 export type InverseConfidence = (typeof InverseConfidence)[keyof typeof InverseConfidence];
 
+export const InverseMoment = { atEvent: "at-event", beforeEvent: "before-event" } as const;
+export type InverseMoment = (typeof InverseMoment)[keyof typeof InverseMoment];
+
 export type InverseCommitWire = {
     commitHash: string;
+    treeHash: string;
     eventType: string;
     moment: string;
     confidence: string;

@@ -4,8 +4,10 @@ import {
     BARS_RULER_LOADING_CLASS,
     BARS_SELECTED_TICK_CLASS,
     computeBarPercent,
+    findRealRulerTickAtRowIndex,
     findRealRulerTickRowIndex,
     findRulerRowIndexForInstant,
+    findRulerRowIndexForSelectedTime,
     listRealRulerRows,
     markRealRulerRowSelected,
     setRealRulerLoading,
@@ -71,6 +73,20 @@ test("test_the_row_index_of_a_tick_counts_from_the_newest_tick", () => {
     // The newest tick is index 0 and the oldest tick is index 2.
     assert.equal(findRealRulerTickRowIndex(ticksOldestFirst[2]!), 0);
     assert.equal(findRealRulerTickRowIndex(ticksOldestFirst[0]!), 2);
+});
+
+test("test_the_tick_at_a_row_index_is_the_tick_of_that_row", () => {
+    // Scenario: three ticks in the page, oldest first.
+    const ticksOldestFirst = buildRulerWithRows(buildThreeRows());
+    // Row 0 is the newest tick and row 2 is the oldest tick.
+    assert.equal(findRealRulerTickAtRowIndex(0), ticksOldestFirst[2]);
+    assert.equal(findRealRulerTickAtRowIndex(2), ticksOldestFirst[0]);
+});
+
+test("test_the_tick_at_a_row_index_with_no_tick_throws", () => {
+    // Scenario: three ticks in the page, so row index 3 has no tick.
+    buildRulerWithRows(buildThreeRows());
+    assert.throws(() => findRealRulerTickAtRowIndex(3), /ruler has no tick at row index 3/);
 });
 
 test("test_find_row_index_of_null_is_zero", () => {
@@ -164,4 +180,35 @@ test("test_setting_the_ruler_loading_does_not_change_which_tick_is_selected", ()
     setRealRulerLoading(false);
     const selectedFlags = ticksOldestFirst.map((tick) => tick.classList.contains(BARS_SELECTED_TICK_CLASS));
     assert.deepEqual(selectedFlags, [false, true, false]);
+});
+
+test("test_selected_time_held_by_a_row_selects_that_row", () => {
+    // Scenario: a time equal to an instant of row 1 selects row 1.
+    assert.equal(findRulerRowIndexForSelectedTime(buildThreeRows(), INSTANT_10), 1);
+    assert.equal(findRulerRowIndexForSelectedTime(buildThreeRows(), INSTANT_12), 0);
+});
+
+test("test_selected_time_inside_a_merged_row_selects_that_row", () => {
+    // Scenario: a time between the first and last instant of row 1 selects row 1.
+    assert.equal(findRulerRowIndexForSelectedTime(buildThreeRows(), "2026-11-13T10:15:00.000Z"), 1);
+});
+
+test("test_selected_time_between_two_rows_selects_the_older_row", () => {
+    // Scenario: 11:00 is after row 1 (10:30) and before row 0 (12:00): the older row 1 is selected.
+    assert.equal(findRulerRowIndexForSelectedTime(buildThreeRows(), INSTANT_11), 1);
+});
+
+test("test_selected_time_older_than_every_row_selects_the_oldest_row", () => {
+    // Scenario: a time before 08:00 selects the last row.
+    assert.equal(findRulerRowIndexForSelectedTime(buildThreeRows(), "2026-11-13T07:00:00.000Z"), 2);
+});
+
+test("test_selected_time_newer_than_every_row_selects_the_newest_row", () => {
+    // Scenario: a time after 12:00 selects row 0.
+    assert.equal(findRulerRowIndexForSelectedTime(buildThreeRows(), INSTANT_13), 0);
+});
+
+test("test_selected_time_with_no_rows_throws", () => {
+    // Scenario: an empty row list has no row to select.
+    assert.throws(() => findRulerRowIndexForSelectedTime([], INSTANT_10));
 });

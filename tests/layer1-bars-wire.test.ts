@@ -5,6 +5,7 @@ import {
     BARS_LAST_STAGE_INDEX,
     BarDotKind,
     InverseEventType,
+    InverseMoment,
     InverseProgressLineKind,
     classifyInverseProgressLine,
     findGoneCommitIndex,
@@ -15,6 +16,7 @@ import {
     readInverseEventType,
     type InverseCommitWire,
 } from "../webapp/layer1-components/bars-view/layer1-bars-wire.ts";
+import { StateMoment } from "../engineV3/engineV3_file_known_states.ts";
 import { ShowRowKind } from "../webapp/layer1-components/show-row/layer1-show-row.ts";
 import { buildDiskNowCommit, buildInverseCommit } from "./layer1-bars-test-helpers.ts";
 
@@ -272,4 +274,13 @@ test("test_an_unknown_event_type_string_throws", () => {
     assert.throws(() => readInverseEventType("Nonsense"));
     // A known string comes back unchanged.
     assert.equal(readInverseEventType("GitCommit"), InverseEventType.gitCommit);
+});
+
+test("test_inverse_moment_values_match_the_engine_moments", () => {
+    // The page values equal the literal engine strings.
+    assert.equal(InverseMoment.atEvent, "at-event");
+    assert.equal(InverseMoment.beforeEvent, "before-event");
+    // They also equal the engine enum members.
+    assert.equal(InverseMoment.atEvent, StateMoment.AtEvent);
+    assert.equal(InverseMoment.beforeEvent, StateMoment.BeforeEvent);
 });

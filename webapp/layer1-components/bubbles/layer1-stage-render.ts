@@ -16,6 +16,7 @@ import { LAYER1_PROGRESS_LABEL_DRAWING_RULER, LAYER1_PROGRESS_LABEL_DRAWING_TIME
 import { refreshKindJumpArrows } from "../show-row/layer1-kind-jump.ts";
 import { renderSessionRanges } from "./layer1-ranges.ts";
 import { attachRulerTickClick } from "../ruler/layer1-ruler-click.ts";
+import { notifyRulerRedrawn } from "../ruler/layer1-ruler-redraw.ts";
 import { listRulerRows, type RulerRow } from "../ruler/layer1-ruler-rows.ts";
 import { renderScriptConnectors } from "./layer1-script-connectors.ts";
 import { listSelectedSessions } from "../jsonls-nav/layer1-sessions.ts";
@@ -32,6 +33,7 @@ function renderRulerTicks(rows: RulerRow[]): void {
     ticks.push(attachRulerTickClick(setAxisPx(createElement("div", { class: "tick", "data-component": "rulerTick", text: row.text }), row.axisPx), row));
   }
   getRequiredElementById("timelineRulerComponent").replaceChildren(createElement("div", { class: "rail", "data-component": "rulerDottedLine" }), ...ticks);
+  notifyRulerRedrawn();
 }
 
 // One shared line per ruler entry, replacing the slow per-bubble `.filebox::before`.

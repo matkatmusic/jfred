@@ -99,6 +99,7 @@ function makeOrderedGitState(position: number, second: number): OrderedKnownStat
 function makeInverseCommit(overrides: Partial<InverseCommit>): InverseCommit {
     return {
         commitHash: new Uuid("0".repeat(40)),
+        treeHash: new Uuid("1".repeat(40)),
         position: 1,
         eventType: FileEventType.ScriptMayWrite,
         moment: StateMoment.AtEvent,
