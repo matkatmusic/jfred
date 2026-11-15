@@ -519,3 +519,22 @@ test("test_cli_prints_each_missing_executable_once", { timeout: DOCKER_TEST_TIME
     const missingLines = printedLines.filter((line) => line.startsWith("script replay: missing executable"));
     assert.deepEqual(missingLines, [formatMissingExecutableLine("nosuchtool_a"), formatMissingExecutableLine("nosuchtool_b")]);
 });
+
+test("test_start_text_is_absent_when_the_older_commit_is_the_before_event_commit_of_the_oldest_event", async (t) => {
+    // Scenario: a script moves a file that no event names into f.txt; the script is the only event of f.txt.
+    // The move runs from a folder outside the project, so the replay refuses it and starts no container.
+    const scene = makeScene(t, { "f.txt": "v1\n" }, (projectFolder) => [
+        makeBashRecord("toolu_move", `mv ${join(projectFolder, "source.txt")} ${join(projectFolder, "f.txt")}`, 10, "/elsewhere"),
+    ]);
+    buildStore(scene);
+    // The repo has the disk commit at position 0 and the absent-before commit at position 2; the script's own state at position 1 has no commit.
+    assert.deepEqual(listCommitPositions(scene, "f.txt"), [0, 2]);
+    const spawnCounts = startDockerSpawnSpy(t);
+    // The replay runs and reads the start text from the commit at position 2, which is a before-event commit.
+    const outcomes = await replayScene(scene);
+    // The move task is refused, its gap is not filled, and no container started.
+    assert.equal(outcomes.length, 1);
+    assert.equal(outcomes[0]!.outcome, ScriptTaskOutcomeKind.Refused);
+    assert.equal(outcomes[0]!.files[0]!.isGapFilled, false);
+    assert.equal(spawnCounts.runCount(), 0);
+});
