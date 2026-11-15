@@ -262,6 +262,27 @@ test("test_list_only_prints_tasks_and_runs_no_container", async (t) => {
     assert.equal(spawnCounts.controlCount(), 0);
 });
 
+test("test_list_only_finds_tasks_of_a_project_copy_through_the_recorded_project_folder", async (t) => {
+    // Scenario: the transcript names files under recorded folder A; the project files sit in copy folder B.
+    // The transcript writes f.txt and runs a script on it, both under folder A.
+    const recordedFolder = join(tmpdir(), `engine-v3-recorded-${randomUUID()}`);
+    const scene = makeScene(t, { "f.txt": "v1\n" }, () => [
+        ...makeWriteCreateRows("toolu_write", join(recordedFolder, "f.txt"), "v0\n", 10, recordedFolder),
+        makeBashRecord("toolu_script", `printf 'v1\\n' > ${join(recordedFolder, "f.txt")}`, 20, recordedFolder),
+    ]);
+    const printedLines = captureConsoleMethod(t, "log");
+    // The command line runs with --list-only on folder B and names folder A as the recorded project.
+    await executeScriptReplayCommandLine([
+        "--project", scene.projectFolder.toString(), "--jsonls", scene.jsonlsFolder.toString(),
+        "--file-history", scene.historyFolder.toString(), "--store", scene.storeFolder.toString(),
+        "--recorded-project", recordedFolder, "--list-only",
+    ], TEST_CONTAINER_PREFIX);
+    // Exactly one printed line is a task line for f.txt.
+    const taskLines = printedLines.filter((line) => line.startsWith(makeCallInstant(20).toISOString()));
+    assert.equal(taskLines.length, 1);
+    assert.match(taskLines[0]!, /s1\.jsonl:\d+:toolu_script f\.txt$/);
+});
+
 test("test_script_gap_between_two_beacons_is_filled_and_proven_when_the_result_matches", { timeout: DOCKER_TEST_TIMEOUT_MS }, async (t) => {
     // Scenario: a Write gives "v0", a script writes "v1", and the disk holds "v1".
     const scene = makeOneScriptScene(t, "v1\n");
