@@ -38,7 +38,7 @@ function makeOrderedState(position: number, second: number | undefined, moment: 
   } else {
     instant = makeInstant(second);
   }
-  const event = { type: eventType, instant, source: undefined, commitHash: undefined, bytes: text, row: undefined, moveOrCopySourceFile: undefined };
+  const event = { type: eventType, instant, source: undefined, commitHash: undefined, bytes: text, row: undefined, moveOrCopySourceFile: undefined, removedByScript: false, movedAwayToFile: undefined, scriptRun: undefined };
   const state: FileKnownState = { event, moment, confidence: StateConfidence.Proven, isFileAbsent: text === undefined, text };
   return { state, position };
 }
