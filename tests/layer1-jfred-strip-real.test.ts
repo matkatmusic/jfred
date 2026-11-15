@@ -28,6 +28,8 @@ function installCommitRoute(reply: (init: RequestInit) => Response): void {
     fetch: async (url: unknown, init: RequestInit): Promise<Response> => {
       const { pathname, search } = new URL(String(url), "http://localhost:7343");
       sent.push({ pathname, search, init });
+      if (pathname === "/api/layer1-script-replay-needs")
+        return buildStreamResponse([{ tasks: [] }]);
       return reply(init);
     },
   });
@@ -83,10 +85,10 @@ test("test_commit_click_on_a_real_branch_posts_the_view_query_and_shows_the_serv
   installCommitRoute(() => buildStreamResponse([COMMITTED_REPLY]));
   openPendingDraft(REAL_VIEW);
   await clickCommit();
-  assert.equal(sent.length, 1);
-  assert.equal(sent[0]!.pathname + sent[0]!.search, `/api/layer1-jfred-commit${SEARCH}`);
-  assert.deepEqual(sent[0]!.init.headers, { "content-type": "application/json" });
-  assert.deepEqual(JSON.parse(String(sent[0]!.init.body)), { baseShortHash: "a1b2c3d4", markInstant: TICKS[2]!.instant, message: "draft message", allowScripts: false });
+  assert.equal(sent.length, 2);
+  assert.equal(sent[1]!.pathname + sent[1]!.search, `/api/layer1-jfred-commit${SEARCH}`);
+  assert.deepEqual(sent[1]!.init.headers, { "content-type": "application/json" });
+  assert.deepEqual(JSON.parse(String(sent[1]!.init.body)), { baseShortHash: "a1b2c3d4", markInstant: TICKS[2]!.instant, message: "draft message", allowScripts: false });
   assert.equal(readJfredBranch().commits.at(-1)!.shortHash, "deadbeef");
   assert.equal(document.getElementById("jfredCommitsDrawerComponent")!.innerHTML.includes("c0ffee"), false);
   assert.equal(document.querySelector("#dbody pre")!.textContent, "server message");
@@ -97,7 +99,7 @@ test("test_commit_click_on_a_canned_branch_posts_like_a_real_one", async () => {
   installCommitRoute(() => buildStreamResponse([COMMITTED_REPLY]));
   openPendingDraft(CANNED_VIEW);
   await clickCommit();
-  assert.equal(sent.length, 1);
+  assert.equal(sent.length, 2);
   assert.deepEqual(readJfredBranch().commits.map((commit) => commit.shortHash), ["deadbeef"]);
 });
 
