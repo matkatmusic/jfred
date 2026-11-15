@@ -4,6 +4,7 @@ import { BlockType, EventKind, EXECUTOR_TOOL_NAMES, ToolName } from "./structure
 import { Path, Uuid } from "./structures/domain.ts";
 import type { TranscriptRecord } from "./structures/envelope.ts";
 import { getContentBlocks, type ToolUseBlock } from "./structures/content-blocks.ts";
+import { collectErroredToolUseIds } from "./structures/tool-results.ts";
 import { getCorpusState } from "./reconstruction_corpus.ts";
 import { collectWrittenContentByBasename, applyScriptIndirection } from "./reconstruction_script_indirection.ts";
 import { formatRecordSourceToken, getRecordSource, type RecordSource } from "./parse/loadTranscript.ts";
@@ -125,10 +126,13 @@ export function findScriptExecutionRuns(records: TranscriptRecord[]): ScriptRun[
     return state.scriptRuns;
   }
   const writtenBodiesByBasename = collectWrittenContentByBasename(records);
+  const erroredToolUseIds = collectErroredToolUseIds(records);
   const resolvedRuns: ScriptRun[] = [];
   for (const record of records) {
     for (const run of listRunsInRecord(record)) {
-      resolvedRuns.push(applyScriptIndirection(run, writtenBodiesByBasename));
+      if (!erroredToolUseIds.has(run.toolUseId!.toString())) {
+        resolvedRuns.push(applyScriptIndirection(run, writtenBodiesByBasename));
+      }
     }
   }
   state.scriptRuns = resolvedRuns;
