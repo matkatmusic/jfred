@@ -42,6 +42,9 @@ export function createTerminalBarsSink(stream: TerminalBarStream, fileNames: str
             }
             return;
         }
+        if (event.file === undefined) {
+            return;
+        }
         const row = rows.find((candidateRow) => candidateRow.fileName === event.file)!;
         row.fraction = event.fileStepsDone! / event.fileStepsTotal!;
         row.countText = `${event.fileStepsDone}/${event.fileStepsTotal}`;

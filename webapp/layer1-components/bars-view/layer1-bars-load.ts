@@ -51,6 +51,10 @@ function setBarsLogFileLine(fileName: string): void {
 
 function showProgressLine(line: InverseProgressLine, streamRowsByFile: Map<string, BarRowElements>, rowListElement: HTMLElement): void {
     const lineKind = classifyInverseProgressLine(line);
+    if (lineKind === InverseProgressLineKind.buildingFile) {
+        setBarsLogFileLine(readDefinedValue(line.buildingFile, "buildingFile"));
+        return;
+    }
     if (lineKind === InverseProgressLineKind.logFile) {
         setBarsLogFileLine(readDefinedValue(line.logFile, "logFile"));
         return;
@@ -129,6 +133,7 @@ export async function loadBarsHistory(
         if (state.runId !== runId) {
             return;
         }
+        setBarsLogFileLine("");
         state.files = result.files;
         state.rulerRows = listRealRulerRows();
         if (state.rulerRows.length === 0) {

@@ -200,6 +200,7 @@ export function buildInverseReposForFiles(projectFolder: Path, projectFiles: Pro
             }
         }
         if (result === undefined) {
+            reportProgress({ kind: DocumentResponseKind.progress, label: projectRelativeFile, buildingFile: projectRelativeFile });
             rmSync(repoFolder.toString(), { recursive: true, force: true });
             const events = getEvents(index);
             const states = listStatesOfProjectFile(index, projectFiles, getEvents, statesByFile, fileIndexesBeingComputed);
