@@ -30,6 +30,8 @@ export type InverseCommitWire = {
     confidence: string;
     position: number;
     instant: string | null;
+    // The instant the reader uses for this commit; DiskNow: the file mtime.
+    readerInstant: string | null;
     isFileAbsent: boolean;
     isRemoved: boolean;               // a Bash rm of this file: the page draws "-"
     movedAwayTo: string | null;       // a Bash mv of this file to this path (absolute): the page draws "←"

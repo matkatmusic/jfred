@@ -21,6 +21,7 @@ export type InverseCommitWire = {
     confidence: string;
     position: number;
     instant: string | null;
+    readerInstant: string | null;
     isFileAbsent: boolean;
     isRemoved: boolean;
     movedAwayTo: string | null;
@@ -50,6 +51,7 @@ export function buildInverseCommitWire(commit: InverseCommit): InverseCommitWire
         confidence: commit.confidence,
         position: commit.position,
         instant,
+        readerInstant: commit.instant === undefined ? null : commit.instant.toISOString(),
         isFileAbsent: commit.isFileAbsent,
         isRemoved: commit.removedByScript,
         movedAwayTo: commit.movedAwayToFile === undefined ? null : commit.movedAwayToFile.toString(),
