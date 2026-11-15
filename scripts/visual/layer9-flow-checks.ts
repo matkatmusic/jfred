@@ -11,7 +11,9 @@ import { CUT_REFUSAL_TEXT, CutRefusal } from "../../webapp/layer1-components/com
 import { JfredEntryKind } from "../../webapp/layer1-components/commits-column/layer1-jfred-entries.ts";
 
 const REFUSAL_CASES: [string, CutRefusal][] = [
-  [TICK_LABELS.createdOnly, CutRefusal.noVerifiedNode], [TICK_LABELS.derivedOnly, CutRefusal.noVerifiedNode],
+  // K7: with a tip these ticks refuse with noChangeSinceTip (d245b83)
+  // [TICK_LABELS.createdOnly, CutRefusal.noVerifiedNode], [TICK_LABELS.derivedOnly, CutRefusal.noVerifiedNode],
+  [TICK_LABELS.createdOnly, CutRefusal.noChangeSinceTip], [TICK_LABELS.derivedOnly, CutRefusal.noChangeSinceTip],
   [TICK_LABELS.behindTip, CutRefusal.notForward], [TICK_LABELS.atTip, CutRefusal.notForward],
 ];
 

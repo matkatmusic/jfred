@@ -18,7 +18,9 @@ import { makeScriptedPage, runCheck, type Answers } from "./layer9-fake-page.ts"
 // const makeState = (label: string, classes = "tick", extra: Partial<TickState> = {}): TickState => ({ text: `${label} (1)`, classes, title: "", opacity: 1, after: "none", ...extra });
 const makeState = (label: string, classes = "tick", extra: Partial<TickState> = {}): TickState => ({ text: "01-01-2026:00:00 (1)", fullTime: label, classes, title: "", opacity: 1, after: "none", ...extra });
 const REASON: Record<string, CutRefusal> = {
-    [TICK_LABELS.createdOnly]: CutRefusal.noVerifiedNode, [TICK_LABELS.derivedOnly]: CutRefusal.noVerifiedNode,
+    // K7: with a tip these ticks refuse with noChangeSinceTip (d245b83)
+    // [TICK_LABELS.createdOnly]: CutRefusal.noVerifiedNode, [TICK_LABELS.derivedOnly]: CutRefusal.noVerifiedNode,
+    [TICK_LABELS.createdOnly]: CutRefusal.noChangeSinceTip, [TICK_LABELS.derivedOnly]: CutRefusal.noChangeSinceTip,
     [TICK_LABELS.behindTip]: CutRefusal.notForward, [TICK_LABELS.atTip]: CutRefusal.notForward,
 };
 // On the test page a refused tick's title is the refusal text, a newline, then the full time.
@@ -32,7 +34,8 @@ const ARMED_MARKS: TickState[] = [
     makeState("07-02 00:00:00.000", "tick cut-set cut-no", { opacity: 0.38, title: "reason\n07-02 00:00:00.000" }),
 ];
 const ARMED: TickState[] = [
-    makeScissors(TICK_LABELS.late), makeScissors(TICK_LABELS.early), makeDim(TICK_LABELS.createdOnly, CutRefusal.noVerifiedNode), makeDim(TICK_LABELS.derivedOnly, CutRefusal.noVerifiedNode),
+    // makeScissors(TICK_LABELS.late), makeScissors(TICK_LABELS.early), makeDim(TICK_LABELS.createdOnly, CutRefusal.noVerifiedNode), makeDim(TICK_LABELS.derivedOnly, CutRefusal.noVerifiedNode),
+    makeScissors(TICK_LABELS.late), makeScissors(TICK_LABELS.early), makeDim(TICK_LABELS.createdOnly, CutRefusal.noChangeSinceTip), makeDim(TICK_LABELS.derivedOnly, CutRefusal.noChangeSinceTip),
     makeDim(TICK_LABELS.behindTip, CutRefusal.notForward), makeDim(TICK_LABELS.atTip, CutRefusal.notForward), ...ARMED_MARKS,
 ];
 
