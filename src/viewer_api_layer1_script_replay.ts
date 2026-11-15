@@ -104,7 +104,7 @@ export function buildScriptReplayNeedsReply(projectFolder: Path, jsonlsFolders: 
     const projectFiles = listProjectFilesOnDiskAndInLogs(projectFolder, jsonlsFolders);
     reportSidecarProgress(projectFolder, projectFiles, reportProgress);
     const storeFolder = getInverseReposStoreFolder(projectFolder);
-    const tasks = listScriptReplayTasks(storeFolder, projectFolder, projectFiles, projectFolder, new Date(request.toInstant));
+    const tasks = listScriptReplayTasks(storeFolder, projectFolder, projectFiles, projectFolder, new Date(request.toInstant), jsonlsFolders);
     const fromInstant = request.fromInstant === null ? undefined : new Date(request.fromInstant);
     return { ...buildDockerReadinessReply(readiness), tasks: tasks.map((task) => mapScriptReplayTaskToWire(task, fromInstant)) };
 }
