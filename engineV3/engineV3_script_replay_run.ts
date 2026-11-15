@@ -261,8 +261,8 @@ function readStartText(gap: ReplayGap, commits: InverseCommit[], fileName: strin
     if (olderCommit === undefined) {
         throw new Error(`readStartText: ${fileName} has no commit at the older position ${gap.olderPosition}`);
     }
-    if (olderCommit.moment !== StateMoment.AtEvent) {
-        throw new Error(`readStartText: the commit at the older position ${gap.olderPosition} of ${fileName} is not an at-event commit`);
+    if (olderCommit.moment !== StateMoment.AtEvent && olderCommit.moment !== StateMoment.BeforeEvent) {
+        throw new Error(`readStartText: the commit at the older position ${gap.olderPosition} of ${fileName} is not an at-event or before-event commit`);
     }
     if (olderCommit.isFileAbsent) {
         return undefined;
