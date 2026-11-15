@@ -5,6 +5,8 @@ import { sendLayer1BranchesResponse } from "./viewer_api_layer1_branches.ts";
 import { sendLayer1Diff, sendLayer1DiffContent } from "./viewer_api_layer1_diff.ts";
 import { sendLayer1EditsResponse } from "./viewer_api_layer1_edits.ts";
 import { sendLayer1FileResponse } from "./viewer_api_layer1_file.ts";
+import { sendLayer1InverseReposResponse } from "./viewer_api_layer1_inverse_repos.ts";
+import { sendLayer1InverseDiffResponse, sendLayer1InverseStateResponse } from "./viewer_api_layer1_inverse_state.ts";
 import { sendLayer1Record } from "./viewer_api_layer1_record.ts";
 import { sendLayer1RefsResponse } from "./viewer_api_layer1_refs.ts";
 import { receiveJfredCommit, receiveJfredDelete } from "./viewer_api_layer1_jfred_route.ts";
@@ -12,6 +14,7 @@ import { sendLayer1ViewResponse } from "./viewer_api_layer1_route.ts";
 import { sendClearResultsResponse } from "./viewer_api_clear_results.ts";
 import { sendLayer1ReverseResponse } from "./viewer_api_layer1_reverse.ts";
 import { receiveScriptNeeds } from "./viewer_api_layer1_script_needs.ts";
+import { receiveDockerReadiness, receiveScriptReplayNeeds, receiveScriptReplayRun } from "./viewer_api_layer1_script_replay.ts";
 import { receiveScriptRun } from "./viewer_api_layer1_script_run.ts";
 import { sendLayer1ScriptRunsResponse } from "./viewer_api_layer1_script_runs.ts";
 import { sendLayer1SessionDotInstantsResponse } from "./viewer_api_layer1_session_dot_instants.ts";
@@ -37,6 +40,9 @@ const LAYER1_ROUTES = new Map<string, Layer1RouteHandler>([
   ["/api/layer1-settings", (request, response) => dispatchLayer1Settings(request, response)],
   ["/api/layer1-script-run", (request, response, url) => receiveScriptRun(request, response, url)],
   ["/api/layer1-script-needs", (request, response, url) => receiveScriptNeeds(request, response, url)],
+  ["/api/layer1-script-replay-needs", (request, response, url) => receiveScriptReplayNeeds(request, response, url)],
+  ["/api/layer1-script-replay-run", (request, response, url) => receiveScriptReplayRun(request, response, url)],
+  ["/api/layer1-docker-readiness", (request, response, url) => receiveDockerReadiness(request, response, url)],
   ["/api/layer1-clear-results", (request, response) => sendClearResultsResponse(request, response)],
   ["/api/layer1-jfred-commit", (request, response, url) => receiveJfredCommit(request, response, url)],
   ["/api/layer1-jfred-delete", (request, response, url) => receiveJfredDelete(request, response, url)],
@@ -44,6 +50,9 @@ const LAYER1_ROUTES = new Map<string, Layer1RouteHandler>([
   ["/api/layer1-refs", (_request, response, url) => sendLayer1RefsResponse(response, url.searchParams)],
   ["/api/layer1-sessions", (_request, response, url) => sendLayer1SessionsResponse(response, url.searchParams)],
   ["/api/layer1-edits", (_request, response, url) => sendLayer1EditsResponse(response, url.searchParams)],
+  ["/api/layer1-inverse-repos", (_request, response, url) => sendLayer1InverseReposResponse(response, url.searchParams)],
+  ["/api/layer1-inverse-state", (_request, response, url) => sendLayer1InverseStateResponse(response, url.searchParams)],
+  ["/api/layer1-inverse-diff", (_request, response, url) => sendLayer1InverseDiffResponse(response, url.searchParams)],
   ["/api/layer1-script-runs", (_request, response, url) => sendLayer1ScriptRunsResponse(response, url.searchParams)],
   ["/api/layer1-branches", (_request, response, url) => sendLayer1BranchesResponse(response, url.searchParams)],
   ["/api/layer1-record", (_request, response, url) => sendLayer1Record(response, url.searchParams)],

@@ -109,9 +109,9 @@ test("webapp_old_html_serves_the_preexisting_page", async () => {
         await waitUntilListening(viewer.child);
         const oldPageHtml = await fetchPageText(viewer.port, "/webapp_old.html");
         assert.ok(oldPageHtml.includes("JSONL File Reverse Engineer Debugger"));
-        // The layered page (task 205) claimed index.html, so `/` serves it instead.
+        // The root serves layer1.html, the default page (roadmap decision 11).
         const rootHtml = await fetchPageText(viewer.port, "/");
-        assert.ok(rootHtml.includes("JFRED — Layered Timeline"));
+        assert.ok(rootHtml.includes("JFRED — Layer 1 View"));
     } finally {
         viewer.child.kill();
     }

@@ -89,7 +89,8 @@ The minimap is the first child of `timelineRulerContainer`. It uses `position: f
 | jump buttons | Jump-to-bucket | top-bars/layer1-jump-buckets.ts | `#jumpToRowComponent button[data-bucket]` | Scrolls timeline to a named bucket |
 | load bar, progress bar | Load progress bar | loading-bar/layer1-progress.ts | `#loadbar` in `#timelineComponentsContainer` | Load progress indicator |
 | branch picker, commit picker, branch dropdown | Branch picker | layer1-refs.ts (markup in top-bars/top-bars.html) | branch `#branch`, commit `#commit` (in `label.repo-only`); hidden until `.repo-ok` is set on `.sources.repo` | Dropdowns that write into `#ref` |
-| commits column, jfred strip, commits drawer, commit mode, jfredCommitsDrawerComponent | Commits column / Commit mode | commits-column/layer1-jfred-strip.ts, commits-column/layer1-cut-marks.ts | drawer `#jfredCommitsDrawerComponent` (`.jfredCommitsDrawerComponent`, added into `timelineRulerContainer` when shown, position: relative, pushes the bubbles right); button `#commit-mode`; nodes `.jnode`; chains `.jchain`; Yes/No row `#yesno-row` (popups/layer1-yes-no-row.ts) | Drawer of jfred commit nodes beside the timeline, plus the button that arms commit mode |
+| commits column, jfred strip, commits drawer, commit mode, jfredCommitsDrawerComponent | Commits column / Commit mode | commits-column/layer1-jfred-strip.ts, commits-column/layer1-cut-marks.ts | drawer `#jfredCommitsDrawerComponent` (`.jfredCommitsDrawerComponent`, added into `timelineRulerContainer` when shown, position: relative, pushes the bubbles right); button `#commit-mode`; nodes `.jnode`; chains `.jchain`; Yes/No row `#yesno-row` (popups/layer1-yes-no-row.ts) | Drawer of jfred commit nodes beside the timeline, plus the button that arms commit mode. In Bars view the pinned strip (bars-view/layer1-bars-cut-strip.ts) takes the place of the column |
+| Bars view, bars, ProjectLifetimeBar rows | Bars view | bars-view/layer1-bars-view.ts | `#barsViewComponent` in `.canvas`; slider `#barsViewSliderInput` in `#jumpToRowComponent`; mode class `barsViewOn` on `#appWindow` | One bar per file with change history chunks and event dots; the default view, the slider moves to Bubbles |
 
 ## Every data-component name
 
@@ -480,6 +481,57 @@ Turn the "names" button on, then hover any part of the page to see its name here
 | engineV3NextCommitButton | layer1-components/engine-v3/engine-v3.html | "Jump to next commit" button |
 | engineV3ReadoutText | layer1-components/engine-v3/engine-v3.html | Sentence and file list for the current step |
 | engineV3CurrentStepTick | layer1-components/engine-v3/layer1-engine-v3-line.ts | Line on the timeline that marks the current step |
+
+### Bars view
+
+| Name | File | What you see |
+|---|---|---|
+| barsViewSlider | layer1-components/bars-view/bars-view-slider.html | Label "Bars ... Bubbles" beside the reverse button |
+| barsViewSliderInput | layer1-components/bars-view/bars-view-slider.html | Two-step slider that picks Bars or Bubbles |
+| barsViewComponent | layer1-components/bars-view/bars-view.html | The whole Bars view inside the canvas |
+| barsTimelineArea | layer1-components/bars-view/bars-view.html | Box that holds the sticky header and the rows |
+| barsStickyHeader | layer1-components/bars-view/bars-view.html | Header that stays at the top while the rows scroll |
+| barsToolbar | layer1-components/bars-view/bars-view.html | Row with the events button |
+| barsEventsViewButton | layer1-components/bars-view/bars-view.html | Button "Events: dots under bar" or "Events: segments in bar" |
+| barsHeaderLine | layer1-components/bars-view/bars-view.html | Header sentence with the file count |
+| barsStatusLine | layer1-components/bars-view/bars-view.html | Status sentence while the history loads |
+| barsReadBar | layer1-components/bars-view/bars-view.html | Moving stripe while the logs are read |
+| barsReadBarFill | layer1-components/bars-view/bars-view.html | The moving stripe |
+| barsRows | layer1-components/bars-view/bars-view.html | Scroll area of the file rows |
+| barsRowList | layer1-components/bars-view/bars-view.html | List that holds the file rows |
+| barsFileRow | layer1-components/bars-view/layer1-bars-row.ts | One file row |
+| barsColLeft | layer1-components/bars-view/layer1-bars-row.ts | Left column of a row: mark and file path |
+| barsColMid | layer1-components/bars-view/layer1-bars-row.ts | Middle column of a row: the bar |
+| barsColRight | layer1-components/bars-view/layer1-bars-row.ts | Right column of a row: step text |
+| barsMark | layer1-components/bars-view/layer1-bars-row.ts | Small mark: waiting, running or done |
+| barsFilePath | layer1-components/bars-view/layer1-bars-row.ts | File path text; click opens the file details |
+| ProjectLifetimeBar | layer1-components/bars-view/layer1-bars-row.ts | The bar of one file over the project lifetime |
+| FileReconstructionProgressBar | layer1-components/bars-view/layer1-bars-row.ts | Progress bar of one file while the history loads |
+| barsFill | layer1-components/bars-view/layer1-bars-row.ts | Grey fill up to the selected ruler row |
+| barsPlusSign | layer1-components/bars-view/layer1-bars-row.ts | Plus sign before a file that was created |
+| barsMinusSign | layer1-components/bars-view/layer1-bars-row.ts | Minus sign for a deleted file |
+| barsMovedAwaySign | layer1-components/bars-view/layer1-bars-row.ts | Arrow for a file that moved away |
+| barsDotStrip | layer1-components/bars-view/layer1-bars-row.ts | Strip of event dots under the bar |
+| BarDot | layer1-components/bars-view/layer1-bars-row.ts | One event dot; click opens the details pane |
+| barsHistoryBlock | layer1-components/bars-view/layer1-bars-row.ts | Coloured chunk of change history |
+| barsTargetLine | layer1-components/bars-view/layer1-bars-rowlist.ts | One vertical line across all bars at the selected ruler row (#barsTargetLine) |
+| barsFoldLine | layer1-components/bars-view/layer1-bars-rowlist.ts | Line "N files with no change since this row" |
+| barsFoldToggle | layer1-components/bars-view/layer1-bars-rowlist.ts | The [hide] or [show] word on the fold line |
+| barsFoldedList | layer1-components/bars-view/layer1-bars-rowlist.ts | Rows folded under the fold line |
+| barsArrow | layer1-components/bars-view/layer1-bars-header.ts | Green arrow before a header line |
+| barsCutStrip | layer1-components/bars-view/layer1-bars-cut-strip.ts | Pinned commit strip above the rows |
+| barsCutStripLeft | layer1-components/bars-view/layer1-bars-cut-strip.ts | Left column of the strip |
+| barsCutStripMiddle | layer1-components/bars-view/layer1-bars-cut-strip.ts | Middle column of the strip |
+| barsCutStripRight | layer1-components/bars-view/layer1-bars-cut-strip.ts | Right column of the strip |
+| barsCutDeleteBranch | layer1-components/bars-view/layer1-bars-cut-strip.ts | Words "Delete jfred branch" |
+| barsCutBranchLine | layer1-components/bars-view/layer1-bars-cut-strip.ts | Line of the jfred branch |
+| barsCutCap | layer1-components/bars-view/layer1-bars-cut-strip.ts | Cap at the end of a commit on the strip |
+| barsCutHashLabel | layer1-components/bars-view/layer1-bars-cut-strip.ts | Short hash of a commit |
+| barsCutDottedLine | layer1-components/bars-view/layer1-bars-cut-strip.ts | Dotted line from a commit down the rows |
+| barsCutScissors | layer1-components/bars-view/layer1-bars-cut-strip.ts | Scissors mark on a row; click marks a cut |
+| barsCutBranchLabel | layer1-components/bars-view/layer1-bars-cut-strip.ts | Words "jfred branch" |
+| barsCutCommitButton | layer1-components/bars-view/layer1-bars-cut-strip.ts | "Commit" button, shown when a mark is pending |
+| barsCutHint | layer1-components/bars-view/layer1-bars-cut-strip.ts | Words "click scissors to mark" |
 
 ### Page boxes
 

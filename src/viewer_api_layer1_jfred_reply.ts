@@ -1,16 +1,22 @@
 // Builds the reply of POST /api/layer1-jfred-commit: the commit, or the next changing instant.
 
 import { JfredCommitOutcome, type WireJfredCommitReplyOf, type WireJfredCommitRequest } from "../webapp/layer1-components/commits-column/layer1-wire-jfred.ts";
-import { listBeaconCandidates, type BeaconCandidate } from "./layer1_beacon_candidates.ts";
+// import { listBeaconCandidates, type BeaconCandidate } from "./layer1_beacon_candidates.ts";
+import { buildInverseReposForFiles } from "../engineV3/engineV3_inverse_repos_for_project.ts";
+import { listProjectFilesOnDiskAndInLogs } from "../engineV3/engineV3_inverse_repos_project_files.ts";
+import { LAYER1_PROGRESS_LABEL_BUILDING_INVERSE_REPOS } from "./layer1_inverse_repos_wire.ts";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
-import type { PathOverrides } from "./reconstruction_overrides.ts";
-import type { BuiltReconstruction } from "./reconstruction_json.ts";
-import type { Path } from "./structures/domain.ts";
-import { buildCommitPathOverrides, buildJfredReconstruction, findNextChangingInstant, listEngineFilesAt, listUnrebuiltFilesAt, type UnrebuiltFile } from "./viewer_api_layer1_jfred_engine.ts";
-import { listPathsEndingWithNewline } from "./viewer_api_layer1_jfred_newline.ts";
+// import type { PathOverrides } from "./reconstruction_overrides.ts";
+// import type { BuiltReconstruction } from "./reconstruction_json.ts";
+import { Path } from "./structures/domain.ts";
+import { DocumentResponseKind } from "./structures/vocabulary_views.ts";
+// import { buildCommitPathOverrides, buildJfredReconstruction, findNextChangingInstant, listEngineFilesAt, listUnrebuiltFilesAt, type UnrebuiltFile } from "./viewer_api_layer1_jfred_engine.ts";
+import { getInverseReposStoreFolder } from "./viewer_api_layer1_inverse_repos.ts";
+// import { listPathsEndingWithNewline } from "./viewer_api_layer1_jfred_newline.ts";
+import { findNextChangingInstantInRepos, formatNotProvenSection, readProjectFilesAtMark } from "./viewer_api_layer1_jfred_reader_texts.ts";
 import { writeJfredMarkCommit } from "./viewer_api_layer1_jfred_write.ts";
-import { getRequestedRef, getRequestedTimeSource } from "./viewer_api_layer1_route.ts";
-import { listTranscriptFiles } from "./viewer_api_layer1_sources.ts";
+// import { getRequestedRef, getRequestedTimeSource } from "./viewer_api_layer1_route.ts";
+// import { listTranscriptFiles } from "./viewer_api_layer1_sources.ts";
 import { reportStage } from "./viewer_api_records.ts";
 
 export interface CommitInput {
@@ -21,83 +27,110 @@ export interface CommitInput {
   markInstant: Date;
 }
 
-function createNewlinePathFinder(input: CommitInput, sessionFiles: Path[]): (relativePaths: string[]) => Set<string> {
-  const source = { dir: input.dir, repoDir: input.repoDir, ref: getRequestedRef(input.query), timeSource: getRequestedTimeSource(input.query), sessionFiles };
-  return (relativePaths: string[]): Set<string> => listPathsEndingWithNewline(source, relativePaths, input.markInstant);
-}
-
-function assertUnrebuiltFilesHaveNextInstant(files: UnrebuiltFile[], markInstant: Date): void {
-  for (const { relativePath, reason, nextInstant } of files) {
-    if (nextInstant === undefined) {
-      throw new Error(`jfred commit stopped: the engine could not rebuild ${relativePath} at ${markInstant.toISOString()}: ${reason}`);
-    }
-  }
-}
-
-function selectLaterInstant(current: Date | undefined, candidate: Date): Date {
-  if (current === undefined) {
-    return candidate;
-  }
-  const isLater = candidate.getTime() > current.getTime();
-  if (isLater) {
-    return candidate;
-  }
-  return current;
-}
-
-function findLatestNextInstant(files: UnrebuiltFile[]): Date | undefined {
-  let latest: Date | undefined;
-  for (const { nextInstant } of files) {
-    if (nextInstant !== undefined) {
-      latest = selectLaterInstant(latest, nextInstant);
-    }
-  }
-  return latest;
-}
-
-// A file with no next beacon stops the commit; else the mark moves to the latest one.
-function buildUnrebuiltReply(files: UnrebuiltFile[], markInstant: Date): WireJfredCommitReplyOf<Date> | undefined {
-  assertUnrebuiltFilesHaveNextInstant(files, markInstant);
-  const nextInstant = findLatestNextInstant(files);
-  if (nextInstant === undefined) {
-    return undefined;
-  }
-  const paths: string[] = [];
-  for (const file of files) {
-    paths.push(file.relativePath);
-  }
-  return { outcome: JfredCommitOutcome.unrebuilt, paths: paths.sort(), nextInstant };
-}
-
-function findUnrebuiltReply(input: CommitInput, built: BuiltReconstruction, sessionFiles: Path[], overrides: PathOverrides): WireJfredCommitReplyOf<Date> | undefined {
-  function listBeacons(target: Path): BeaconCandidate[] {
-    return listBeaconCandidates(target, sessionFiles, input.repoDir, overrides.sources, overrides);
-  }
-  const files = listUnrebuiltFilesAt(input.dir, built.stepFileHistories, input.markInstant, listBeacons);
-  return buildUnrebuiltReply(files, input.markInstant);
-}
+// function createNewlinePathFinder(input: CommitInput, sessionFiles: Path[]): (relativePaths: string[]) => Set<string> {
+//   const source = { dir: input.dir, repoDir: input.repoDir, ref: getRequestedRef(input.query), timeSource: getRequestedTimeSource(input.query), sessionFiles };
+//   return (relativePaths: string[]): Set<string> => listPathsEndingWithNewline(source, relativePaths, input.markInstant);
+// }
+//
+// function assertUnrebuiltFilesHaveNextInstant(files: UnrebuiltFile[], markInstant: Date): void {
+//   for (const { relativePath, reason, nextInstant } of files) {
+//     if (nextInstant === undefined) {
+//       throw new Error(`jfred commit stopped: the engine could not rebuild ${relativePath} at ${markInstant.toISOString()}: ${reason}`);
+//     }
+//   }
+// }
+//
+// function selectLaterInstant(current: Date | undefined, candidate: Date): Date {
+//   if (current === undefined) {
+//     return candidate;
+//   }
+//   const isLater = candidate.getTime() > current.getTime();
+//   if (isLater) {
+//     return candidate;
+//   }
+//   return current;
+// }
+//
+// function findLatestNextInstant(files: UnrebuiltFile[]): Date | undefined {
+//   let latest: Date | undefined;
+//   for (const { nextInstant } of files) {
+//     if (nextInstant !== undefined) {
+//       latest = selectLaterInstant(latest, nextInstant);
+//     }
+//   }
+//   return latest;
+// }
+//
+// // A file with no next beacon stops the commit; else the mark moves to the latest one.
+// function buildUnrebuiltReply(files: UnrebuiltFile[], markInstant: Date): WireJfredCommitReplyOf<Date> | undefined {
+//   assertUnrebuiltFilesHaveNextInstant(files, markInstant);
+//   const nextInstant = findLatestNextInstant(files);
+//   if (nextInstant === undefined) {
+//     return undefined;
+//   }
+//   const paths: string[] = [];
+//   for (const file of files) {
+//     paths.push(file.relativePath);
+//   }
+//   return { outcome: JfredCommitOutcome.unrebuilt, paths: paths.sort(), nextInstant };
+// }
+//
+// function findUnrebuiltReply(input: CommitInput, built: BuiltReconstruction, sessionFiles: Path[], overrides: PathOverrides): WireJfredCommitReplyOf<Date> | undefined {
+//   function listBeacons(target: Path): BeaconCandidate[] {
+//     return listBeaconCandidates(target, sessionFiles, input.repoDir, overrides.sources, overrides);
+//   }
+//   const files = listUnrebuiltFilesAt(input.dir, built.stepFileHistories, input.markInstant, listBeacons);
+//   return buildUnrebuiltReply(files, input.markInstant);
+// }
+//
+// export function buildCommitReply(input: CommitInput, onProgress: ProgressSink): WireJfredCommitReplyOf<Date> {
+//   const sessionFiles = listTranscriptFiles(input.query.getAll("jsonl"));
+//   const overrides = buildCommitPathOverrides(input.dir, input.repoDir, sessionFiles);
+//   const built = buildJfredReconstruction(sessionFiles, overrides, input.request.allowScripts, onProgress);
+//   reportStage(onProgress, "reading the files at the mark");
+//   const engineTexts = listEngineFilesAt(input.dir, built.stepFileHistories, input.markInstant);
+//   const unrebuiltReply = findUnrebuiltReply(input, built, sessionFiles, overrides);
+//   if (unrebuiltReply !== undefined) {
+//     return unrebuiltReply;
+//   }
+//   return writeOrFindNextReply(input, built, sessionFiles, engineTexts, onProgress);
+// }
+//
+// function writeOrFindNextReply(input: CommitInput, built: BuiltReconstruction, sessionFiles: Path[], engineTexts: Map<string, string>, onProgress: ProgressSink): WireJfredCommitReplyOf<Date> {
+//   const findNewlinePaths = createNewlinePathFinder(input, sessionFiles);
+//   reportStage(onProgress, "comparing the files with the parent commit");
+//   const commit = writeJfredMarkCommit(input.repoDir, input.request, new Date(), engineTexts, findNewlinePaths, new Set<string>());
+//   if (commit !== undefined) {
+//     return { outcome: JfredCommitOutcome.committed, commit };
+//   }
+//   reportStage(onProgress, "looking for the next change");
+//   const nextInstant = findNextChangingInstant(input.dir, built, input.markInstant, engineTexts);
+//   return { outcome: JfredCommitOutcome.unchanged, nextInstant };
+// }
 
 export function buildCommitReply(input: CommitInput, onProgress: ProgressSink): WireJfredCommitReplyOf<Date> {
-  const sessionFiles = listTranscriptFiles(input.query.getAll("jsonl"));
-  const overrides = buildCommitPathOverrides(input.dir, input.repoDir, sessionFiles);
-  const built = buildJfredReconstruction(sessionFiles, overrides, input.request.allowScripts, onProgress);
+  const jsonlsFolders = input.query.getAll("jsonl").map((folder) => new Path(folder));
+  const snapshotFolders = input.query.getAll("snapshots").map((folder) => new Path(folder));
+  const storeFolder = getInverseReposStoreFolder(input.dir);
+  const fileListStartedAt = Date.now();
+  const projectFiles = listProjectFilesOnDiskAndInLogs(input.dir, jsonlsFolders);
+  console.log(`commit timing: file list ${Date.now() - fileListStartedAt} ms`);
+  onProgress({ kind: DocumentResponseKind.progress, label: LAYER1_PROGRESS_LABEL_BUILDING_INVERSE_REPOS, current: 0, total: projectFiles.length, steps: [LAYER1_PROGRESS_LABEL_BUILDING_INVERSE_REPOS] });
+  const repoBuildStartedAt = Date.now();
+  buildInverseReposForFiles(input.dir, projectFiles, jsonlsFolders, snapshotFolders, storeFolder, new Date(), onProgress);
+  console.log(`commit timing: repo build ${Date.now() - repoBuildStartedAt} ms`);
   reportStage(onProgress, "reading the files at the mark");
-  const engineTexts = listEngineFilesAt(input.dir, built.stepFileHistories, input.markInstant);
-  const unrebuiltReply = findUnrebuiltReply(input, built, sessionFiles, overrides);
-  if (unrebuiltReply !== undefined) {
-    return unrebuiltReply;
-  }
-  return writeOrFindNextReply(input, built, sessionFiles, engineTexts, onProgress);
-}
-
-function writeOrFindNextReply(input: CommitInput, built: BuiltReconstruction, sessionFiles: Path[], engineTexts: Map<string, string>, onProgress: ProgressSink): WireJfredCommitReplyOf<Date> {
-  const findNewlinePaths = createNewlinePathFinder(input, sessionFiles);
+  const readStartedAt = Date.now();
+  const { texts, absentPaths, notProven } = readProjectFilesAtMark(input.dir, storeFolder, projectFiles, input.markInstant);
+  console.log(`commit timing: read ${Date.now() - readStartedAt} ms`);
+  const message = input.request.message + formatNotProvenSection(notProven);
   reportStage(onProgress, "comparing the files with the parent commit");
-  const commit = writeJfredMarkCommit(input.repoDir, input.request, new Date(), engineTexts, findNewlinePaths);
+  // The reader text already ends as the file ended, so no path gets a final newline added.
+  const commit = writeJfredMarkCommit(input.repoDir, { ...input.request, message }, new Date(), texts, () => new Set<string>(), absentPaths);
   if (commit !== undefined) {
     return { outcome: JfredCommitOutcome.committed, commit };
   }
   reportStage(onProgress, "looking for the next change");
-  const nextInstant = findNextChangingInstant(input.dir, built, input.markInstant, engineTexts);
+  const nextInstant = findNextChangingInstantInRepos(input.dir, storeFolder, projectFiles, input.markInstant, texts, absentPaths);
   return { outcome: JfredCommitOutcome.unchanged, nextInstant };
 }

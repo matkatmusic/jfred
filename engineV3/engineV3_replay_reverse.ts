@@ -1,7 +1,8 @@
 // Walks backwards from the file on disk through the Write/Edit rows that changed it, listing every earlier state.
 
 import { existsSync, readFileSync } from "node:fs";
-import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { isInsideGitWorkTree } from "../src/reconstruction_script_sandbox_project.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import { getRecordSource, setRecordSource, type RecordSource } from "../src/parse/loadTranscript.ts";
 import { parseRecord } from "../src/parse/parseRecord.ts";
@@ -9,9 +10,11 @@ import { mergeRecordsByTimestamp } from "../src/reconstruction_multi_source.ts";
 import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
 import { getFileHistorySnapshot, type FileHistoryBackup, type FileHistorySnapshotMessage } from "../src/structures/file-history.ts";
 import { listRunsInRecord, type ScriptRun } from "../src/reconstruction_script_execution.ts";
+import { collectErroredToolUseIds } from "../src/structures/tool-results.ts";
 import { KNOWN_RECORD_TYPES, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import { executeGit, type CommitHash, type JSONLLine } from "./engineV3.ts";
 import { loadMergedJSONLLines } from "./engineV3_jsonl_lines.ts";
+import { ERRORED_RESULT_KEY_TEXT } from "./engineV3_jsonl_lines_naming_files.ts";
 import { collectWriteEditResultLines } from "./engineV3_replay_tool_results.ts";
 import type { ReverseSettings } from "./engineV3_replay_settings.ts";
 import { getReverseStatesForFile } from "./engineV3_replay_reverse_events.ts";
@@ -279,9 +282,14 @@ export function createFileNamePattern(file: Path): RegExp {
 }
 
 export function collectScriptRuns(jsonlLines: JSONLLine[]): ScriptRun[] {
+  const erroredToolUseIds = collectErroredToolUseIds(jsonlLines);
   const scriptRuns: ScriptRun[] = [];
   for (const line of jsonlLines) {
-    scriptRuns.push(...listRunsInRecord(line));
+    for (const scriptRun of listRunsInRecord(line)) {
+      if (!erroredToolUseIds.has(scriptRun.toolUseId!.toString())) {
+        scriptRuns.push(scriptRun);
+      }
+    }
   }
   return scriptRuns;
 }
@@ -492,10 +500,16 @@ export function collectBackupKnownStates(file: Path, jsonlLines: JSONLLine[], fi
   return knownStates;
 }
 
-// Runs in the file's own folder, so git throws outside a repo; --diff-filter=d leaves out the commits that deleted the file.
+// Asks git from the nearest existing folder, and a file outside a git work tree has no states; --diff-filter=d leaves out the commits that deleted the file.
 export function collectGitKnownStates(file: Path): KnownFileState[] {
-  const folder = new Path(dirname(file.toString()));
-  const fileName = basename(file.toString());
+  let folder = new Path(dirname(file.toString()));
+  while (!existsSync(folder.toString())) {
+    folder = new Path(dirname(folder.toString()));
+  }
+  if (!isInsideGitWorkTree(folder)) {
+    return [];
+  }
+  const fileName = relative(folder.toString(), file.toString());
   const logText = executeGit(folder, ["log", "--diff-filter=d", "--format=%H %ct", "--", `./${fileName}`]).toString("utf8");
   const knownStates: KnownFileState[] = [];
   for (const logRow of logText.split("\n")) {
@@ -509,10 +523,10 @@ export function collectGitKnownStates(file: Path): KnownFileState[] {
 }
 
 const NEWLINE_BYTE = 0x0a;
-const CWD_KEY_TEXT = '"cwd":"';
-const KNOWN_RECORD_TYPE_SET = new Set<string>(KNOWN_RECORD_TYPES);
+export const CWD_KEY_TEXT = '"cwd":"';
+export const KNOWN_RECORD_TYPE_SET = new Set<string>(KNOWN_RECORD_TYPES);
 
-type LineSpan = { start: number; end: number };
+export type LineSpan = { start: number; end: number };
 
 function findLineSpanAround(transcriptBytes: Buffer, position: number): LineSpan {
   const start = transcriptBytes.lastIndexOf(NEWLINE_BYTE, position) + 1;
@@ -547,7 +561,7 @@ function listLineSpansNamingText(transcriptBytes: Buffer, needleText: string): L
   return spans;
 }
 
-function countNewlinesBefore(transcriptBytes: Buffer, from: number, to: number): number {
+export function countNewlinesBefore(transcriptBytes: Buffer, from: number, to: number): number {
   let count = 0;
   let position = transcriptBytes.indexOf(NEWLINE_BYTE, from);
   while (position !== -1) {
@@ -581,13 +595,20 @@ function listRecordsNamingText(transcriptFile: Path, needleText: string): JSONLL
   return records;
 }
 
-// A Write/Edit call and its result both carry the file path, so every line the walk needs holds the file's base name.
+// A Write/Edit call and its result both carry the file path, so every line the walk needs holds the file's base name. An error result names no file, so its line is added too.
 export function loadJSONLLinesNamingFile(file: Path, jsonlsFolders: Path[]): JSONLLine[] {
   const needleText = JSON.stringify(basename(file.toString())).slice(1, -1);
   const recordLists: JSONLLine[][] = [];
   for (const transcriptFile of listTranscriptFiles(jsonlsFolders.map((jsonlsFolder) => jsonlsFolder.toString()))) {
     const records = listRecordsNamingText(transcriptFile, needleText);
     if (records.length > 0) {
+      const knownLineNumbers = new Set(records.map((record) => getRecordSource(record)!.lineNumber));
+      for (const erroredRecord of listRecordsNamingText(transcriptFile, ERRORED_RESULT_KEY_TEXT)) {
+        if (!knownLineNumbers.has(getRecordSource(erroredRecord)!.lineNumber)) {
+          records.push(erroredRecord);
+        }
+      }
+      records.sort((leftRecord, rightRecord) => getRecordSource(leftRecord)!.lineNumber - getRecordSource(rightRecord)!.lineNumber);
       recordLists.push(records);
     }
   }

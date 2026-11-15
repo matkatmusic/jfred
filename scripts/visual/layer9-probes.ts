@@ -107,6 +107,9 @@ export const buildTimeToggle = (value: "author" | "committer") => `(() => {
     document.getElementById('time-${value}').click();
 })()`;
 export const TOGGLE_SETTLED = `document.querySelector('.filebox') !== null && document.querySelector('.filebox') !== window.__boxBefore`;
+export interface TimeButtonFacts { isCommitterDisabled: boolean; isAuthorDisabled: boolean; isReverseDisabled: boolean; isCommitterCurrent: boolean }
+export const TIME_BUTTON_FACTS =`({ isCommitterDisabled: document.getElementById('time-committer').disabled, isAuthorDisabled: document.getElementById('time-author').disabled,
+    isReverseDisabled: document.getElementById('reverse-toggle').disabled, isCommitterCurrent: document.getElementById('time-committer').classList.contains('current') })`;
 
 export const ENTRY_FACTS = `(() => {
     const ticks = [...${TICKS}];
@@ -188,8 +191,14 @@ export const OVERLAP_FACTS = `(() => {
 // export const CUT_RULE_TEXTS = `[...document.styleSheets].flatMap(sheet => [...sheet.cssRules])
 //     .filter(rule => /(${CUT_RULE_PATTERN})/.test(rule.selectorText ?? '')).filter(rule => rule.style.getPropertyValue('--page') === '')
 //     .map(rule => rule.style.cssText)`;
-export const CUT_RULE_TEXTS = `[...document.styleSheets].flatMap(sheet => [...sheet.cssRules])
-    .filter(rule => /(${CUT_RULE_PATTERN})/.test(rule.selectorText ?? '')).map(rule => rule.style.cssText)`;
+// The @import split (3979244) left no top-level rules, so this walks the imported sheets (as 9b42e5b did for L6/L7).
+// export const CUT_RULE_TEXTS = `[...document.styleSheets].flatMap(sheet => [...sheet.cssRules])
+//     .filter(rule => /(${CUT_RULE_PATTERN})/.test(rule.selectorText ?? '')).map(rule => rule.style.cssText)`;
+export const CUT_RULE_TEXTS = `(() => {
+    const walk = rules => [...rules].flatMap(rule => rule.styleSheet ? walk(rule.styleSheet.cssRules) : [rule]);
+    return [...document.styleSheets].flatMap(sheet => walk(sheet.cssRules))
+        .filter(rule => /(${CUT_RULE_PATTERN})/.test(rule.selectorText ?? '')).map(rule => rule.style.cssText);
+})()`;
 export const SLACK_FACTS = `(() => {
     const rules = [...document.styleSheets].flatMap(sheet => [...sheet.cssRules]);
     const stage = document.getElementById('fileBubbleContainer');

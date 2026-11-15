@@ -23,6 +23,7 @@ import { validateLayer5 } from "./layer5-checks.ts";
 import { validateLayer6 } from "./layer6-checks.ts";
 import { validateLayer7 } from "./layer7-checks.ts";
 import { validateLayer9 } from "./layer9-checks.ts";
+import { validateScriptCommit } from "./layer9-script-commit-checks.ts";
 import { validateFlexboxLayout } from "./flexbox-layout-checks.ts";
 import { validateMinimapPosition } from "./minimap-position-checks.ts";
 // // validateBubbleFlash (task 386: the real page has no bubble-click flash)
@@ -69,6 +70,7 @@ async function executeFreshPageChecks(page: HeadlessPage, pageUrl: string): Prom
   await validateLayer6(page, pageUrl);
   await validateLayer7(page, pageUrl);
   await validateLayer9(page, pageUrl);
+  await validateScriptCommit(page, pageUrl);
   await validateFlexboxLayout(page, pageUrl);
   await validateMinimapPosition(page, pageUrl);
 }
@@ -148,6 +150,11 @@ async function launchViewer(port: number): Promise<ChildProcess> {
 
 async function executePageChecks(server: ChildProcess, port: number): Promise<void> {
   const page = await openHeadlessPage(VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
+  const navigateToPage = page.navigate;
+  page.navigate = async (url: string) => {
+    await navigateToPage(url);
+    await page.evaluate(`(() => { const s = document.getElementById('barsViewSliderInput'); s.value = '1'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+  };
   try {
     const pageUrl = `http://127.0.0.1:${port}/app/layer1.html`;
     await page.navigate(pageUrl);

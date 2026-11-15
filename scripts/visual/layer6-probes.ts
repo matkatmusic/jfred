@@ -70,18 +70,40 @@ export interface NodeFacts {
   id: string; classes: string; width: number; height: number;
   borderStyle: string; borderColor: string; borderWidth: string;
   outlineStyle: string; outlineColor: string; outlineWidth: string; backgroundImage: string;
+  markKey: string; markColour: string;
 }
 
 export const README_NODE_FACTS = `[...${README_BUBBLE}.querySelectorAll('i.node.n-script')].map(n => {
     const s = getComputedStyle(n);
     const r = n.getBoundingClientRect();
+    const mark = n.querySelector('svg.run-mark');
+    const markKey = mark ? [...mark.classList].find(c => c.startsWith('mark-')) : 'none';
     return { id: n.dataset.toolUseId, classes: n.className, width: r.width, height: r.height,
+        markKey, markColour: mark ? getComputedStyle(mark).color : 'none',
         borderStyle: s.borderTopStyle, borderColor: s.borderTopColor, borderWidth: s.borderTopWidth,
         outlineStyle: s.outlineStyle, outlineColor: s.outlineColor, outlineWidth: s.outlineWidth, backgroundImage: s.backgroundImage };
 })`;
 
-export const NEVER_PROVABLE_RULE_COUNT = `[...document.styleSheets].flatMap(sheet => [...sheet.cssRules])
-    .filter(rule => rule.selectorText?.includes('.never-provable')).length`;
+export const MISMATCH_TOKEN_COLOUR = `(() => {
+    const probe = document.createElement('i');
+    probe.style.color = 'var(--c-mismatch)';
+    document.querySelector('.appWindow').append(probe);
+    const colour = getComputedStyle(probe).color;
+    probe.remove();
+    return colour;
+})()`;
+
+// A selector counts only when ".never-provable" is outside every :not(...).
+// export const NEVER_PROVABLE_RULE_COUNT = `(() => {
+//     const walk = rules => [...rules].flatMap(rule => rule.styleSheet ? walk(rule.styleSheet.cssRules) : [rule]);
+//     return [...document.styleSheets].flatMap(sheet => walk(sheet.cssRules))
+//         .filter(rule => rule.selectorText?.includes('.never-provable')).length;
+// })()`;
+export const NEVER_PROVABLE_RULE_COUNT = `(() => {
+    const walk = rules => [...rules].flatMap(rule => rule.styleSheet ? walk(rule.styleSheet.cssRules) : [rule]);
+    return [...document.styleSheets].flatMap(sheet => walk(sheet.cssRules))
+        .filter(rule => rule.selectorText?.replace(/:not\\([^)]*\\)/g, '').includes('.never-provable')).length;
+})()`;
 export const SHOW_BOX_KINDS = `[...document.querySelectorAll('#timelineViewControls input[data-kind]')].map(i => i.dataset.kind)`;
 
 export interface PopupFacts {

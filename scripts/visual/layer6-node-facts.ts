@@ -59,17 +59,46 @@ export function isExpectedNodeSet(nodes: NodeFacts[]): boolean {
   return isMatch;
 }
 
-export function isMismatchAlone(nodes: NodeFacts[]): boolean {
-  let isAlone = findNodeFacts(nodes, MISMATCH_ID) !== undefined;
-  for (const node of nodes) {
-    const isMismatch = node.id === MISMATCH_ID;
-    const hasDouble = node.outlineStyle === "double";
-    const hasFill = node.backgroundImage !== "none";
-    const isRight = isMismatch ? hasDouble && hasFill : !hasDouble && !hasFill;
-    if (!isRight)
-      isAlone = false;
-  }
-  return isAlone;
+// Replaced by the mark checks: the per-state outlines are gone, the marks stay.
+// export function isMismatchAlone(nodes: NodeFacts[]): boolean {
+//   let isAlone = findNodeFacts(nodes, MISMATCH_ID) !== undefined;
+//   for (const node of nodes) {
+//     const isMismatch = node.id === MISMATCH_ID;
+//     const hasDouble = node.outlineStyle === "double";
+//     const hasFill = node.backgroundImage !== "none";
+//     const isRight = isMismatch ? hasDouble && hasFill : !hasDouble && !hasFill;
+//     if (!isRight)
+//       isAlone = false;
+//   }
+//   return isAlone;
+// }
+
+export function listMarkSignatures(nodes: NodeFacts[]): string[] {
+  const signatures: string[] = [];
+  for (const node of nodes)
+    signatures.push(`${node.markKey}|${node.markColour}`);
+  return signatures;
+}
+
+// Pending and derived share the not-run mark and never-provable has none: only these four have their own mark.
+const RATED_MARKS: Record<string, string> = {
+  [VERIFIED_ID]: "mark-verified", [MISMATCH_ID]: "mark-mismatch", [ORIGINAL_FAILED_ID]: "mark-original-failed", [INJECTED_ID]: "mark-injected-unverified",
+};
+
+export function isRatedMarksDistinct(nodes: NodeFacts[]): boolean {
+  const rated = nodes.filter(node => node.id in RATED_MARKS);
+  const isEachRight = rated.every(node => node.markKey === RATED_MARKS[node.id]);
+  return rated.length === 4 && isEachRight && listUniqueValues(listMarkSignatures(rated)).length === 4;
+}
+
+export function isMismatchMarkRed(nodes: NodeFacts[], redColour: string): boolean {
+  const mismatch = findNodeFacts(nodes, MISMATCH_ID);
+  if (mismatch === undefined)
+    return false;
+  const others = nodes.filter(node => node.id !== MISMATCH_ID);
+  const isUnique = others.every(node => node.markKey !== mismatch.markKey);
+  const isRed = mismatch.markColour === redColour;
+  return mismatch.markKey === "mark-mismatch" && isUnique && isRed;
 }
 
 export function isStateFilterAbsent(kinds: string[]): boolean {
@@ -96,12 +125,13 @@ export function listNodeSizes(nodes: NodeFacts[]): string[] {
   return sizes;
 }
 
-export function listNodeSignatures(nodes: NodeFacts[]): string[] {
-  const signatures: string[] = [];
-  for (const node of nodes)
-    signatures.push([node.borderStyle, node.borderColor, node.borderWidth, node.outlineStyle, node.outlineColor, node.outlineWidth, node.backgroundImage].join("|"));
-  return signatures;
-}
+// Replaced by listMarkSignatures: comparing outline looks proves nothing about the marks.
+// export function listNodeSignatures(nodes: NodeFacts[]): string[] {
+//   const signatures: string[] = [];
+//   for (const node of nodes)
+//     signatures.push([node.borderStyle, node.borderColor, node.borderWidth, node.outlineStyle, node.outlineColor, node.outlineWidth, node.backgroundImage].join("|"));
+//   return signatures;
+// }
 
 export function listUniqueValues(values: string[]): string[] {
   return [...new Set(values)];

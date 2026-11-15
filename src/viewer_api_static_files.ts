@@ -3,10 +3,11 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
-// `/` maps to index.html; `/app/*` prefixes strip to plain asset names.
+// `/` maps to layer1.html (index.html stays reachable by name); `/app/*` prefixes strip to plain asset names.
 export function computeStaticFileRelative(urlPath: string): string {
   if (urlPath === "/") {
-    return "index.html";
+    // return "index.html";
+    return "layer1.html";
   }
   return urlPath.replace(/^\/app\//, "").replace(/^\//, "");
 }

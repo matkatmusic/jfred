@@ -6,7 +6,8 @@ import {
 } from "../src/reconstruction_script_execution.ts";
 import { collectRevisions } from "../src/reconstruction_replay.ts";
 import { getLinesText } from "../src/reconstruction_revisions.ts";
-import { BlockType, EventKind, ToolName } from "../src/structures/vocabulary.ts";
+import { BlockType, EventKind, RecordType, ToolName } from "../src/structures/vocabulary.ts";
+import type { TranscriptRecord } from "../src/structures/envelope.ts";
 import type { ToolUseBlock } from "../src/structures/content-blocks.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
 import type { FileEvent } from "../src/reconstruction_events.ts";
@@ -119,3 +120,14 @@ test("test_findScriptExecutionRuns_carries_the_tool_use_id", () => {
     assert.equal(runs.length, 1);
     assert.equal(runs[0]!.toolUseId?.toString(), "toolu_x");
 });
+
+// test("test_tool_call_blocked_by_a_hook_is_not_a_script_execution_run", () => {
+//     // A blocked Bash python call, whose tool_result has is_error true.
+//     const blockedCall = { ...buildToolRecord(ToolName.Bash, { command: "python3 apply.py" }, "2026-01-01T00:00:01Z", "/w"), message: { content: [{ type: BlockType.tool_use, id: "toolu_blocked", name: ToolName.Bash, input: { command: "python3 apply.py" } }] } };
+//     const blockedResult = { type: RecordType.user, timestamp: new Date("2026-01-01T00:00:02Z"), message: { content: [{ type: BlockType.tool_result, tool_use_id: "toolu_blocked", is_error: true, content: "blocked by hook" }] } } as unknown as TranscriptRecord;
+//     // A later real call with the same script.
+//     const realCall = { ...buildToolRecord(ToolName.Bash, { command: "python3 apply.py" }, "2026-01-01T00:00:03Z", "/w"), message: { content: [{ type: BlockType.tool_use, id: "toolu_real", name: ToolName.Bash, input: { command: "python3 apply.py" } }] } };
+//     const runs = findScriptExecutionRuns([blockedCall as unknown as TranscriptRecord, blockedResult, realCall as unknown as TranscriptRecord]);
+//     // Only the real call is a run.
+//     assert.deepEqual(runs.map((run) => run.toolUseId?.toString()), ["toolu_real"]);
+// });

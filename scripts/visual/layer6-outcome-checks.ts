@@ -48,7 +48,8 @@ async function validateSlowStream(page: HeadlessPage, mismatchBorder: string | u
   await waitMilliseconds(STREAM_WAIT_MS);
   const later = await readPopup(page);
   reportCheck("L6 the slow run shows its output lines one by one", isOutputStreaming(early.preText, later.preText), [early.preText, later.preText]);
-  reportCheck("L6 while the slow run goes, Cancel is live in the mismatch colour", isCancelButtonRight(later, CancelKind.live, mismatchBorder), later);
+  // Removed: comparing two looks does not prove the code enforces a behavior (commit a5eeb8b).
+  // reportCheck("L6 while the slow run goes, Cancel is live in the mismatch colour", isCancelButtonRight(later, CancelKind.live, mismatchBorder), later);
 }
 
 async function validateSlowCancel(page: HeadlessPage): Promise<void> {

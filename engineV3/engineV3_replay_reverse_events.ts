@@ -2,13 +2,20 @@
 
 import { getRecordSource, type RecordSource } from "../src/parse/loadTranscript.ts";
 import { collectReadEchoNodes } from "../src/layered_anchor.ts";
+import { parseCpPaths, parseMvPaths, parseRmTargets } from "../src/reconstruction_bash_events.ts";
+import { codeLiteralMoveCall, codeVariableMoveCall } from "../src/regex_expressions.ts";
 import { isScriptCodeWriteCapable } from "../src/reconstruction_script_prestate.ts";
+import { applyScriptIndirection, collectWrittenContentByBasename } from "../src/reconstruction_script_indirection.ts";
+import { isBeaconElided } from "../src/reconstruction_beacons_elided_match.ts";
+import { splitLines } from "../src/reconstruction_replay_edit.ts";
+import { getBeaconSnippet, getUserEditEvent, type BeaconSnippet } from "../src/reconstruction_user_edit.ts";
 import { Path } from "../src/structures/domain.ts";
 import { normalizeAgainstCwd } from "../src/structures/path-resolve.ts";
 import type { ScriptRun } from "../src/reconstruction_script_execution.ts";
 import { LayeredNodeKind } from "../src/structures/vocabulary_views.ts";
 import { RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import type { CommitHash, JSONLLine } from "./engineV3.ts";
+import { TRAILING_CONTEXT_LINE_COUNT, patchWindowIntoText } from "./engineV3_replay_apply.ts";
 import {
   ReverseStateKind, applyEditToText, collectBackupKnownStates, collectGitKnownStates, collectScriptRuns, computeRowUndo, countOccurrences, createFileNamePattern,
   createReverseState, getUndoneStateKind, listFileChangeRowsNewestFirst, loadJSONLLinesNamingFile, parseFileChangeRow, readDiskText,
@@ -26,17 +33,18 @@ export enum FileEventType {
   ScriptReadOnly = "ScriptReadOnly",
   ScriptMayWrite = "ScriptMayWrite",
   OtherRow = "OtherRow",
+  UserEditNotice = "UserEditNotice",
   RowBytesUnknown = "RowBytesUnknown",
 }
 
-export type FileEvent = { type: FileEventType; instant: Date | undefined; source: RecordSource | undefined; commitHash: CommitHash | undefined; bytes: string | undefined; row: FileChangeRow | undefined };
+export type FileEvent = { type: FileEventType; instant: Date | undefined; source: RecordSource | undefined; commitHash: CommitHash | undefined; bytes: string | undefined; row: FileChangeRow | undefined; moveOrCopySourceFile: Path | undefined; removedByScript: boolean; movedAwayToFile: Path | undefined; scriptRun: ScriptRun | undefined };
 export type ReverseEventsResult = { states: ReverseFileState[]; unhandledEvents: FileEvent[] };
 
 enum EntryRole { Own, RowAfter, RowBefore }
 type Entry = { event: FileEvent; role: EntryRole; bytes: string | undefined };
 
 function createEvent(type: FileEventType, instant: Date | undefined, source: RecordSource | undefined, fields: Partial<FileEvent> = {}): FileEvent {
-  return { type, instant, source, commitHash: undefined, bytes: undefined, row: undefined, ...fields };
+  return { type, instant, source, commitHash: undefined, bytes: undefined, row: undefined, moveOrCopySourceFile: undefined, removedByScript: false, movedAwayToFile: undefined, scriptRun: undefined, ...fields };
 }
 
 function convertKnownStateToEvent(type: FileEventType, state: KnownFileState): FileEvent {
@@ -101,20 +109,72 @@ function isFileNamedByPathInScript(scriptRun: ScriptRun, transcriptFile: Path): 
   return false;
 }
 
-function listScriptEvents(transcriptFile: Path, jsonlLines: JSONLLine[]): FileEvent[] {
+function getSourceOfMoveOrCopyOnto(scriptRun: ScriptRun, transcriptFile: Path): Path | undefined {
+  const pairs: { from: Path; to: Path }[] = [];
+  const move = parseMvPaths(scriptRun.code);
+  if (move !== undefined) {
+    pairs.push({ from: move.from, to: move.to });
+  }
+  const copy = parseCpPaths(scriptRun.code);
+  if (copy !== undefined) {
+    pairs.push({ from: copy.from, to: copy.to });
+  }
+  for (const moveCall of scriptRun.code.matchAll(codeLiteralMoveCall)) {
+    pairs.push({ from: new Path(moveCall[1]!), to: new Path(moveCall[2]!) });
+  }
+  for (const moveCall of scriptRun.code.matchAll(codeVariableMoveCall)) {
+    if (moveCall[5] === moveCall[1]) {
+      pairs.push({ from: new Path(moveCall[3]!), to: new Path(moveCall[4]!) });
+    } else {
+      pairs.push({ from: new Path(moveCall[4]!), to: new Path(moveCall[3]!) });
+    }
+  }
+  for (const pair of pairs) {
+    if (new Path(normalizeAgainstCwd(scriptRun.cwd, pair.to)).equals(transcriptFile)) {
+      return new Path(normalizeAgainstCwd(scriptRun.cwd, pair.from));
+    }
+  }
+  return undefined;
+}
+
+function getRemovalOrMoveAwayOfFile(scriptRun: ScriptRun, transcriptFile: Path): { removedByScript: boolean; movedAwayToFile: Path | undefined } {
+  let removedByScript = false;
+  let movedAwayToFile: Path | undefined;
+  for (const target of parseRmTargets(scriptRun.code)) {
+    if (new Path(normalizeAgainstCwd(scriptRun.cwd, target)).equals(transcriptFile)) {
+      removedByScript = true;
+    }
+  }
+  const move = parseMvPaths(scriptRun.code);
+  if (move !== undefined) {
+    if (new Path(normalizeAgainstCwd(scriptRun.cwd, move.from)).equals(transcriptFile)) {
+      movedAwayToFile = new Path(normalizeAgainstCwd(scriptRun.cwd, move.to));
+    }
+  }
+  return { removedByScript, movedAwayToFile };
+}
+
+function listScriptEvents(transcriptFile: Path, jsonlLines: JSONLLine[], isScriptIndirectionOn: boolean): FileEvent[] {
   const fileNamePattern = createFileNamePattern(transcriptFile);
   const events: FileEvent[] = [];
-  for (const scriptRun of collectScriptRuns(jsonlLines)) {
+  let scriptRuns = collectScriptRuns(jsonlLines);
+  if (isScriptIndirectionOn) {
+    const writtenBodiesByBasename = collectWrittenContentByBasename(jsonlLines);
+    scriptRuns = scriptRuns.map((run) => applyScriptIndirection(run, writtenBodiesByBasename));
+  }
+  for (const scriptRun of scriptRuns) {
     if (fileNamePattern.test(scriptRun.code)) {
       if (scriptRun.cwd === undefined) {
         throw new Error(`listScriptEvents: the script run at ${scriptRun.timestamp.toISOString()} names ${transcriptFile.toString()} and has no cwd`);
       }
       if (isFileNamedByPathInScript(scriptRun, transcriptFile)) {
         let type = FileEventType.ScriptReadOnly;
+        let fields: Partial<FileEvent> = {};
         if (isScriptCodeWriteCapable(scriptRun.code)) {
           type = FileEventType.ScriptMayWrite;
+          fields = { moveOrCopySourceFile: getSourceOfMoveOrCopyOnto(scriptRun, transcriptFile), ...getRemovalOrMoveAwayOfFile(scriptRun, transcriptFile) };
         }
-        events.push(createEvent(type, scriptRun.timestamp, scriptRun.source));
+        events.push(createEvent(type, scriptRun.timestamp, scriptRun.source, { ...fields, scriptRun }));
       }
     }
   }
@@ -143,9 +203,79 @@ function listOtherRowEvents(transcriptFile: Path, jsonlLines: JSONLLine[]): File
   return events;
 }
 
+function findNewestBeaconBefore(events: FileEvent[], instant: Date): FileEvent | undefined {
+  let newest: FileEvent | undefined;
+  for (const event of events) {
+    if (isBeaconEvent(event)) {
+      if (event.instant !== undefined) {
+        if (event.instant.getTime() < instant.getTime()) {
+          if (newest === undefined || event.instant.getTime() > newest.instant!.getTime()) {
+            newest = event;
+          }
+        }
+      }
+    }
+  }
+  return newest;
+}
+
+// The last lines of a notice are unchanged context. If they sit in the older text only at other line numbers, lines were added or removed above them.
+function isTrailingContextShifted(olderLines: string[], snippet: BeaconSnippet): boolean {
+  const trailingLines = snippet.lines.slice(-TRAILING_CONTEXT_LINE_COUNT);
+  const lastLineNo = trailingLines[trailingLines.length - 1]!.lineNo;
+  let hasMatchAtSameLines = false;
+  let hasMatchAtOtherLines = false;
+  for (let endLine = trailingLines.length; endLine <= olderLines.length; endLine += 1) {
+    const olderContext = olderLines.slice(endLine - trailingLines.length, endLine);
+    if (olderContext.every((olderLine, index) => olderLine === trailingLines[index]!.text)) {
+      if (endLine === lastLineNo) {
+        hasMatchAtSameLines = true;
+      } else {
+        hasMatchAtOtherLines = true;
+      }
+    }
+  }
+  return hasMatchAtOtherLines && !hasMatchAtSameLines;
+}
+
+// An elided edited_text_file notice shows only some lines; the other lines are those of the nearest older beacon.
+function listUserEditNoticeEvents(transcriptFile: Path, jsonlLines: JSONLLine[], otherEvents: FileEvent[]): FileEvent[] {
+  const events: FileEvent[] = [];
+  for (const line of jsonlLines) {
+    const userEdit = getUserEditEvent(line);
+    if (userEdit !== undefined) {
+      if (userEdit.target.equals(transcriptFile)) {
+        const snippet = getBeaconSnippet([line], userEdit.changeId)!;
+        if (isBeaconElided(snippet)) {
+          const beacon = findNewestBeaconBefore(otherEvents, userEdit.timestamp);
+          if (beacon !== undefined) {
+            const olderText = getEventBytes(beacon);
+            if (olderText !== undefined) {
+              const olderLines = splitLines(olderText);
+              // A notice that shows a line past the end of the older text does not fit it.
+              if (snippet.lines[snippet.lines.length - 1]!.lineNo <= olderLines.length) {
+                if (!isTrailingContextShifted(olderLines, snippet)) {
+                  const trailingNewline = olderText.endsWith("\n") ? "\n" : "";
+                  events.push(createEvent(FileEventType.UserEditNotice, userEdit.timestamp, getRecordSource(line), { bytes: patchWindowIntoText(olderText, snippet) + trailingNewline }));
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return events;
+}
+
 // The transcripts may call the file by another path than the one on disk (a scenario run folder); transcriptFile is that path.
+// The reverse viewer reads only this function, and it does not know a UserEditNotice event.
 export function getAllEventsForFileFrom(file: Path, transcriptFile: Path, jsonlFolders: Path[], snapshotFolders: Path[]): FileEvent[] {
   const jsonlLines = loadJSONLLinesNamingFile(transcriptFile, jsonlFolders);
+  return getAllEventsForFileFromLines(file, transcriptFile, jsonlLines, snapshotFolders).filter((event) => event.type !== FileEventType.UserEditNotice);
+}
+
+export function getAllEventsForFileFromLines(file: Path, transcriptFile: Path, jsonlLines: JSONLLine[], snapshotFolders: Path[], isScriptIndirectionOn: boolean = false): FileEvent[] {
   const events: FileEvent[] = [createEvent(FileEventType.DiskNow, undefined, undefined, { bytes: readDiskText(file) })];
   for (const state of collectGitKnownStates(file)) {
     events.push(convertKnownStateToEvent(FileEventType.GitCommit, state));
@@ -157,7 +287,8 @@ export function getAllEventsForFileFrom(file: Path, transcriptFile: Path, jsonlF
     const type = row.toolName === ToolName.Write ? FileEventType.WriteRow : FileEventType.EditRow;
     events.push(createEvent(type, row.timestamp, row.source, { row }));
   }
-  events.push(...listReadEvents(transcriptFile, jsonlLines), ...listScriptEvents(transcriptFile, jsonlLines), ...listOtherRowEvents(transcriptFile, jsonlLines));
+  events.push(...listReadEvents(transcriptFile, jsonlLines), ...listScriptEvents(transcriptFile, jsonlLines, isScriptIndirectionOn), ...listOtherRowEvents(transcriptFile, jsonlLines));
+  events.push(...listUserEditNoticeEvents(transcriptFile, jsonlLines, events));
   return events;
 }
 
@@ -248,7 +379,7 @@ function getOwnStateKind(event: FileEvent): ReverseStateKind {
 }
 
 // The text of the next older event that has one; an Edit without originalFile is applied to it.
-function findNextOlderEventBytes(events: FileEvent[], index: number): { isFound: boolean; bytes: string | undefined } {
+export function findNextOlderEventBytes(events: FileEvent[], index: number): { isFound: boolean; bytes: string | undefined } {
   for (const olderEvent of events.slice(index + 1)) {
     if (isBeaconEvent(olderEvent)) {
       return { isFound: true, bytes: getEventBytes(olderEvent) };

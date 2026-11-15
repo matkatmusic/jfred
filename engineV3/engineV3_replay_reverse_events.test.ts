@@ -1,14 +1,14 @@
 import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { Path } from "../src/structures/domain.ts";
-import { ReverseStateKind, type ReverseFileState } from "./engineV3_replay_reverse.ts";
+import { ReverseStateKind, loadJSONLLinesNamingFile, type ReverseFileState } from "./engineV3_replay_reverse.ts";
 import {
-    FileEventType, formatUnhandledEventLines, getReverseStatesForFile, isBeaconEvent, isEventTypeHandled, pruneBeaconsFromEvents, sortEventsNewestToOldest,
+    FileEventType, formatUnhandledEventLines, getAllEventsForFileFrom, getAllEventsForFileFromLines, getReverseStatesForFile, isBeaconEvent, isEventTypeHandled, pruneBeaconsFromEvents, sortEventsNewestToOldest,
     type FileEvent, type ReverseEventsResult,
 } from "./engineV3_replay_reverse_events.ts";
 
@@ -102,8 +102,82 @@ function summarizeStates(states: ReverseFileState[]): string[] {
 
 function makeEvent(type: FileEventType, instant: Date | undefined = makeInstant(1), originalFile: string | undefined = undefined): FileEvent {
     const row = { toolName: "Edit", timestamp: makeInstant(1), source: undefined, oldString: "a", newString: "b", replaceAll: false, originalFile };
-    return { type, instant, source: undefined, commitHash: undefined, bytes: undefined, row: row as never };
+    return { type, instant, source: undefined, commitHash: undefined, bytes: undefined, row: row as never, moveOrCopySourceFile: undefined, removedByScript: false, movedAwayToFile: undefined, scriptRun: undefined };
 }
+
+function listScriptMayWriteEventsForFile(scene: Scene, transcriptFile: Path): FileEvent[] {
+    const events = getAllEventsForFileFrom(scene.file, transcriptFile, [scene.jsonlFolder], [scene.snapshotFolder]);
+    return events.filter((event) => event.type === FileEventType.ScriptMayWrite);
+}
+
+const BACKUP_TEXT = Array.from({ length: 20 }, (_, index) => `a${index + 1}`).join("\n") + "\n";
+// The user changed lines 3 and 11; the harness shows each changed line with context, and 8 context lines after the last change.
+const ELIDED_USER_EDIT_SNIPPET = "2\ta2\n3\tA3\n4\ta4\n...\n10\ta10\n11\tA11\n12\ta12\n13\ta13\n14\ta14\n15\ta15\n16\ta16\n17\ta17\n18\ta18\n19\ta19";
+const TEXT_AFTER_USER_EDIT = BACKUP_TEXT.replace("a3\n", "A3\n").replace("a11\n", "A11\n");
+
+// A scene whose log holds a backup of a.txt at second 1 and an edited_text_file notice for a.txt at the given second.
+function makeSceneWithBackupAndUserEditNotice(t: TestContext, noticeSecond: number, snippet: string, makeExtraRecords: (file: string) => object[] = () => []): Scene {
+    const scene = makeScene(t, "disk");
+    mkdirSync(join(scene.snapshotFolder.toString(), "s1"));
+    writeFileSync(join(scene.snapshotFolder.toString(), "s1", "abc@v1"), BACKUP_TEXT);
+    const backups = { [scene.file.toString()]: { backupFileName: "abc@v1", version: 1, backupTime: makeInstant(1).toISOString() } };
+    const snapshotRecord = { type: "file-history-snapshot", messageId: "m1", snapshot: { messageId: "m1", trackedFileBackups: backups, timestamp: makeInstant(1).toISOString() }, isSnapshotUpdate: false };
+    const noticeRecord = { type: "attachment", uuid: "notice-1", timestamp: makeInstant(noticeSecond).toISOString(), attachment: { type: "edited_text_file", filename: scene.file.toString(), snippet } };
+    writeRecords(scene, [snapshotRecord, ...makeExtraRecords(scene.file.toString()), noticeRecord]);
+    return scene;
+}
+
+function listEventsOfTypeFromLines(scene: Scene, type: FileEventType): FileEvent[] {
+    const jsonlLines = loadJSONLLinesNamingFile(scene.file, [scene.jsonlFolder]);
+    return getAllEventsForFileFromLines(scene.file, scene.file, jsonlLines, [scene.snapshotFolder]).filter((event) => event.type === type);
+}
+
+test("test_getAllEventsForFileFromLines_lays_an_elided_user_edit_notice_over_the_nearest_older_backup", (t) => {
+    // Scenario: a backup at second 1 holds twenty lines; a notice at second 5 shows the lines around a user edit of lines 3 and 11.
+    const scene = makeSceneWithBackupAndUserEditNotice(t, 5, ELIDED_USER_EDIT_SNIPPET);
+    const noticeEvents = listEventsOfTypeFromLines(scene, FileEventType.UserEditNotice);
+    // One notice event, at the notice time, whose bytes are the backup with the shown lines laid over it.
+    assert.equal(noticeEvents.length, 1);
+    assert.equal(noticeEvents[0]!.instant!.getTime(), makeInstant(5).getTime());
+    assert.equal(noticeEvents[0]!.bytes, TEXT_AFTER_USER_EDIT);
+});
+
+test("test_getAllEventsForFileFromLines_lays_a_notice_over_a_newer_Edit_text_instead_of_the_older_backup", (t) => {
+    // Scenario: the backup is at second 1, an Edit with originalFile at second 3 changes line 5, and the notice is at second 5.
+    const scene = makeSceneWithBackupAndUserEditNotice(t, 5, ELIDED_USER_EDIT_SNIPPET, (file) => makeEditRows("e1", file, "a5", "A5", BACKUP_TEXT, 3));
+    const noticeEvents = listEventsOfTypeFromLines(scene, FileEventType.UserEditNotice);
+    // The text under the notice is the Edit's text, so line 5 stays changed.
+    assert.equal(noticeEvents[0]!.bytes, TEXT_AFTER_USER_EDIT.replace("a5\n", "A5\n"));
+});
+
+test("test_getAllEventsForFileFromLines_makes_no_notice_event_when_no_backup_is_older_than_the_notice", (t) => {
+    // Scenario: the notice at second 0 is older than the only backup, which is at second 1.
+    const scene = makeSceneWithBackupAndUserEditNotice(t, 0, ELIDED_USER_EDIT_SNIPPET);
+    // There is nothing to lay the notice over.
+    assert.equal(listEventsOfTypeFromLines(scene, FileEventType.UserEditNotice).length, 0);
+});
+
+test("test_getAllEventsForFileFromLines_makes_no_notice_event_when_the_notice_shows_a_line_past_the_end_of_the_backup", (t) => {
+    // Scenario: the backup has twenty lines; the notice shows line 21, so the file was longer than the backup when the notice was made.
+    const scene = makeSceneWithBackupAndUserEditNotice(t, 5, "19\ta19\n21\tA21");
+    // The notice does not fit the backup, so there is no event.
+    assert.equal(listEventsOfTypeFromLines(scene, FileEventType.UserEditNotice).length, 0);
+});
+
+test("test_getAllEventsForFileFromLines_makes_no_notice_event_when_the_lines_after_the_change_are_shifted", (t) => {
+    // Scenario: the user deleted line 11, so the lines shown after the change sit one line higher than in the backup.
+    const scene = makeSceneWithBackupAndUserEditNotice(t, 5, "10\ta10\n11\ta12\n12\ta13\n13\ta14\n14\ta15\n15\ta16\n16\ta17\n17\ta18\n18\ta19");
+    // Laying those lines over the backup would give a false text, so there is no event.
+    assert.equal(listEventsOfTypeFromLines(scene, FileEventType.UserEditNotice).length, 0);
+});
+
+test("test_getAllEventsForFileFrom_does_not_return_user_edit_notice_events", (t) => {
+    // Scenario: the same scene as the first notice test, read through the wrapper that the reverse viewer uses.
+    const scene = makeSceneWithBackupAndUserEditNotice(t, 5, ELIDED_USER_EDIT_SNIPPET);
+    const events = getAllEventsForFileFrom(scene.file, scene.file, [scene.jsonlFolder], [scene.snapshotFolder]);
+    // The viewer path stays as it was: no notice event.
+    assert.equal(events.some((event) => event.type === FileEventType.UserEditNotice), false);
+});
 
 test("test_isBeaconEvent_is_true_for_events_that_carry_the_whole_file", () => {
     // Scenario: the events that carry the whole text by themselves are beacons.
@@ -304,4 +378,333 @@ test("test_getReverseStatesForFile_finds_rows_by_the_transcript_path_when_it_dif
     // the row is found through the extra transcript path
     const result = getReverseStatesForFile(scene.file, [scene.jsonlFolder], [scene.snapshotFolder], new Path("/original/run/a.txt"));
     assert.deepEqual(summarizeStates(result.states), ["DiskNow:B:true", "EditUndone:A:true"]);
+});
+
+test("test_getAllEventsForFileFrom_marks_the_destination_of_an_mv_run_as_a_move_or_copy_destination", (t) => {
+    // Scenario: a Bash call runs `mv /abs/a.py /abs/b.py`.
+    const scene = makeScene(t, "A");
+    const sourceFile = join(scene.folder, "a.py");
+    const destinationFile = join(scene.folder, "b.py");
+    writeRecords(scene, makeBashRows("b1", `mv ${sourceFile} ${destinationFile}`, 5, scene.folder));
+    // the ScriptMayWrite event of b.py holds a.py as its move or copy source
+    const events = listScriptMayWriteEventsForFile(scene, new Path(destinationFile));
+    assert.deepEqual(events.map((event) => event.moveOrCopySourceFile), [new Path(sourceFile)]);
+});
+
+test("test_getAllEventsForFileFrom_does_not_mark_the_source_of_an_mv_run_as_a_move_or_copy_destination", (t) => {
+    // Scenario: a Bash call runs `mv /abs/a.py /abs/b.py`.
+    const scene = makeScene(t, "A");
+    const sourceFile = join(scene.folder, "a.py");
+    const destinationFile = join(scene.folder, "b.py");
+    writeRecords(scene, makeBashRows("b1", `mv ${sourceFile} ${destinationFile}`, 5, scene.folder));
+    // the ScriptMayWrite event of a.py has no move or copy source
+    const events = listScriptMayWriteEventsForFile(scene, new Path(sourceFile));
+    assert.deepEqual(events.map((event) => event.moveOrCopySourceFile), [undefined]);
+});
+
+test("test_getAllEventsForFileFrom_marks_the_destination_of_a_cp_run_as_a_move_or_copy_destination", (t) => {
+    // Scenario: a Bash call runs `cp /abs/a.py /abs/b.py`.
+    const scene = makeScene(t, "A");
+    const sourceFile = join(scene.folder, "a.py");
+    const destinationFile = join(scene.folder, "b.py");
+    writeRecords(scene, makeBashRows("b1", `cp ${sourceFile} ${destinationFile}`, 5, scene.folder));
+    // the ScriptMayWrite event of b.py holds a.py as its move or copy source
+    const events = listScriptMayWriteEventsForFile(scene, new Path(destinationFile));
+    assert.deepEqual(events.map((event) => event.moveOrCopySourceFile), [new Path(sourceFile)]);
+});
+
+test("test_getAllEventsForFileFrom_marks_the_destination_of_a_relative_git_mv_run_as_a_move_or_copy_destination", (t) => {
+    // Scenario: a Bash call in the project folder runs `git mv a.py b.py`.
+    const scene = makeScene(t, "A");
+    writeRecords(scene, makeBashRows("b1", "git mv a.py b.py", 5, scene.folder));
+    // the ScriptMayWrite event of <cwd>/b.py holds <cwd>/a.py as its move or copy source
+    const events = listScriptMayWriteEventsForFile(scene, new Path(join(scene.folder, "b.py")));
+    assert.deepEqual(events.map((event) => event.moveOrCopySourceFile), [new Path(join(scene.folder, "a.py"))]);
+});
+
+test("test_getAllEventsForFileFrom_marks_the_destination_of_an_inline_python_shutil_move_as_a_move_or_copy_destination", (t) => {
+    // Scenario: a ctx_execute Python run in the project folder calls shutil.move("a.py", "b.py").
+    const scene = makeScene(t, "A");
+    const code = 'import shutil\nshutil.move("a.py", "b.py")';
+    writeRecords(scene, [makeCallRecord("mcp__plugin_context-mode_context-mode__ctx_execute", "b1", { language: "python", code }, 5, scene.folder)]);
+    // the ScriptMayWrite event of <cwd>/b.py holds <cwd>/a.py as its move or copy source
+    const events = listScriptMayWriteEventsForFile(scene, new Path(join(scene.folder, "b.py")));
+    assert.deepEqual(events.map((event) => event.moveOrCopySourceFile), [new Path(join(scene.folder, "a.py"))]);
+});
+
+test("test_getAllEventsForFileFrom_does_not_mark_a_write_that_is_not_a_move_or_copy_as_a_move_or_copy_destination", (t) => {
+    // Scenario: a Bash call runs `sed -i 's/x/y/' /abs/b.py`, which writes b.py but moves nothing.
+    const scene = makeScene(t, "A");
+    const editedFile = join(scene.folder, "b.py");
+    writeRecords(scene, makeBashRows("b1", `sed -i 's/x/y/' ${editedFile}`, 5, scene.folder));
+    // the ScriptMayWrite event of b.py has no move or copy source
+    const events = listScriptMayWriteEventsForFile(scene, new Path(editedFile));
+    assert.deepEqual(events.map((event) => event.moveOrCopySourceFile), [undefined]);
+});
+
+test("test_getAllEventsForFileFrom_gives_the_variable_named_shutil_move_source_to_the_destination_event", (t) => {
+    // Scenario: a ctx_execute Python run in the project folder assigns src and dst, then calls shutil.move(src, dst).
+    const scene = makeScene(t, "A");
+    const code = 'import shutil\n\nsrc, dst = "inventory.py", "core_inventory.py"\nshutil.move(src, dst)\nprint(f"Renamed: {src} -> {dst}")';
+    writeRecords(scene, [makeCallRecord("mcp__plugin_context-mode_context-mode__ctx_execute", "b1", { language: "python", code }, 5, scene.folder)]);
+    // the ScriptMayWrite event of <cwd>/core_inventory.py holds <cwd>/inventory.py as its move or copy source
+    const events = listScriptMayWriteEventsForFile(scene, new Path(join(scene.folder, "core_inventory.py")));
+    assert.deepEqual(events.map((event) => event.moveOrCopySourceFile), [new Path(join(scene.folder, "inventory.py"))]);
+});
+
+test("test_getAllEventsForFileFrom_gives_no_move_source_to_the_source_event_of_a_variable_named_shutil_move", (t) => {
+    // Scenario: the same run as above.
+    const scene = makeScene(t, "A");
+    const code = 'import shutil\n\nsrc, dst = "inventory.py", "core_inventory.py"\nshutil.move(src, dst)\nprint(f"Renamed: {src} -> {dst}")';
+    writeRecords(scene, [makeCallRecord("mcp__plugin_context-mode_context-mode__ctx_execute", "b1", { language: "python", code }, 5, scene.folder)]);
+    // the ScriptMayWrite event of <cwd>/inventory.py has no move or copy source
+    const events = listScriptMayWriteEventsForFile(scene, new Path(join(scene.folder, "inventory.py")));
+    assert.deepEqual(events.map((event) => event.moveOrCopySourceFile), [undefined]);
+});
+
+test("test_getAllEventsForFileFrom_follows_the_call_order_of_the_variable_names_in_a_swapped_shutil_move", (t) => {
+    // Scenario: a ctx_execute Python run assigns src and dst, then calls shutil.move(dst, src).
+    const scene = makeScene(t, "A");
+    const code = 'import shutil\nsrc, dst = "a.py", "b.py"\nshutil.move(dst, src)';
+    writeRecords(scene, [makeCallRecord("mcp__plugin_context-mode_context-mode__ctx_execute", "b1", { language: "python", code }, 5, scene.folder)]);
+    // b.py is the source here, so its event has no move or copy source
+    const sourceEvents = listScriptMayWriteEventsForFile(scene, new Path(join(scene.folder, "b.py")));
+    assert.deepEqual(sourceEvents.map((event) => event.moveOrCopySourceFile), [undefined]);
+    // a.py is the destination here, so its event holds b.py as its move or copy source
+    const destinationEvents = listScriptMayWriteEventsForFile(scene, new Path(join(scene.folder, "a.py")));
+    assert.deepEqual(destinationEvents.map((event) => event.moveOrCopySourceFile), [new Path(join(scene.folder, "b.py"))]);
+});
+
+test("test_getAllEventsForFileFrom_gives_no_move_source_when_the_names_are_built_at_run_time", (t) => {
+    // Scenario: a ctx_execute Python run builds the names in a loop with f-strings, then calls shutil.move(old, new).
+    const scene = makeScene(t, "A");
+    const code = 'import shutil\nfor n in ("one","two","three"):\n    old, new = f"{n}.py", f"core_{n}.py"\n    shutil.move(old, new)';
+    writeRecords(scene, [makeCallRecord("mcp__plugin_context-mode_context-mode__ctx_execute", "b1", { language: "python", code }, 5, scene.folder)]);
+    // any ScriptMayWrite event of <cwd>/core_one.py has no move or copy source
+    const events = listScriptMayWriteEventsForFile(scene, new Path(join(scene.folder, "core_one.py")));
+    assert.deepEqual(events.map((event) => event.moveOrCopySourceFile), events.map(() => undefined));
+});
+
+test("test_getAllEventsForFileFrom_gives_no_move_source_when_a_name_is_assigned_again_before_the_move", (t) => {
+    // Scenario: a ctx_execute Python run assigns src and dst, assigns dst again, then calls shutil.move(src, dst).
+    const scene = makeScene(t, "A");
+    const code = 'import shutil\nsrc, dst = "a.py", "b.py"\ndst = "c.py"\nshutil.move(src, dst)';
+    writeRecords(scene, [makeCallRecord("mcp__plugin_context-mode_context-mode__ctx_execute", "b1", { language: "python", code }, 5, scene.folder)]);
+    // any ScriptMayWrite event of <cwd>/b.py has no move or copy source
+    const events = listScriptMayWriteEventsForFile(scene, new Path(join(scene.folder, "b.py")));
+    assert.deepEqual(events.map((event) => event.moveOrCopySourceFile), events.map(() => undefined));
+});
+
+const SCENARIOS_EXECUTED_FOLDER = "/Users/matkatmusicllc/Desktop/claude code src/tui-progress-worktree/jfred/scenarios/executed";
+const S1_JSONL_FILE = join(SCENARIOS_EXECUTED_FOLDER, "s1-delete-file", "a35bc28e-3687-4c06-ac02-2c4daebc964b.jsonl");
+const S1_RECORDED_FOLDER = "/private/var/folders/fy/wg2tzrv957sg2vqjcvdkdzvm0000gn/T/run-scenario.y4hths0f";
+const S2_JSONL_FILE = join(SCENARIOS_EXECUTED_FOLDER, "s2-move-file", "70781551-ea2a-4ae3-a0db-e9e1bb6fee1f.jsonl");
+const S2_RECORDED_FOLDER = "/private/var/folders/fy/wg2tzrv957sg2vqjcvdkdzvm0000gn/T/run-scenario.bbkg5qkl";
+
+// The scenario's JSONL is copied unchanged into the scene's transcripts folder; the recorded path is the transcript path of the file.
+function listEventsOfRecordedFile(scene: Scene, scenarioJsonlFile: string, recordedFile: string): FileEvent[] {
+    writeFileSync(join(scene.jsonlFolder.toString(), "scenario.jsonl"), readFileSync(scenarioJsonlFile, "utf8"));
+    return getAllEventsForFileFrom(scene.file, new Path(recordedFile), [scene.jsonlFolder], [scene.snapshotFolder]);
+}
+
+test("test_getAllEventsForFileFrom_marks_the_first_rm_target_of_the_s1_run_as_removed_by_script", (t) => {
+    // Scenario: s1 runs one rm call with two targets; this is the first target.
+    const scene = makeScene(t, "A");
+    const events = listEventsOfRecordedFile(scene, S1_JSONL_FILE, join(S1_RECORDED_FOLDER, "s1_delete.py"));
+    // exactly one event is marked, and it is the script event
+    const markedEvents = events.filter((event) => event.removedByScript);
+    assert.deepEqual(markedEvents.map((event) => event.type), [FileEventType.ScriptMayWrite]);
+});
+
+test("test_getAllEventsForFileFrom_marks_the_second_rm_target_of_the_s1_run_as_removed_by_script", (t) => {
+    // Scenario: s1 runs one rm call with two targets; this is the second target.
+    const scene = makeScene(t, "A");
+    const events = listEventsOfRecordedFile(scene, S1_JSONL_FILE, join(S1_RECORDED_FOLDER, "tests", "test_s1_delete.py"));
+    // exactly one event is marked, and it is the script event
+    const markedEvents = events.filter((event) => event.removedByScript);
+    assert.deepEqual(markedEvents.map((event) => event.type), [FileEventType.ScriptMayWrite]);
+});
+
+test("test_getAllEventsForFileFrom_does_not_mark_the_write_events_of_s1_as_removed_by_script", (t) => {
+    // Scenario: s1 writes s1_delete.py, then removes it.
+    const scene = makeScene(t, "A");
+    const events = listEventsOfRecordedFile(scene, S1_JSONL_FILE, join(S1_RECORDED_FOLDER, "s1_delete.py"));
+    // the Write row event exists and is not marked
+    const writeEvents = events.filter((event) => event.type === FileEventType.WriteRow);
+    assert.equal(writeEvents.length, 1);
+    assert.equal(writeEvents[0]!.removedByScript, false);
+});
+
+test("test_getAllEventsForFileFrom_gives_the_s2_source_file_the_destination_it_moved_to", (t) => {
+    // Scenario: s2 runs `mv s2_original.py s2_moved.py`.
+    const scene = makeScene(t, "A");
+    const events = listEventsOfRecordedFile(scene, S2_JSONL_FILE, join(S2_RECORDED_FOLDER, "s2_original.py"));
+    // exactly one event of the source file holds the destination
+    const movedAwayEvents = events.filter((event) => event.movedAwayToFile !== undefined);
+    assert.deepEqual(movedAwayEvents.map((event) => event.movedAwayToFile), [new Path(join(S2_RECORDED_FOLDER, "s2_moved.py"))]);
+});
+
+test("test_getAllEventsForFileFrom_does_not_give_the_s2_destination_file_a_moved_away_destination", (t) => {
+    // Scenario: s2 runs `mv s2_original.py s2_moved.py`; the file read here is the destination.
+    const scene = makeScene(t, "A");
+    const events = listEventsOfRecordedFile(scene, S2_JSONL_FILE, join(S2_RECORDED_FOLDER, "s2_moved.py"));
+    // the mv run is an event of the destination file, and it is not marked as moved away
+    assert.equal(events.some((event) => event.type === FileEventType.ScriptMayWrite), true);
+    assert.equal(events.some((event) => event.movedAwayToFile !== undefined), false);
+});
+
+test("test_getAllEventsForFileFrom_does_not_mark_the_s2_run_as_removed_by_script", (t) => {
+    // Scenario: s2 runs `mv s2_original.py s2_moved.py`.
+    const scene = makeScene(t, "A");
+    const sourceEvents = listEventsOfRecordedFile(scene, S2_JSONL_FILE, join(S2_RECORDED_FOLDER, "s2_original.py"));
+    // the mv run is an event of the source file, and it is not marked as removed
+    assert.equal(sourceEvents.some((event) => event.type === FileEventType.ScriptMayWrite), true);
+    assert.equal(sourceEvents.some((event) => event.removedByScript), false);
+    const destinationEvents = listEventsOfRecordedFile(scene, S2_JSONL_FILE, join(S2_RECORDED_FOLDER, "s2_moved.py"));
+    assert.equal(destinationEvents.some((event) => event.removedByScript), false);
+});
+
+test("test_getAllEventsForFileFrom_marks_a_relative_rm_run_as_removed_by_script", (t) => {
+    // Scenario: a Bash call in the project folder runs `rm a.py`.
+    const scene = makeScene(t, "A");
+    writeRecords(scene, makeBashRows("b1", "rm a.py", 5, scene.folder));
+    // the ScriptMayWrite event of <cwd>/a.py is marked as removed
+    const events = listScriptMayWriteEventsForFile(scene, new Path(join(scene.folder, "a.py")));
+    assert.deepEqual(events.map((event) => event.removedByScript), [true]);
+});
+
+test("test_getAllEventsForFileFrom_marks_an_rm_run_with_a_flag_as_removed_by_script", (t) => {
+    // Scenario: a Bash call runs `rm -f /abs/a.py`.
+    const scene = makeScene(t, "A");
+    const file = join(scene.folder, "a.py");
+    writeRecords(scene, makeBashRows("b1", `rm -f ${file}`, 5, scene.folder));
+    // the ScriptMayWrite event of a.py is marked as removed
+    const events = listScriptMayWriteEventsForFile(scene, new Path(file));
+    assert.deepEqual(events.map((event) => event.removedByScript), [true]);
+});
+
+test("test_getAllEventsForFileFrom_gives_a_relative_git_mv_source_its_absolute_destination", (t) => {
+    // Scenario: a Bash call in the project folder runs `git mv a.py b.py`.
+    const scene = makeScene(t, "A");
+    writeRecords(scene, makeBashRows("b1", "git mv a.py b.py", 5, scene.folder));
+    // the ScriptMayWrite event of <cwd>/a.py holds <cwd>/b.py as its moved-away destination
+    const events = listScriptMayWriteEventsForFile(scene, new Path(join(scene.folder, "a.py")));
+    assert.deepEqual(events.map((event) => event.movedAwayToFile), [new Path(join(scene.folder, "b.py"))]);
+});
+
+test("test_getAllEventsForFileFrom_does_not_mark_a_cp_run_as_removed_or_moved_away", (t) => {
+    // Scenario: a Bash call runs `cp /abs/a.py /abs/b.py`.
+    const scene = makeScene(t, "A");
+    const sourceFile = join(scene.folder, "a.py");
+    writeRecords(scene, makeBashRows("b1", `cp ${sourceFile} ${join(scene.folder, "b.py")}`, 5, scene.folder));
+    // the ScriptMayWrite event of the copy source is neither removed nor moved away
+    const events = listScriptMayWriteEventsForFile(scene, new Path(sourceFile));
+    assert.equal(events.length, 1);
+    assert.equal(events[0]!.removedByScript, false);
+    assert.equal(events[0]!.movedAwayToFile, undefined);
+});
+
+const MOVE_FILES_SCRIPT_BODY = 'import shutil\nshutil.move("a.py", "b.py")';
+
+function makeWrittenScriptRows(toolUseId: string, scriptFile: string, body: string, second: number): object[] {
+    return [makeCallRecord("Write", toolUseId, { file_path: scriptFile, content: body }, second)];
+}
+
+// The lines are the ones that name the script file, because the run names the target only through the script body.
+function listScriptEventsThroughIndirection(scene: Scene, scriptFile: string, targetFile: Path): FileEvent[] {
+    const jsonlLines = loadJSONLLinesNamingFile(new Path(scriptFile), [scene.jsonlFolder]);
+    const events = getAllEventsForFileFromLines(scene.file, targetFile, jsonlLines, [scene.snapshotFolder], true);
+    return events.filter((event) => event.type === FileEventType.ScriptReadOnly || event.type === FileEventType.ScriptMayWrite);
+}
+
+test("test_run_that_calls_a_written_script_names_the_target_through_the_script_body", (t) => {
+    // Scenario: a Write makes move_files.py, whose body moves a.py to b.py, then a Bash call runs `python3 move_files.py`.
+    const scene = makeScene(t, "A");
+    const scriptFile = join(scene.folder, "move_files.py");
+    writeRecords(scene, [...makeWrittenScriptRows("w1", scriptFile, MOVE_FILES_SCRIPT_BODY, 3), ...makeBashRows("b1", "python3 move_files.py", 5, scene.folder)]);
+    // with indirection on, b.py gets one script event from that run
+    const events = listScriptEventsThroughIndirection(scene, scriptFile, new Path(join(scene.folder, "b.py")));
+    assert.equal(events.length, 1);
+    assert.equal(events[0]!.type, FileEventType.ScriptMayWrite);
+});
+
+test("test_exec_open_run_of_a_written_script_names_the_target_through_the_script_body", (t) => {
+    // Scenario: the same Write, then a Bash call runs `python3 -c 'exec(open("move_files.py").read())'`.
+    const scene = makeScene(t, "A");
+    const scriptFile = join(scene.folder, "move_files.py");
+    const command = `python3 -c 'exec(open("move_files.py").read())'`;
+    writeRecords(scene, [...makeWrittenScriptRows("w1", scriptFile, MOVE_FILES_SCRIPT_BODY, 3), ...makeBashRows("b1", command, 5, scene.folder)]);
+    // with indirection on, b.py gets one script event from that run
+    const events = listScriptEventsThroughIndirection(scene, scriptFile, new Path(join(scene.folder, "b.py")));
+    assert.equal(events.length, 1);
+    assert.equal(events[0]!.type, FileEventType.ScriptMayWrite);
+});
+
+test("test_move_in_the_script_body_sets_the_move_or_copy_source_file", (t) => {
+    // Scenario: the script body calls shutil.move("a.py", "b.py") and a Bash call in the project folder runs it.
+    const scene = makeScene(t, "A");
+    const scriptFile = join(scene.folder, "move_files.py");
+    writeRecords(scene, [...makeWrittenScriptRows("w1", scriptFile, MOVE_FILES_SCRIPT_BODY, 3), ...makeBashRows("b1", "python3 move_files.py", 5, scene.folder)]);
+    // the event of b.py holds <cwd>/a.py as its move or copy source
+    const events = listScriptEventsThroughIndirection(scene, scriptFile, new Path(join(scene.folder, "b.py")));
+    assert.deepEqual(events.map((event) => event.moveOrCopySourceFile), [new Path(join(scene.folder, "a.py"))]);
+});
+
+test("test_script_event_holds_the_resolved_script_run", (t) => {
+    // Scenario: the same Write and run as the move test.
+    const scene = makeScene(t, "A");
+    const scriptFile = join(scene.folder, "move_files.py");
+    writeRecords(scene, [...makeWrittenScriptRows("w1", scriptFile, MOVE_FILES_SCRIPT_BODY, 3), ...makeBashRows("b1", "python3 move_files.py", 5, scene.folder)]);
+    // the event holds the run with the script body as its code and the called command kept
+    const events = listScriptEventsThroughIndirection(scene, scriptFile, new Path(join(scene.folder, "b.py")));
+    assert.equal(events[0]!.scriptRun!.code, MOVE_FILES_SCRIPT_BODY);
+    assert.equal(events[0]!.scriptRun!.invokedScriptFile, "move_files.py");
+    assert.equal(events[0]!.scriptRun!.invokedCommand, "python3 move_files.py");
+});
+
+test("test_run_of_an_unwritten_script_stays_a_raw_run", (t) => {
+    // Scenario: a Bash call runs `python3 b.py`, and no Write made b.py.
+    const scene = makeScene(t, "A");
+    const targetFile = join(scene.folder, "b.py");
+    writeRecords(scene, makeBashRows("b1", "python3 b.py", 5, scene.folder));
+    // the event holds the run unchanged: its code is the command and no script file is recorded
+    const events = listScriptEventsThroughIndirection(scene, targetFile, new Path(targetFile));
+    assert.equal(events.length, 1);
+    assert.equal(events[0]!.scriptRun!.code, "python3 b.py");
+    assert.equal(events[0]!.scriptRun!.invokedScriptFile, undefined);
+});
+
+test("test_old_walk_entry_does_not_resolve_script_indirection", (t) => {
+    // Scenario: the Write of move_files.py moves b.py, and a Bash call runs `python3 move_files.py b.py`, which names b.py itself.
+    const scene = makeScene(t, "A");
+    const scriptFile = join(scene.folder, "move_files.py");
+    const command = "python3 move_files.py b.py";
+    writeRecords(scene, [...makeWrittenScriptRows("w1", scriptFile, MOVE_FILES_SCRIPT_BODY, 3), ...makeBashRows("b1", command, 5, scene.folder)]);
+    // the old walk gives b.py one read-only script event that holds the raw command, not the script body
+    const events = getAllEventsForFileFrom(scene.file, new Path(join(scene.folder, "b.py")), [scene.jsonlFolder], [scene.snapshotFolder]);
+    const scriptEvents = events.filter((event) => event.type === FileEventType.ScriptMayWrite || event.type === FileEventType.ScriptReadOnly);
+    assert.equal(scriptEvents.length, 1);
+    assert.equal(scriptEvents[0]!.type, FileEventType.ScriptReadOnly);
+    assert.equal(scriptEvents[0]!.scriptRun!.code, command);
+});
+
+function makeErroredResultRecord(toolUseId: string, text: string, second: number): object {
+    const content = [{ type: "tool_result", tool_use_id: toolUseId, content: text, is_error: true }];
+    return { type: "user", uuid: `result-${toolUseId}`, timestamp: makeInstant(second).toISOString(), message: { role: "user", content } };
+}
+
+test("test_blocked_call_whose_error_line_names_no_file_is_not_a_script_event", (t) => {
+    // Scenario: a Write makes mk.py, whose body names f.txt. A Bash call runs `python3 mk.py f.txt` and a hook blocks it with an error result that names no file.
+    const scene = makeScene(t, "A");
+    const scriptFile = join(scene.folder, "mk.py");
+    const command = "python3 mk.py f.txt";
+    const blockedRows = [...makeBashRows("b1", command, 5, scene.folder), makeErroredResultRecord("b1", "No compound commands", 5)];
+    // a later Bash call runs the same command and its result is normal
+    const laterRows = [...makeBashRows("b2", command, 8, scene.folder), makeResultRecord("b2", {}, 8)];
+    writeRecords(scene, [...makeWrittenScriptRows("w1", scriptFile, 'open("f.txt", "w")', 3), ...blockedRows, ...laterRows]);
+    // the walk of f.txt gives one script event, the later call, and none for the blocked call
+    const events = getAllEventsForFileFrom(scene.file, new Path(join(scene.folder, "f.txt")), [scene.jsonlFolder], [scene.snapshotFolder]);
+    const scriptEvents = events.filter((event) => event.type === FileEventType.ScriptMayWrite || event.type === FileEventType.ScriptReadOnly);
+    assert.equal(scriptEvents.length, 1);
+    assert.equal(scriptEvents[0]!.instant!.getTime(), makeInstant(8).getTime() - 1);
 });

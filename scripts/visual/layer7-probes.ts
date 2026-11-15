@@ -136,9 +136,12 @@ export const buildBracketProbe = (root: string, selector: string) => `(list => {
     return { count: list.length, style: first ? getComputedStyle(first).borderTopStyle : '', top: box.top, bottom: box.bottom, left: box.left, right: box.right };
 })([...${root}.querySelectorAll(${JSON.stringify(selector)})])`;
 
-export const COLUMN_RULE_TEXTS = `[...document.styleSheets].flatMap(sheet => [...sheet.cssRules])
-    .filter(rule => /\\.(anode|alabel|abracket|sessionDotLinesComponent|tnode|tlabel|tbracket|a-[a-z-]+|sline|ahead|ruler-head|session-toggle|ttime|tcount|s-coloured|tf-[a-z-]+|hover-popup|hp-line)\\b/.test(rule.selectorText ?? ''))
-    .map(rule => rule.cssText)`;
+export const COLUMN_RULE_TEXTS = `(() => {
+    const walk = rules => [...rules].flatMap(rule => rule.styleSheet ? walk(rule.styleSheet.cssRules) : [rule]);
+    return [...document.styleSheets].flatMap(sheet => walk(sheet.cssRules))
+        .filter(rule => /\\.(anode|alabel|abracket|sessionDotLinesComponent|tnode|tlabel|tbracket|a-[a-z-]+|sline|ahead|ruler-head|session-toggle|ttime|tcount|s-coloured|tf-[a-z-]+|hover-popup|hp-line)\\b/.test(rule.selectorText ?? ''))
+        .map(rule => rule.cssText);
+})()`;
 // Retired: token rules now use plain .appWindow, so no --page skip.
 //     .filter(rule => rule.style.getPropertyValue('--page') === '')
 

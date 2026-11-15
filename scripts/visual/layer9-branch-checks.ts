@@ -1,18 +1,20 @@
 // Layer 9 branch checks: a re-render keeps fake commits and Delete, and a new base starts a new branch.
 
 import { type HeadlessPage } from "./cdp.ts";
-import { STRIP_IDLE } from "./layer4-probes.ts";
+// import { STRIP_IDLE } from "./layer4-probes.ts";
 import { reportCheck } from "./mockup-checks.ts";
 import { REQUEST_COUNT } from "./layer7-probes.ts";
 import { isRefusalShown } from "./layer9-flow-checks.ts";
+// TOGGLE_SETTLED and buildTimeToggle were imported here for rerenderThroughTimeToggle
 import {
-  COMMIT_MODE_CLICK, CutClass, DELETE_CLICK, DELETE_OPEN, ENTRY_FACTS, FIXTURE_BASE_HASH, MARK_FACTS, MODE_STATE, STRIP_HEAD_FACTS, TICK_LABELS, TICK_STATES, TOGGLE_SETTLED, YESNO_NO,
-  buildClickTick, buildRefusalClick, buildTimeToggle, type EntryFacts, type MarkFacts, type RefusalFacts, type StripHeadFacts, type TickState,
+  COMMIT_MODE_CLICK, CutClass, DELETE_CLICK, DELETE_OPEN, ENTRY_FACTS, FIXTURE_BASE_HASH, MARK_FACTS, MODE_STATE, STRIP_HEAD_FACTS, TICK_LABELS, TICK_STATES, YESNO_NO,
+  buildClickTick, buildRefusalClick, type EntryFacts, type MarkFacts, type RefusalFacts, type StripHeadFacts, type TickState,
+  TIME_BUTTON_FACTS, buildClickById, type TimeButtonFacts,
 } from "./layer9-probes.ts";
 import { CutRefusal } from "../../webapp/layer1-components/commits-column/layer1-cut-rules.ts";
 import { JfredEntryKind } from "../../webapp/layer1-components/commits-column/layer1-jfred-entries.ts";
 
-const WAIT_MS = 30_000;
+// const WAIT_MS = 30_000;
 const YESNO_ROW_COUNT = `document.querySelectorAll('#yesno-row').length`;
 const MARK_CLASSES: string[] = [CutClass.base, CutClass.set, CutClass.pending];
 
@@ -58,18 +60,24 @@ export function isBaseKept(facts: MarkFacts): boolean {
   return isPair && base!.shortHash === FIXTURE_BASE_HASH && pending!.parentHash === FIXTURE_BASE_HASH;
 }
 
-// Flips the time toggle there and back; each flip reloads the view only.
-async function rerenderThroughTimeToggle(page: HeadlessPage): Promise<void> {
-  for (const value of ["author", "committer"] as const) {
-    await page.evaluate(buildTimeToggle(value));
-    await page.waitFor(`${TOGGLE_SETTLED} && ${STRIP_IDLE}`, WAIT_MS);
-  }
-}
+// time flips are locked while Commit Mode is on (P5): no caller is left
+// // Flips the time toggle there and back; each flip reloads the view only.
+// async function rerenderThroughTimeToggle(page: HeadlessPage): Promise<void> {
+//   for (const value of ["author", "committer"] as const) {
+//     await page.evaluate(buildTimeToggle(value));
+//     await page.waitFor(`${TOGGLE_SETTLED} && ${STRIP_IDLE}`, WAIT_MS);
+//   }
+// }
 
 export async function validateCommitSurvivesRerender(page: HeadlessPage): Promise<void> {
-  await rerenderThroughTimeToggle(page);
+  // time flips are locked while Commit Mode is on (P5)
+  // await rerenderThroughTimeToggle(page);
+  // const entries = await page.evaluate<EntryFacts[]>(ENTRY_FACTS);
+  // reportCheck("L9 after a re-render through the time toggle the fake commit is still in the strip", isBranchKept(entries), entries);
+  await page.evaluate(buildClickById("time-author"));
   const entries = await page.evaluate<EntryFacts[]>(ENTRY_FACTS);
-  reportCheck("L9 after a re-render through the time toggle the fake commit is still in the strip", isBranchKept(entries), entries);
+  const buttons = await page.evaluate<TimeButtonFacts>(TIME_BUTTON_FACTS);
+  reportCheck("L9 with Commit mode on, a click on the disabled author button changes nothing: the committer button stays current and the fake commit is still in the strip", isBranchKept(entries) && buttons.isAuthorDisabled && buttons.isCommitterCurrent, [entries, buttons]);
 }
 
 export function isDeleteQuestionOpen(rowCount: number, before: EntryFacts[], after: EntryFacts[], requestsBefore: number, requestsAfter: number): boolean {
@@ -99,11 +107,15 @@ async function validateDelete(page: HeadlessPage): Promise<void> {
   const entries = await page.evaluate<EntryFacts[]>(ENTRY_FACTS);
   const states = await page.evaluate<TickState[]>(TICK_STATES);
   reportCheck("L9 Delete jfred branch leaves zero entries and no tick with a base, commit or pending mark", isBranchGone(entries, states), entries);
-  await rerenderThroughTimeToggle(page);
-  const afterRerender = await page.evaluate<EntryFacts[]>(ENTRY_FACTS);
-  reportCheck("L9 after a re-render through the time toggle the deleted branch stays deleted", afterRerender.length === 0, afterRerender);
+  // time flips are locked while Commit Mode is on (P5)
+  // await rerenderThroughTimeToggle(page);
+  // const afterRerender = await page.evaluate<EntryFacts[]>(ENTRY_FACTS);
+  // reportCheck("L9 after a re-render through the time toggle the deleted branch stays deleted", afterRerender.length === 0, afterRerender);
+  const stillEntries = await page.evaluate<EntryFacts[]>(ENTRY_FACTS);
+  reportCheck("L9 after Delete the deleted branch stays deleted", stillEntries.length === 0, stillEntries);
   const head = await page.evaluate<StripHeadFacts>(STRIP_HEAD_FACTS);
-  reportCheck("L9 after Delete and a stage re-render the strip still shows its commits head and the Delete button", isStripHeadKept(head), head);
+  // reportCheck("L9 after Delete and a stage re-render the strip still shows its commits head and the Delete button", isStripHeadKept(head), head);
+  reportCheck("L9 after Delete the strip still shows its commits head and the Delete button", isStripHeadKept(head), head);
 }
 
 async function validateNewBase(page: HeadlessPage): Promise<void> {
@@ -112,7 +124,9 @@ async function validateNewBase(page: HeadlessPage): Promise<void> {
   const accepted = await page.evaluate<RefusalFacts>(buildRefusalClick(TICK_LABELS.base));
   const entries = await page.evaluate<EntryFacts[]>(ENTRY_FACTS);
   reportCheck("L9 a click on the commit tick shows no toast and starts one base entry", !accepted.isShown && isBaseOnly(entries), [accepted, entries]);
-  await page.evaluate(buildClickTick(TICK_LABELS.afterBase));
+  // await page.evaluate(buildClickTick(TICK_LABELS.afterBase));
+  // K7: no file changed at 06-01 09:05 since the new base, so the page refuses it; 06-01 14:30 changes a file
+  await page.evaluate(buildClickTick(TICK_LABELS.behindTip));
   const marked = await page.evaluate<MarkFacts>(MARK_FACTS);
   reportCheck("L9 the next mark is pending and the base did not move", isBaseKept(marked), marked.entries);
 }

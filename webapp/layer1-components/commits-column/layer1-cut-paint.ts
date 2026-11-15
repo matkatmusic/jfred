@@ -1,9 +1,10 @@
 // Task 383: paints cut-mark classes and refusal titles on ruler ticks.
 
 import { getRequiredElementById } from "../../app-dom.ts";
-import { readTickBeaconFacts } from "./layer1-cut-beacons.ts";
+import { collectCutSnapshot, readTickBeaconFacts } from "./layer1-cut-beacons.ts";
 import { CUT_REFUSAL_TEXT, findCutRefusal } from "./layer1-cut-rules.ts";
-import { collectStageBubbles, type BubbleSnapshot } from "../ruler/layer1-ruler-click.ts";
+// import { collectStageBubbles, type BubbleSnapshot } from "../ruler/layer1-ruler-click.ts";
+import type { BubbleSnapshot } from "../ruler/layer1-ruler-click.ts";
 import { rowsByTick } from "../ruler/layer1-tick-events.ts";
 import { readJfredBranch, readTipMs, type JfredBranch } from "./layer1-jfred-state.ts";
 
@@ -19,7 +20,8 @@ function readTickInstantMs(tick: HTMLElement): number {
   const row = rowsByTick.get(tick);
   if (row === undefined)
     throw new Error("ruler tick has no stored row");
-  return Date.parse(row.instants[0]!);
+  // return Date.parse(row.instants[0]!);
+  return Date.parse(row.instants[row.instants.length - 1]!);
 }
 
 function listStateClasses(instantMs: number, branch: JfredBranch): string[] {
@@ -67,7 +69,8 @@ function paintArmedTick(tick: HTMLElement, snapshot: BubbleSnapshot[]): void {
 // Marks show only while Commit mode is on; unarmed ticks carry no cut class.
 export function repaintCutMarks(): void {
   const branch = readJfredBranch();
-  const snapshot = branch.isArmed ? collectStageBubbles() : [];
+  // const snapshot = branch.isArmed ? collectStageBubbles() : [];
+  const snapshot = branch.isArmed ? collectCutSnapshot() : [];
   for (const tick of getRequiredElementById("timelineRulerComponent").querySelectorAll<HTMLElement>(".tick")) {
     tick.classList.remove(...Object.values(CutClass));
     restoreTickTitle(tick);

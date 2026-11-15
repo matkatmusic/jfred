@@ -2,9 +2,13 @@
 
 import { type IncomingMessage, type ServerResponse } from "node:http";
 import { type Layer1RefsView, type RepoCommitRow, SourceKind } from "../webapp/layer1-wire.ts";
+import type { WireScriptReplayNeeds } from "../webapp/layer1-wire-script-replay.ts";
 import { sendFixtureDiff, sendFixtureFile, sendFixtureRecord } from "./viewer_api_layer1_fixture_file.ts";
 import { buildFixtureLayer1View } from "./viewer_api_layer1_fixture_view.ts";
-import { BRANCHES, COMMITS, SESSIONS, parseMs } from "./viewer_api_layer1_fixture_data.ts";
+import { StateConfidence, StateMoment } from "../engineV3/engineV3_file_known_states.ts";
+import { FileEventType } from "../engineV3/engineV3_replay_reverse_events.ts";
+import type { InverseCommitWire, InverseRepoFileWire, InverseReposWire } from "./layer1_inverse_repos_wire.ts";
+import { BRANCHES, COMMITS, DISK, SESSIONS, parseMs } from "./viewer_api_layer1_fixture_data.ts";
 import type { FixtureCommit } from "./viewer_api_layer1_fixture_data.ts";
 import { buildFixtureSessionsPayload } from "./viewer_api_layer1_fixture_sessions.ts";
 import { buildFixtureSettings } from "./viewer_api_layer1_fixture_settings.ts";
@@ -41,6 +45,33 @@ function sendFixtureRefs(response: ServerResponse): void {
   }
   const refs: Layer1RefsView = { branches: BRANCHES, head: BRANCHES[0]!, commits };
   sendJson(response, 200, refs);
+}
+
+// Per disk file: the DiskNow commit, then every fixture commit that touched it, newest first.
+function buildFixtureInverseRepos(): InverseReposWire {
+  const files: InverseRepoFileWire[] = [];
+  for (const disk of DISK) {
+    const diskNowCommit: InverseCommitWire = {
+      commitHash: `disk-${disk.path}`, treeHash: `tree-disk-${disk.path}`, eventType: FileEventType.DiskNow,
+      moment: StateMoment.AtEvent, confidence: StateConfidence.Proven, position: 0,
+      instant: null, readerInstant: new Date(disk.at).toISOString(),
+      isFileAbsent: false, isRemoved: false, movedAwayTo: null,
+    };
+    const commits = [diskNowCommit];
+    for (const commit of [...COMMITS].sort(compareCommitsNewestFirst)) {
+      if (commit.files.includes(disk.path)) {
+        const instant = new Date(commit.at).toISOString();
+        commits.push({
+          commitHash: commit.hash, treeHash: `tree-${commit.hash}`, eventType: FileEventType.GitCommit,
+          moment: StateMoment.AtEvent, confidence: StateConfidence.Proven, position: commits.length,
+          instant, readerInstant: instant,
+          isFileAbsent: false, isRemoved: false, movedAwayTo: null,
+        });
+      }
+    }
+    files.push({ file: disk.path, commits });
+  }
+  return { files };
 }
 
 function sendFixtureSessions(response: ServerResponse, query: URLSearchParams): void {
@@ -93,6 +124,7 @@ export const FIXTURE_ROUTES = new Map<string, FixtureRouteHandler>([
   ["/api/layer1-view", (_request, response, query) => sendFixtureView(response, query)],
   ["/api/layer1-refs", (_request, response) => sendFixtureRefs(response)],
   ["/api/layer1-sessions", (_request, response, query) => sendFixtureSessions(response, query)],
+  ["/api/layer1-inverse-repos", (_request, response) => sendNdjsonBuild(response, buildFixtureInverseRepos)],
   ["/api/layer1-edits", (_request, response, query) => sendFixtureEdits(response, query)],
   ["/api/layer1-script-runs", (_request, response, query) => sendFixtureScriptRuns(response, query)],
   ["/api/layer1-branches", (_request, response, query) => sendFixtureBranches(response, query)],
@@ -102,6 +134,7 @@ export const FIXTURE_ROUTES = new Map<string, FixtureRouteHandler>([
   ["/api/layer1-script-run", (request, response) => receiveFixtureScriptRun(request, response)],
   ["/api/layer1-script-needs", (request, response) => receiveFixtureScriptNeeds(request, response)],
   ["/api/layer1-clear-results", (_request, response) => sendFixtureClearResults(response)],
+  ["/api/layer1-script-replay-needs", (_request, response) => sendNdjsonBuild(response, (): WireScriptReplayNeeds => ({ tasks: [] }))],
   ["/api/layer1-jfred-commit", (request, response) => receiveFixtureJfredCommit(request, response)],
   ["/api/layer1-engine-v3-steps", (_request, response) => sendJson(response, 200, { steps: buildFixtureEngineV3Steps() })],
   ["/api/scan-source",(_request, response, query) => sendFixtureScanSource(response, query)],
