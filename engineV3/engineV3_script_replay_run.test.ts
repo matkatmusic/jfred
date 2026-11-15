@@ -17,7 +17,7 @@ import { buildInverseReposForFiles, getInverseRepoFolderForFile, type ProjectFil
 import { ScriptInterpreter, ScriptReplayChangeKind, removeScriptReplayContainers } from "./engineV3_script_replay_container.ts";
 import type { ScriptReplayTaskRecord } from "./engineV3_script_replay_gaps.ts";
 import {
-    ScriptTaskOutcomeKind, chooseScriptInterpreter, getScriptReplayRefusal, replayScriptTasksForProject, executeScriptReplayCommandLine,
+    ScriptTaskOutcomeKind, choosePythonImportFolder, chooseScriptInterpreter, getScriptReplayRefusal, replayScriptTasksForProject, executeScriptReplayCommandLine,
     type ScriptReplaySettings, type ScriptTaskOutcome,
 } from "./engineV3_script_replay_run.ts";
 
@@ -221,6 +221,24 @@ test("test_choose_interpreter_follows_executor_kind_and_invoked_script_extension
     assert.equal(chooseScriptInterpreter(makeTaskRecord({ executorKind: ScriptExecutorKind.bash, invokedScriptPath: "move_files.py" })), ScriptInterpreter.Python);
     // A python task that called a .sh script runs the body in bash.
     assert.equal(chooseScriptInterpreter(makeTaskRecord({ executorKind: ScriptExecutorKind.python, invokedScriptPath: "run.sh" })), ScriptInterpreter.Bash);
+});
+
+test("test_python_import_folder_is_the_folder_of_the_invoked_script", () => {
+    // Scenario: Python puts the folder of the called script first on the import path, so the request names that folder.
+    // A task that called tools/run.py from the cwd /work/project.
+    const record = makeTaskRecord({ executorKind: ScriptExecutorKind.bash, invokedScriptPath: "tools/run.py" });
+    // The import folder is the tools folder under the cwd.
+    assert.equal(choosePythonImportFolder(record), "/work/project/tools");
+    // A task that called an absolute script path gets the folder of that path.
+    assert.equal(choosePythonImportFolder(makeTaskRecord({ invokedScriptPath: "/work/project/other/run.py" })), "/work/project/other");
+});
+
+test("test_python_import_folder_is_the_cwd_when_the_run_names_no_script", () => {
+    // Scenario: a run that names no script file has the cwd as its import folder.
+    // A python task with no invoked script path, run from /work/project.
+    const record = makeTaskRecord({ executorKind: ScriptExecutorKind.python, invokedScriptPath: null });
+    // The import folder is the cwd.
+    assert.equal(choosePythonImportFolder(record), "/work/project");
 });
 
 test("test_list_only_prints_tasks_and_runs_no_container", async (t) => {

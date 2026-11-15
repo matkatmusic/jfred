@@ -1,7 +1,7 @@
 // Runs the recorded scripts a span needs, oldest first, in the locked-down container, and fills the gaps of the per-file repos.
 
 import { rmSync } from "node:fs";
-import { basename, isAbsolute, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { Path } from "../src/structures/domain.ts";
@@ -101,6 +101,13 @@ export function chooseScriptInterpreter(record: ScriptReplayTaskRecord): ScriptI
         return ScriptInterpreter.Python;
     }
     return ScriptInterpreter.Bash;
+}
+
+export function choosePythonImportFolder(record: ScriptReplayTaskRecord): string {
+    if (record.invokedScriptPath !== null) {
+        return dirname(resolve(record.cwd, record.invokedScriptPath));
+    }
+    return record.cwd;
 }
 
 function isCwdInsideFolder(cwd: Path, folder: Path): boolean {
@@ -242,6 +249,7 @@ async function executeTaskOnce(context: ReplayContext, task: ScriptReplayTask): 
     const request: ScriptReplayRequest = {
         projectRoot: context.settings.recordedProjectFolder.toString(),
         cwd: task.record.cwd,
+        pythonImportFolder: choosePythonImportFolder(task.record),
         interpreter: chooseScriptInterpreter(task.record),
         source: task.record.code,
         inputs: context.workspace.listInputFilesJustBefore(task.instant),
