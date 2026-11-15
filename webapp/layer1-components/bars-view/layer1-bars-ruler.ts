@@ -10,7 +10,8 @@ function listRealRulerTicks(): HTMLElement[] {
     return ticksOldestFirst.reverse();
 }
 
-function getRealRulerTickAtRowIndex(rowIndex: number): HTMLElement {
+// The tick of the real ruler at rowIndex (newest first). No tick at the index throws. Commit strip scissors click it (tick.click()).
+export function findRealRulerTickAtRowIndex(rowIndex: number): HTMLElement {
     const tick = listRealRulerTicks()[rowIndex];
     if (tick === undefined) {
         throw new Error(`ruler has no tick at row index ${rowIndex}`);
@@ -74,7 +75,7 @@ export function computeBarPercent(rowIndex: number, rowCount: number): number {
 }
 // Removes barsSelected from every real tick, then adds it to the tick at rowIndex (newest first). An index with no tick throws.
 export function markRealRulerRowSelected(rowIndex: number): void {
-    const tickToSelect = getRealRulerTickAtRowIndex(rowIndex);
+    const tickToSelect = findRealRulerTickAtRowIndex(rowIndex);
     for (const tick of listRealRulerTicks()) {
         tick.classList.remove(BARS_SELECTED_TICK_CLASS);
     }
@@ -82,7 +83,7 @@ export function markRealRulerRowSelected(rowIndex: number): void {
 }
 // scrollIntoView({ block: "center" }) on the real tick at rowIndex.
 export function scrollRealRulerRowIntoView(rowIndex: number): void {
-    getRealRulerTickAtRowIndex(rowIndex).scrollIntoView({ block: "center" });
+    findRealRulerTickAtRowIndex(rowIndex).scrollIntoView({ block: "center" });
 }
 // Adds BARS_RULER_LOADING_CLASS to #timelineRulerComponent when isLoading is true, removes it when false. The CSS (S10) makes the ticks ignore clicks only in Bars view.
 export function setRealRulerLoading(isLoading: boolean): void {
