@@ -6,7 +6,7 @@
     --page: #f9f9f7; --surface: #fcfcfb;
     --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
     --grid: #e1e0d9; --baseline: #c3c2b7; --branch-line: #c3c2b7; --border: rgba(11,11,11,.10);
-    --c-commit: #2a78d6; --c-snap: #1baf7a; --c-user: #eb6834; --c-branch-node: #eb6834;
+    --c-commit: #2a78d6; --c-snap: #1baf7a; --c-user: #eb6834; --c-branch-node: #eb6834; --c-jfred: #f08080;
     --c-echo: #eda100; --c-script: #4a3aa7; --c-anchor: #e87ba4; --c-disk: #0b0b0b;
     --c-edit: #4d8c1f; --c-read: #1b8f8f; --c-mismatch: #d03b3b;
     --seg-a: rgba(27,175,122,.12);

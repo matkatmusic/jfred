@@ -2,10 +2,15 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { buildInverseCommit, buildInverseFile, ensureBarsMarkup } from "./layer1-bars-test-helpers.ts";
 import { initLayer1Dom, waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
 initLayer1Dom();
+const { BarsViewMode, setBarsViewMode } = await import("../webapp/layer1-components/bars-view/layer1-bars-mode.ts");
+const { buildBarFileModels } = await import("../webapp/layer1-components/bars-view/layer1-bars-model.ts");
+const { listRealRulerRows } = await import("../webapp/layer1-components/bars-view/layer1-bars-ruler.ts");
+const { getBarsViewState } = await import("../webapp/layer1-components/bars-view/layer1-bars-state.ts");
 const { openPendingMessage, renderJfredStrip } = await import("../webapp/layer1-components/commits-column/layer1-jfred-strip.ts");
 const { installCutMarkClick } = await import("../webapp/layer1-components/commits-column/layer1-cut-marks.ts");
 const { loadJfredBranch, readJfredBranch, setArmed, setPending } = await import("../webapp/layer1-components/commits-column/layer1-jfred-state.ts");
@@ -17,9 +22,20 @@ const HOUR_MS = 3600_000;
 const WIRE_TICKS = [1, 2, 3, 4, 5, 6, 7].map((hour) => ({ instant: buildInstant(hour), axisPx: hour * 50, eventCount: 1 }));
 const VIEW = { pairs: [], gitOrphans: [], diskOrphans: [], ruler: [], jfredCommits: { base: { instant: buildInstant(1), shortHash: "a1b2c3d4" }, commits: [] } };
 let sentPathnames: string[] = [];
+let changedHours: number[] = [];
 
 function buildInstant(hour: number): string {
   return new Date(BASE_MS + hour * HOUR_MS).toISOString();
+}
+
+// Call after the ticks exist: the models are built against the real ruler rows. File a.ts holds one edit at each listed hour.
+function putChangedHours(hours: number[]): void {
+  const state = getBarsViewState();
+  const newestFirst = [...hours].sort((a, b) => b - a);
+  const commits = newestFirst.map((hour) => buildInverseCommit({ instant: buildInstant(hour), eventType: "EditRow", treeHash: `t${hour}` }));
+  const rows = listRealRulerRows();
+  state.models = buildBarFileModels([buildInverseFile("a.ts", commits)], rows);
+  state.rulerRows = rows;
 }
 
 // Adds a ruler tick and its bubble at that hour, with one node per class string.
@@ -41,6 +57,9 @@ function addTick(hour: number, nodeClasses: string[]): void {
     bubble.append(node);
   }
   document.getElementById("fileBubbleContainer")!.append(bubble);
+  if (nodeClasses.length > 0) {
+    changedHours.push(hour);
+  }
 }
 
 async function settle(): Promise<void> {
@@ -65,6 +84,10 @@ function installRoutesAnsweringWith(reply: unknown): void {
 function prepareUnchangedReply(nextHour: number | undefined): void {
   initLayer1Dom();
   sentPathnames = [];
+  ensureBarsMarkup();
+  setBarsViewMode(BarsViewMode.bubbles);
+  getBarsViewState().models = [];
+  changedHours = [];
   const reply = { outcome: "unchanged", nextInstant: nextHour === undefined ? undefined : buildInstant(nextHour) };
   installRoutesAnsweringWith(reply);
   setArmed(true);
@@ -73,6 +96,9 @@ function prepareUnchangedReply(nextHour: number | undefined): void {
 }
 
 async function clickCommit(): Promise<void> {
+  if (changedHours.length > 0) {
+    putChangedHours(changedHours);
+  }
   renderJfredStrip(WIRE_TICKS);
   openPendingMessage();
   document.getElementById("jfred-commit-button")!.click();
@@ -91,12 +117,16 @@ test("test_an_unchanged_reply_asks_to_move_the_mark_and_changes_no_entry", async
 });
 
 test("test_answering_yes_moves_the_pending_mark_to_the_first_markable_tick_at_or_after_the_next_instant", async () => {
-  // Verify: ticks added in reverse, a beacon-less one between; the mark lands on hour 6, no second request.
+  // Verify: ticks added oldest first (the ruler order), a beacon-less one between; the mark lands on hour 6, no second request.
   prepareUnchangedReply(5);
-  addTick(7, ["node n-snap"]);
-  addTick(6, ["node n-snap"]);
-  addTick(5, []);
+  // addTick(7, ["node n-snap"]);
+  // addTick(6, ["node n-snap"]);
+  // addTick(5, []);
+  // addTick(4, ["node n-snap"]);
   addTick(4, ["node n-snap"]);
+  addTick(5, []);
+  addTick(6, ["node n-snap"]);
+  addTick(7, ["node n-snap"]);
   await clickCommit();
   document.querySelector<HTMLElement>(".yesno-yes")!.click();
   await settle();

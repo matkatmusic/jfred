@@ -20,6 +20,10 @@ function buildStubbedFetch(routesByPathname: Record<string, unknown>): (url: unk
     if (pathname in routesByPathname) {
       return buildJsonResponse(routesByPathname[pathname], true, 200);
     }
+    // Every view render now asks for the Bars history; an unrouted test gets an empty result line.
+    if (pathname === "/api/layer1-inverse-repos") {
+      return buildNdjsonResponse([{ files: [] }]);
+    }
     return buildJsonResponse({}, false, 404);
   };
 }
@@ -49,8 +53,15 @@ export function buildNdjsonResponse(lines: unknown[]): Response {
 
 function buildStubbedStreamFetch(pathname: string, lines: unknown[]): (url: unknown) => Promise<Response> {
   return async (url: unknown): Promise<Response> => {
-    const matched = new URL(String(url), "http://localhost:7343").pathname === pathname;
-    return matched ? buildNdjsonResponse(lines) : buildJsonResponse({}, false, 404);
+    const requestedPathname = new URL(String(url), "http://localhost:7343").pathname;
+    if (requestedPathname === pathname) {
+      return buildNdjsonResponse(lines);
+    }
+    // Every view render now asks for the Bars history; an unrouted test gets an empty result line.
+    if (requestedPathname === "/api/layer1-inverse-repos") {
+      return buildNdjsonResponse([{ files: [] }]);
+    }
+    return buildJsonResponse({}, false, 404);
   };
 }
 
@@ -62,7 +73,13 @@ export function installStreamRoute(pathname: string, lines: unknown[]): void {
 // Task 238 (spec S18): route relative fetches to a live server; node fetch rejects relative urls.
 export function installOriginForwardingFetch(origin: string): void {
   Object.assign(globalThis, {
-    fetch: (url: unknown, options?: RequestInit): Promise<Response> =>
-      NATIVE_FETCH(new URL(String(url), origin), options),
+    fetch: (url: unknown, options?: RequestInit): Promise<Response> => {
+      const { pathname } = new URL(String(url), origin);
+      // The Bars load must not build real repos through a test server.
+      if (pathname === "/api/layer1-inverse-repos") {
+        return Promise.resolve(buildNdjsonResponse([{ files: [] }]));
+      }
+      return NATIVE_FETCH(new URL(String(url), origin), options);
+    },
   });
 }

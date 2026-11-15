@@ -44,6 +44,9 @@ async function loadPage(edits: object[] = [READ, EDIT, STALE]): Promise<void> {
   const { initLayer1Page } = await import("../webapp/layer1-page.ts");
   initLayer1Page();
   await waitForAsyncWork();
+  // These tests cover the Bubbles view: the page opens in Bars view, where a show row tick only hides or shows dots.
+  const { setBarsViewMode, BarsViewMode } = await import("../webapp/layer1-components/bars-view/layer1-bars-mode.ts");
+  setBarsViewMode(BarsViewMode.bubbles);
 }
 
 function listMatching(selector: string): HTMLElement[] {

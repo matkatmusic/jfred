@@ -12,6 +12,7 @@ test("test_a_new_state_selects_row_zero_with_the_fold_open_and_no_ruler_rows", (
     assert.equal(state.isFoldShown, true);
     // There are no ruler rows, no models and no row elements.
     assert.deepEqual(state.rulerRows, []);
+    assert.deepEqual(state.files, []);
     assert.deepEqual(state.models, []);
     assert.deepEqual(state.rowElements, []);
     // No load is needed, no history is loading, events are under the bar, and no dot is selected.
@@ -21,4 +22,6 @@ test("test_a_new_state_selects_row_zero_with_the_fold_open_and_no_ruler_rows", (
     assert.equal(state.isEventsInBar, false);
     assert.equal(state.projectDir, "");
     assert.equal(state.selectedDotElement, undefined);
+    // No ruler refresh is waiting.
+    assert.equal(state.isRulerRefreshNeeded, false);
 });

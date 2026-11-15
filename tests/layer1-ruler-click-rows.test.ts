@@ -84,6 +84,9 @@ async function loadPageWithView(view: object): Promise<void> {
     const { initLayer1Page } = await import("../webapp/layer1-page.ts");
     initLayer1Page();
     await waitForAsyncWork();
+    // These tests cover the Bubbles view: the page opens in Bars view, where a ruler click selects a Bars row.
+    const { setBarsViewMode, BarsViewMode } = await import("../webapp/layer1-components/bars-view/layer1-bars-mode.ts");
+    setBarsViewMode(BarsViewMode.bubbles);
 }
 
 // Fails loudly: a tick the collision skip dropped has no row, and a test aimed at it tests nothing.

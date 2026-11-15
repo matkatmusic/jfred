@@ -14,6 +14,7 @@ export const LAYER1_PROGRESS_LABEL_BUILDING_INVERSE_REPOS = "building inverse re
 
 export type InverseCommitWire = {
     commitHash: string;
+    treeHash: string;
     eventType: string;
     moment: string;
     confidence: string;
@@ -35,6 +36,7 @@ export type InverseDiffWire = { file: string; diff: string };
 export function buildInverseCommitWire(commit: InverseCommit): InverseCommitWire {
     return {
         commitHash: commit.commitHash.toString(),
+        treeHash: commit.treeHash.toString(),
         eventType: commit.eventType,
         moment: commit.moment,
         confidence: commit.confidence,
