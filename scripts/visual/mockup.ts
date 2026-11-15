@@ -148,6 +148,11 @@ async function launchViewer(port: number): Promise<ChildProcess> {
 
 async function executePageChecks(server: ChildProcess, port: number): Promise<void> {
   const page = await openHeadlessPage(VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
+  const navigateToPage = page.navigate;
+  page.navigate = async (url: string) => {
+    await navigateToPage(url);
+    await page.evaluate(`(() => { const s = document.getElementById('barsViewSliderInput'); s.value = '1'; s.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+  };
   try {
     const pageUrl = `http://127.0.0.1:${port}/app/layer1.html`;
     await page.navigate(pageUrl);

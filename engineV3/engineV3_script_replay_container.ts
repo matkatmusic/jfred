@@ -32,6 +32,7 @@ export type ScriptReplayInputFile = { relativePath: string; source: ScriptReplay
 export type ScriptReplayRequest = {
     projectRoot: string;
     cwd: string;
+    pythonImportFolder: string;
     interpreter: ScriptInterpreter;
     source: string;
     inputs: ScriptReplayInputFile[];
