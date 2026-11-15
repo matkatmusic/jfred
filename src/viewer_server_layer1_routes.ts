@@ -14,7 +14,7 @@ import { sendLayer1ViewResponse } from "./viewer_api_layer1_route.ts";
 import { sendClearResultsResponse } from "./viewer_api_clear_results.ts";
 import { sendLayer1ReverseResponse } from "./viewer_api_layer1_reverse.ts";
 import { receiveScriptNeeds } from "./viewer_api_layer1_script_needs.ts";
-import { receiveDockerReadiness } from "./viewer_api_layer1_script_replay.ts";
+import { receiveDockerReadiness, receiveScriptReplayNeeds, receiveScriptReplayRun } from "./viewer_api_layer1_script_replay.ts";
 import { receiveScriptRun } from "./viewer_api_layer1_script_run.ts";
 import { sendLayer1ScriptRunsResponse } from "./viewer_api_layer1_script_runs.ts";
 import { sendLayer1SessionDotInstantsResponse } from "./viewer_api_layer1_session_dot_instants.ts";
@@ -40,6 +40,8 @@ const LAYER1_ROUTES = new Map<string, Layer1RouteHandler>([
   ["/api/layer1-settings", (request, response) => dispatchLayer1Settings(request, response)],
   ["/api/layer1-script-run", (request, response, url) => receiveScriptRun(request, response, url)],
   ["/api/layer1-script-needs", (request, response, url) => receiveScriptNeeds(request, response, url)],
+  ["/api/layer1-script-replay-needs", (request, response, url) => receiveScriptReplayNeeds(request, response, url)],
+  ["/api/layer1-script-replay-run", (request, response, url) => receiveScriptReplayRun(request, response, url)],
   ["/api/layer1-docker-readiness", (request, response, url) => receiveDockerReadiness(request, response, url)],
   ["/api/layer1-clear-results", (request, response) => sendClearResultsResponse(request, response)],
   ["/api/layer1-jfred-commit", (request, response, url) => receiveJfredCommit(request, response, url)],
