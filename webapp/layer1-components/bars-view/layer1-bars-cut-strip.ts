@@ -18,20 +18,24 @@ function removeBarsCutStrip(): void {
     document.getElementById(BARS_CUT_STRIP_ID)?.remove();
 }
 
-function buildStripDiv(componentName: string, className: string): HTMLElement {
-    return createElement("div", { class: className, "data-component": componentName });
+function buildStripDiv(componentTag: { "data-component": string }, className: string): HTMLElement {
+    return createElement("div", { class: className, ...componentTag });
 }
 
-function buildRowMarker(componentName: string, className: string, rowIndex: number, rowCount: number, text?: string): HTMLElement {
-    const marker = createElement("div", { class: className, "data-component": componentName, text });
+function buildRowMarker(componentTag: { "data-component": string }, className: string, rowIndex: number, rowCount: number, text?: string): HTMLElement {
+    const marker = createElement("div", { class: className, ...componentTag, text });
     marker.style.left = `${computeBarPercent(rowIndex, rowCount)}%`;
     return marker;
 }
 
+function buildBarsCutHashLabel(rowIndex: number, rowCount: number, shortHash: string): HTMLElement {
+    return buildRowMarker({ "data-component": "barsCutHashLabel" }, "barsCutHashLabel", rowIndex, rowCount, shortHash);
+}
+
 // A line from the newer row to the older row: left at the newer row, width up to the older row.
-function buildRowLine(componentName: string, className: string, newerRowIndex: number, olderRowIndex: number, rowCount: number): HTMLElement {
+function buildRowLine(componentTag: { "data-component": string }, className: string, newerRowIndex: number, olderRowIndex: number, rowCount: number): HTMLElement {
     const newerPercent = computeBarPercent(newerRowIndex, rowCount);
-    const line = buildStripDiv(componentName, className);
+    const line = buildStripDiv(componentTag, className);
     line.style.left = `${newerPercent}%`;
     line.style.width = `${computeBarPercent(olderRowIndex, rowCount) - newerPercent}%`;
     return line;
@@ -75,16 +79,16 @@ function fillMiddleColumn(middleColumn: HTMLElement, rows: readonly RulerRow[]):
     if (baseEntry !== undefined && tipEntry !== undefined) {
         const baseRowIndex = findRulerRowIndexForInstant(rows, baseEntry.instant);
         const tipRowIndex = findRulerRowIndexForInstant(rows, tipEntry.instant);
-        middleColumn.append(buildRowLine("barsCutBranchLine", "barsCutBranchLine", tipRowIndex, baseRowIndex, rowCount));
+        middleColumn.append(buildRowLine({ "data-component": "barsCutBranchLine" }, "barsCutBranchLine", tipRowIndex, baseRowIndex, rowCount));
         for (const entry of placedEntries) {
-            middleColumn.append(buildRowMarker("barsCutCap", "barsCutCap", findRulerRowIndexForInstant(rows, entry.instant), rowCount));
+            middleColumn.append(buildRowMarker({ "data-component": "barsCutCap" }, "barsCutCap", findRulerRowIndexForInstant(rows, entry.instant), rowCount));
         }
-        middleColumn.append(buildRowMarker("barsCutHashLabel", "barsCutHashLabel", baseRowIndex, rowCount, baseEntry.shortHash));
+        middleColumn.append(buildBarsCutHashLabel(baseRowIndex, rowCount, baseEntry.shortHash));
         if (tipEntry !== baseEntry) {
-            middleColumn.append(buildRowMarker("barsCutHashLabel", "barsCutHashLabel", tipRowIndex, rowCount, tipEntry.shortHash));
+            middleColumn.append(buildBarsCutHashLabel(tipRowIndex, rowCount, tipEntry.shortHash));
         }
         if (markRowIndex !== undefined) {
-            middleColumn.append(buildRowLine("barsCutDottedLine", "barsCutDottedLine", markRowIndex, tipRowIndex, rowCount));
+            middleColumn.append(buildRowLine({ "data-component": "barsCutDottedLine" }, "barsCutDottedLine", markRowIndex, tipRowIndex, rowCount));
         }
     }
     for (const rowIndex of listBarsMarkableRowIndexes(readTipMs())) {
@@ -93,7 +97,7 @@ function fillMiddleColumn(middleColumn: HTMLElement, rows: readonly RulerRow[]):
 }
 
 function buildLeftColumn(handlers: BarsCutStripHandlers): HTMLElement {
-    const leftColumn = buildStripDiv("barsCutStripLeft", "barsColLeft barsCutStripLeft");
+    const leftColumn = buildStripDiv({ "data-component": "barsCutStripLeft" }, "barsColLeft barsCutStripLeft");
     leftColumn.append(createElement("span", {
         class: "barsCutDeleteBranch",
         "data-component": "barsCutDeleteBranch",
@@ -104,7 +108,7 @@ function buildLeftColumn(handlers: BarsCutStripHandlers): HTMLElement {
 }
 
 function buildRightColumn(handlers: BarsCutStripHandlers): HTMLElement {
-    const rightColumn = buildStripDiv("barsCutStripRight", "barsColRight barsCutStripRight");
+    const rightColumn = buildStripDiv({ "data-component": "barsCutStripRight" }, "barsColRight barsCutStripRight");
     rightColumn.append(createElement("span", { class: "barsCutBranchLabel", "data-component": "barsCutBranchLabel", text: "jfred branch" }));
     if (readJfredBranch().pending !== undefined) {
         rightColumn.append(createElement("button", {
@@ -136,7 +140,7 @@ export function renderBarsCutStrip(handlers: BarsCutStripHandlers): void {
         strip = createElement("div", { id: BARS_CUT_STRIP_ID, class: "barsCutStrip", "data-component": "barsCutStrip" });
     }
     stickyHeader.append(strip);
-    const middleColumn = buildStripDiv("barsCutStripMiddle", "barsColMid barsCutStripMiddle");
+    const middleColumn = buildStripDiv({ "data-component": "barsCutStripMiddle" }, "barsColMid barsCutStripMiddle");
     const rows = listRealRulerRows();
     if (rows.length > 0) {
         if (!getBarsViewState().isHistoryLoading) {
