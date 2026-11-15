@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { extname, join, sep } from "node:path";
 import { findComponentSource } from "../src/viewer_server_component_source.ts";
 import { Path } from "../src/structures/domain.ts";
+import { renderBarsRowsAndCutStrip } from "./layer1-bars-rendered-view-helpers.ts";
 
 function makeWebappDir(files: Record<string, string>): Path {
     const webappDir = mkdtempSync(join(tmpdir(), "component-source-"));
@@ -133,4 +134,36 @@ test("test_copy_finds_one_file_and_line_for_every_tagged_part_in_the_webapp", ()
     assert.deepEqual(failures, []);
     // An empty scan must not pass.
     assert.ok(names.length >= 20, `only ${names.length} tag names found`);
+});
+
+function collectRenderedComponentNames(): string[] {
+    const names = new Set<string>();
+    for (const element of document.querySelectorAll("[data-component]")) {
+        names.add(element.getAttribute("data-component")!);
+    }
+    return [...names].sort();
+}
+
+const EXPECTED_BARS_NAMES = [
+    "barsFileRow", "barsMark", "barsFilePath", "barsColLeft", "barsColMid", "barsColRight",
+    "FileReconstructionProgressBar", "ProjectLifetimeBar", "barsFill", "barsDotStrip", "BarDot",
+    "barsHistoryBlock", "barsPlusSign", "barsMinusSign", "barsMovedAwaySign",
+    "barsCutStripLeft", "barsCutStripMiddle", "barsCutStripRight", "barsCutBranchLine",
+    "barsCutDottedLine", "barsCutCap", "barsCutHashLabel",
+];
+
+test("test_every_name_the_bars_view_renders_resolves_to_one_file_and_line", () => {
+    // Step: render real Bars rows and the cut strip into one DOM.
+    renderBarsRowsAndCutStrip();
+    // Step: collect every data-component value present in the rendered DOM.
+    const renderedNames = collectRenderedComponentNames();
+    // Step: all 22 names that were built from variables must be present, so a thin render cannot pass.
+    for (const expectedName of EXPECTED_BARS_NAMES) {
+        assert.ok(renderedNames.includes(expectedName), `${expectedName} was not rendered`);
+    }
+    // Step: look up each rendered name in the real webapp folder. The lookup throws for 0 or 2+ places, so the first bad name fails the test.
+    const webappDir = new Path(join(import.meta.dirname, "..", "webapp"));
+    for (const renderedName of renderedNames) {
+        findComponentSource(webappDir, renderedName);
+    }
 });
