@@ -288,6 +288,31 @@ test("test_unfilled_script_gap_covers_instants_from_first_script_to_newer_commit
     assert.deepEqual(listUnfilledScriptGapsAtInstant(repoFolder, FILE_NAME, makeInstant(100)), []);
 });
 
+test("test_unfilled_script_gap_under_disk_now_covers_every_later_instant", (t) => {
+    // Scenario: a gap right under the disk-now commit has no newer bound, so it covers every instant from the first script on.
+    // Steps: the newer commit is the disk-now commit (position 0, no instant); the older commit (position 3) is at second 10; the first script is at second 50.
+    const repoFolder = makeRepoWithCommitsAtPositions(t, [[3, 10]]);
+    writeReplayGapsSidecar(repoFolder, makeEmptySidecar([makeGapRecord(0, 3, [1, 2], [makeTaskRecord(50, 12)])]));
+    // One second before the first script, no gap is returned.
+    assert.deepEqual(listUnfilledScriptGapsAtInstant(repoFolder, FILE_NAME, makeInstant(49)), []);
+    // Exactly at the first script, the gap is returned with the disk-now commit as the newer commit.
+    const gapsAtFirstScript = listUnfilledScriptGapsAtInstant(repoFolder, FILE_NAME, makeInstant(50));
+    assert.equal(gapsAtFirstScript.length, 1);
+    assert.equal(gapsAtFirstScript[0]!.newerCommit.eventType, FileEventType.DiskNow);
+    // A long time after the first script, the gap is still returned.
+    assert.equal(listUnfilledScriptGapsAtInstant(repoFolder, FILE_NAME, makeInstant(1000000)).length, 1);
+});
+
+test("test_bornless_record_is_null_when_a_history_end_gap_without_a_script_exists", () => {
+    // Scenario: a history-end run of dropped states with no script event still makes the bornless record null.
+    // Steps: the state at 2 (the oldest) is a dropped edit state.
+    const states = [makeDiskNowState(), makeWriteState(50, 11), makeDroppedEditState(40, 12)];
+    // The sidecar lists no script gap and has no bornless record.
+    const sidecar = buildReplayGapsSidecar(states);
+    assert.deepEqual(sidecar.gaps, []);
+    assert.equal(sidecar.bornless, null);
+});
+
 test("test_task_record_round_trip_keeps_the_script_run", () => {
     // Scenario: a script run turned into a task record and back is equal to the original.
     // Steps: the run has every field the record keeps.

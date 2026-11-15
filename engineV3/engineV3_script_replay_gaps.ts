@@ -183,7 +183,7 @@ function convertGapToRecord(gap: ReplayGap): ReplayGapRecord {
     };
 }
 
-function buildBornlessRecord(states: FileKnownState[], gaps: ReplayGap[]): BornlessRecord | null {
+function buildBornlessRecord(states: FileKnownState[]): BornlessRecord | null {
     const hasSourceState = states.some((state) => state.event.source !== undefined);
     if (!hasSourceState) {
         return null;
@@ -192,7 +192,7 @@ function buildBornlessRecord(states: FileKnownState[], gaps: ReplayGap[]): Bornl
     if (hasAbsentState) {
         return null;
     }
-    const hasHistoryEndGap = gaps.some((gap) => gap.olderPosition === undefined);
+    const hasHistoryEndGap = listUnknownRuns(states).some((unknownRun) => unknownRun.lastPosition === states.length - 1);
     if (hasHistoryEndGap) {
         return null;
     }
@@ -209,7 +209,7 @@ function buildBornlessRecord(states: FileKnownState[], gaps: ReplayGap[]): Bornl
 
 export function buildReplayGapsSidecar(states: FileKnownState[]): ReplayGapsSidecar {
     const gaps = listReplayGapsFromStates(states);
-    return { gaps: gaps.map(convertGapToRecord), bornless: buildBornlessRecord(states, gaps) };
+    return { gaps: gaps.map(convertGapToRecord), bornless: buildBornlessRecord(states) };
 }
 
 function getSidecarPath(repoFolder: Path): string {
@@ -264,10 +264,14 @@ function findCommitAtPosition(inverseCommits: InverseCommit[], position: number,
     if (inverseCommit === undefined) {
         throw new Error(`findCommitAtPosition: ${fileName} has no commit at position ${position}`);
     }
-    if (inverseCommit.instant === undefined) {
-        throw new Error(`findCommitAtPosition: the commit at position ${position} of ${fileName} has no instant`);
-    }
     return inverseCommit;
+}
+
+function getCommitInstantTime(inverseCommit: InverseCommit, fileName: string): number {
+    if (inverseCommit.instant === undefined) {
+        throw new Error(`getCommitInstantTime: the commit at position ${inverseCommit.position} of ${fileName} has no instant`);
+    }
+    return inverseCommit.instant.getTime();
 }
 
 export function listUnfilledScriptGapsAtInstant(repoFolder: Path, fileName: string, instant: Date): UnfilledScriptGap[] {
@@ -281,9 +285,15 @@ export function listUnfilledScriptGapsAtInstant(repoFolder: Path, fileName: stri
         let olderCommit: InverseCommit | undefined;
         if (gapRecord.olderPosition !== null) {
             olderCommit = findCommitAtPosition(inverseCommits, gapRecord.olderPosition, fileName);
+            getCommitInstantTime(olderCommit, fileName);
+        }
+        // The disk-now commit has no instant on purpose: a gap under it has no newer bound.
+        let newerBoundTime = Infinity;
+        if (newerCommit.eventType !== FileEventType.DiskNow) {
+            newerBoundTime = getCommitInstantTime(newerCommit, fileName);
         }
         if (firstScriptTime <= instant.getTime()) {
-            if (newerCommit.instant!.getTime() > instant.getTime()) {
+            if (newerBoundTime > instant.getTime()) {
                 unfilledScriptGaps.push({ firstScriptInstant: new Date(firstScriptTime), newerCommit, olderCommit });
             }
         }
