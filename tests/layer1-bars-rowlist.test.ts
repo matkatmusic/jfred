@@ -178,6 +178,20 @@ test("test_a_file_created_after_the_selected_row_reads_did_not_exist_yet", () =>
     assert.equal(findRequired("#barsRowList > .barsFileRow .barsColRight").textContent, "did not exist yet");
 });
 
+test("test_the_selected_time_is_one_line_across_all_bars", () => {
+    // Step: three files, one of them folded, selected row 2.
+    initBarsDom();
+    renderBarsRowList(buildState([buildChangedModel("a.ts"), buildChangedModel("b.ts"), buildUnchangedModel("c.ts")], 2), false);
+    // Step: exactly one selected-time line exists and no bar row has its own.
+    assert.equal(document.querySelectorAll("#barsTargetLine").length, 1);
+    assert.equal(document.querySelectorAll(".barsFileRow .barsTargetSegment").length, 0);
+    // Step: the line sits at row 2 of 4 bar rows: 50 percent.
+    assert.equal(findRequired("#barsTargetLine").style.getPropertyValue("--bars-target-percent"), "50");
+    // Step: rendering again keeps exactly one line.
+    renderBarsRowList(buildState([buildChangedModel("a.ts")], 2), false);
+    assert.equal(document.querySelectorAll("#barsTargetLine").length, 1);
+});
+
 test("test_the_placeholder_flag_makes_the_dots_placeholders", () => {
     // Step: render the same changed file twice, once with the flag and once without.
     initBarsDom();

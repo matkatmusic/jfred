@@ -1,6 +1,7 @@
 import { createElement, getRequiredElementById } from "../../app-dom.ts";
 import { buildBarsArrowElement } from "./layer1-bars-header.ts";
 import { computeFillPercent, describeFinalState, describeFoldedState, isBarFileChangedSince } from "./layer1-bars-model.ts";
+import { computeBarPercent } from "./layer1-bars-ruler.ts";
 import { buildModelBarRow, setBarRowFillPercent, type BarRowElements } from "./layer1-bars-row.ts";
 import type { BarsViewState } from "./layer1-bars-state.ts";
 
@@ -16,6 +17,28 @@ function buildFoldLine(foldedFileCount: number, foldToggleElement: HTMLElement):
 
 function readLayoutWidth(element: HTMLElement): number {
     return element.offsetWidth;
+}
+
+function buildTargetLine(selectedRowIndex: number, rowCount: number): HTMLElement {
+    const lineElement = createElement("div", { id: "barsTargetLine", class: "barsTargetLine", "data-component": "barsTargetLine" });
+    lineElement.style.setProperty("--bars-target-percent", String(computeBarPercent(selectedRowIndex, rowCount)));
+    return lineElement;
+}
+
+// Stretches the selected-time line from the top of the first shown bar row to the bottom of the last shown one.
+export function placeBarsTargetLine(): void {
+    const lineElement = getRequiredElementById("barsTargetLine");
+    const shownRows = Array.from(document.querySelectorAll<HTMLElement>("#barsRowList .barsFileRow")).filter((rowElement) => rowElement.offsetHeight > 0);
+    const firstRow = shownRows[0];
+    const lastRow = shownRows.at(-1);
+    lineElement.hidden = true;
+    if (firstRow !== undefined) {
+        if (lastRow !== undefined) {
+            lineElement.hidden = false;
+            lineElement.style.top = firstRow.offsetTop + "px";
+            lineElement.style.height = lastRow.offsetTop + lastRow.offsetHeight - firstRow.offsetTop + "px";
+        }
+    }
 }
 
 // Fills #barsRowList from state.models and state.selectedRowIndex. Writes state.rowElements. Sets --bars-slot-width on #barsRows.
@@ -45,11 +68,13 @@ export function renderBarsRowList(state: BarsViewState, isPlaceholder: boolean):
         setFoldShown(foldToggleElement, foldedListElement, state.isFoldShown);
         rowListElement.append(buildFoldLine(foldedFileCount, foldToggleElement), foldedListElement);
     }
+    rowListElement.append(buildTargetLine(state.selectedRowIndex, state.rulerRows.length));
     readLayoutWidth(rowListElement);
     for (const changedRow of changedRows) {
         setBarRowFillPercent(changedRow.row, changedRow.fillPercent);
     }
     rowsElement.style.setProperty("--bars-slot-width", 100 / Math.max(state.rulerRows.length - 1, 1) + "%");
+    placeBarsTargetLine();
 }
 
 // Flips state.isFoldShown and updates the toggle text and the folded list display.
@@ -65,4 +90,5 @@ export function toggleBarsFold(state: BarsViewState): void {
     }
     state.isFoldShown = !state.isFoldShown;
     setFoldShown(foldToggleElement, foldedListElement, state.isFoldShown);
+    placeBarsTargetLine();
 }

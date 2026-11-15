@@ -6,6 +6,7 @@ import { Path } from "../src/structures/domain.ts";
 import { loadTranscript } from "../src/parse/loadTranscript.ts";
 import { findScriptExecutionRuns, type ScriptRun } from "../src/reconstruction_script_execution.ts";
 import { isScriptCodeWriteCapable } from "../src/reconstruction_script_prestate.ts";
+import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
 import { StateConfidence, StateMoment } from "./engineV3_file_known_states.ts";
 import { listInverseCommits, type OrderedKnownState } from "./engineV3_inverse_repo.ts";
 import { getInverseRepoFolderForFile, type ProjectFile } from "./engineV3_inverse_repos_for_project.ts";
@@ -55,9 +56,16 @@ function isBirthCandidateRun(run: ScriptRun, oldestInstant: Date, recordedProjec
     return run.source !== undefined;
 }
 
-export function listBirthCandidateRecords(oldestJsonlPath: Path, oldestInstant: Date, recordedProjectFolder: Path): ScriptReplayTaskRecord[] {
-    const records = loadTranscript(oldestJsonlPath.toString()).records;
-    const candidateRuns = findScriptExecutionRuns(records).filter((run) => isBirthCandidateRun(run, oldestInstant, recordedProjectFolder));
+export function listBirthCandidateRecords(transcriptFiles: Path[], oldestInstant: Date, recordedProjectFolder: Path): ScriptReplayTaskRecord[] {
+    const candidateRuns: ScriptRun[] = [];
+    for (const transcriptFile of transcriptFiles) {
+        const records = loadTranscript(transcriptFile.toString()).records;
+        for (const run of findScriptExecutionRuns(records)) {
+            if (isBirthCandidateRun(run, oldestInstant, recordedProjectFolder)) {
+                candidateRuns.push(run);
+            }
+        }
+    }
     candidateRuns.sort((firstRun, secondRun) => firstRun.timestamp.getTime() - secondRun.timestamp.getTime());
     return candidateRuns.slice(-MAX_BIRTH_CANDIDATES_PER_FILE).map(convertScriptRunToTaskRecord);
 }
@@ -102,7 +110,8 @@ function addWaitingFileToTask(tasksByTaskId: Map<string, ScriptReplayTask>, reco
     }
 }
 
-export function listScriptReplayTasks(storeFolder: Path, projectFolder: Path, projectFiles: ProjectFile[], recordedProjectFolder: Path, toInstant: Date): ScriptReplayTask[] {
+export function listScriptReplayTasks(storeFolder: Path, projectFolder: Path, projectFiles: ProjectFile[], recordedProjectFolder: Path, toInstant: Date, jsonlsFolders: Path[]): ScriptReplayTask[] {
+    const transcriptFiles = listTranscriptFiles(jsonlsFolders.map((jsonlsFolder) => jsonlsFolder.toString()));
     const tasksByTaskId = new Map<string, ScriptReplayTask>();
     const birthCandidatesByKey = new Map<string, ScriptReplayTaskRecord[]>();
     for (const projectFile of projectFiles) {
@@ -122,10 +131,10 @@ export function listScriptReplayTasks(storeFolder: Path, projectFolder: Path, pr
         const bornless = sidecar.bornless;
         if (bornless !== null) {
             if (!isBornlessRecordFilled(bornless, storedPositions)) {
-                const candidateKey = `${bornless.oldestJsonlPath}|${bornless.oldestInstant}`;
+                const candidateKey = bornless.oldestInstant;
                 let candidateRecords = birthCandidatesByKey.get(candidateKey);
                 if (candidateRecords === undefined) {
-                    candidateRecords = listBirthCandidateRecords(new Path(bornless.oldestJsonlPath), new Date(bornless.oldestInstant), recordedProjectFolder);
+                    candidateRecords = listBirthCandidateRecords(transcriptFiles, new Date(bornless.oldestInstant), recordedProjectFolder);
                     birthCandidatesByKey.set(candidateKey, candidateRecords);
                 }
                 for (const record of candidateRecords) {

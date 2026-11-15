@@ -70,6 +70,13 @@ function showProgressLine(line: InverseProgressLine, streamRowsByFile: Map<strin
     setBarsStatusLine(line.label);
 }
 
+function writeLoadFailedStatusLine(state: BarsViewState, runId: number, error: unknown): void {
+    if (state.runId === runId) {
+        const reason = error instanceof Error ? error.message : String(error);
+        setBarsStatusLine(`Change history did not load: ${reason}`);
+    }
+}
+
 // Job 1. After the staged reveal the chunks stay shown, state.isHistoryLoading is false and the real ruler rows are clickable again. At the end of the load the header line is written, the cut strip is redrawn, and the stored loaded callback runs once per successful load.
 export async function loadBarsHistory(
     state: BarsViewState,
@@ -136,6 +143,9 @@ export async function loadBarsHistory(
             revealBarsHistoryStage(rowListElement, stageIndex);
             await waitMilliseconds(stageIndex === BARS_LAST_STAGE_INDEX ? BARS_HISTORY_DONE_HOLD_MS : BARS_HISTORY_STAGE_MS);
         }
+    } catch (error) {
+        writeLoadFailedStatusLine(state, runId, error);
+        throw error;
     } finally {
         if (state.runId === runId) {
             state.isHistoryLoading = false;

@@ -17,7 +17,7 @@ import { buildInverseReposForFiles, getInverseRepoFolderForFile, type ProjectFil
 import { ScriptInterpreter, ScriptReplayChangeKind, removeScriptReplayContainers } from "./engineV3_script_replay_container.ts";
 import type { ScriptReplayTaskRecord } from "./engineV3_script_replay_gaps.ts";
 import {
-    ScriptTaskOutcomeKind, chooseScriptInterpreter, getScriptReplayRefusal, replayScriptTasksForProject, executeScriptReplayCommandLine,
+    ScriptTaskOutcomeKind, choosePythonImportFolder, chooseScriptInterpreter, getScriptReplayRefusal, replayScriptTasksForProject, executeScriptReplayCommandLine,
     type ScriptReplaySettings, type ScriptTaskOutcome,
 } from "./engineV3_script_replay_run.ts";
 
@@ -223,6 +223,24 @@ test("test_choose_interpreter_follows_executor_kind_and_invoked_script_extension
     assert.equal(chooseScriptInterpreter(makeTaskRecord({ executorKind: ScriptExecutorKind.python, invokedScriptPath: "run.sh" })), ScriptInterpreter.Bash);
 });
 
+test("test_python_import_folder_is_the_folder_of_the_invoked_script", () => {
+    // Scenario: Python puts the folder of the called script first on the import path, so the request names that folder.
+    // A task that called tools/run.py from the cwd /work/project.
+    const record = makeTaskRecord({ executorKind: ScriptExecutorKind.bash, invokedScriptPath: "tools/run.py" });
+    // The import folder is the tools folder under the cwd.
+    assert.equal(choosePythonImportFolder(record), "/work/project/tools");
+    // A task that called an absolute script path gets the folder of that path.
+    assert.equal(choosePythonImportFolder(makeTaskRecord({ invokedScriptPath: "/work/project/other/run.py" })), "/work/project/other");
+});
+
+test("test_python_import_folder_is_the_cwd_when_the_run_names_no_script", () => {
+    // Scenario: a run that names no script file has the cwd as its import folder.
+    // A python task with no invoked script path, run from /work/project.
+    const record = makeTaskRecord({ executorKind: ScriptExecutorKind.python, invokedScriptPath: null });
+    // The import folder is the cwd.
+    assert.equal(choosePythonImportFolder(record), "/work/project");
+});
+
 test("test_list_only_prints_tasks_and_runs_no_container", async (t) => {
     // Scenario: --list-only prints one line per task and starts no docker process.
     // A project has one file with a script gap.
@@ -242,6 +260,27 @@ test("test_list_only_prints_tasks_and_runs_no_container", async (t) => {
     // No docker process of any kind started.
     assert.equal(spawnCounts.runCount(), 0);
     assert.equal(spawnCounts.controlCount(), 0);
+});
+
+test("test_list_only_finds_tasks_of_a_project_copy_through_the_recorded_project_folder", async (t) => {
+    // Scenario: the transcript names files under recorded folder A; the project files sit in copy folder B.
+    // The transcript writes f.txt and runs a script on it, both under folder A.
+    const recordedFolder = join(tmpdir(), `engine-v3-recorded-${randomUUID()}`);
+    const scene = makeScene(t, { "f.txt": "v1\n" }, () => [
+        ...makeWriteCreateRows("toolu_write", join(recordedFolder, "f.txt"), "v0\n", 10, recordedFolder),
+        makeBashRecord("toolu_script", `printf 'v1\\n' > ${join(recordedFolder, "f.txt")}`, 20, recordedFolder),
+    ]);
+    const printedLines = captureConsoleMethod(t, "log");
+    // The command line runs with --list-only on folder B and names folder A as the recorded project.
+    await executeScriptReplayCommandLine([
+        "--project", scene.projectFolder.toString(), "--jsonls", scene.jsonlsFolder.toString(),
+        "--file-history", scene.historyFolder.toString(), "--store", scene.storeFolder.toString(),
+        "--recorded-project", recordedFolder, "--list-only",
+    ], TEST_CONTAINER_PREFIX);
+    // Exactly one printed line is a task line for f.txt.
+    const taskLines = printedLines.filter((line) => line.startsWith(makeCallInstant(20).toISOString()));
+    assert.equal(taskLines.length, 1);
+    assert.match(taskLines[0]!, /s1\.jsonl:\d+:toolu_script f\.txt$/);
 });
 
 test("test_script_gap_between_two_beacons_is_filled_and_proven_when_the_result_matches", { timeout: DOCKER_TEST_TIMEOUT_MS }, async (t) => {
@@ -518,4 +557,23 @@ test("test_cli_prints_each_missing_executable_once", { timeout: DOCKER_TEST_TIME
     // The missing-program line of each name is printed one time, in first-seen order.
     const missingLines = printedLines.filter((line) => line.startsWith("script replay: missing executable"));
     assert.deepEqual(missingLines, [formatMissingExecutableLine("nosuchtool_a"), formatMissingExecutableLine("nosuchtool_b")]);
+});
+
+test("test_start_text_is_absent_when_the_older_commit_is_the_before_event_commit_of_the_oldest_event", async (t) => {
+    // Scenario: a script moves a file that no event names into f.txt; the script is the only event of f.txt.
+    // The move runs from a folder outside the project, so the replay refuses it and starts no container.
+    const scene = makeScene(t, { "f.txt": "v1\n" }, (projectFolder) => [
+        makeBashRecord("toolu_move", `mv ${join(projectFolder, "source.txt")} ${join(projectFolder, "f.txt")}`, 10, "/elsewhere"),
+    ]);
+    buildStore(scene);
+    // The repo has the disk commit at position 0 and the absent-before commit at position 2; the script's own state at position 1 has no commit.
+    assert.deepEqual(listCommitPositions(scene, "f.txt"), [0, 2]);
+    const spawnCounts = startDockerSpawnSpy(t);
+    // The replay runs and reads the start text from the commit at position 2, which is a before-event commit.
+    const outcomes = await replayScene(scene);
+    // The move task is refused, its gap is not filled, and no container started.
+    assert.equal(outcomes.length, 1);
+    assert.equal(outcomes[0]!.outcome, ScriptTaskOutcomeKind.Refused);
+    assert.equal(outcomes[0]!.files[0]!.isGapFilled, false);
+    assert.equal(spawnCounts.runCount(), 0);
 });
