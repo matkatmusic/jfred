@@ -3,7 +3,7 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { initLayer1Dom, waitForAsyncWork } from "./webapp-dom-test-helpers.ts";
-import { installStreamRoute } from "./webapp-fetch-test-helpers.ts";
+import { buildNdjsonResponse } from "./webapp-fetch-test-helpers.ts";
 import type { WireRulerTick } from "../webapp/layer1-wire.ts";
 
 // layer1-page.ts boots at MODULE SCOPE, so absorb that first boot here against a throwaway DOM.
@@ -35,6 +35,50 @@ beforeEach(() => {
   loadJfredBranch(CANNED_VIEW);
   setArmed(true);
 });
+
+const NEEDS_PATHNAME = "/api/layer1-script-replay-needs";
+const RUN_PATHNAME = "/api/layer1-script-replay-run";
+const COMMIT_PATHNAME = "/api/layer1-jfred-commit";
+const COMMITTED_LINE = { outcome: "committed", commit: { instant: TICKS[3]!.instant, shortHash: "c0ffee03", parentShortHash: "c0ffee02", message: "draft message" } };
+const NO_TASKS_LINE = { tasks: [] };
+const ONE_TASK_LINE = { tasks: [{ taskId: "t1", instant: TICKS[1]!.instant, isInSpan: true, code: "print(1)", cwd: "/w", language: "python", waitingFiles: [{ path: "a.txt", reason: "named-by-file" }] }] };
+const RUN_REPLY_LINE = { results: [] };
+const MISSING_EXECUTABLE_REPLY_LINE = { results: [{ taskId: "t1", outcome: "replay-failed", missingExecutable: "ffmpeg", timedOut: false, stdout: "", stderr: "", files: [] }] };
+let sentCalls: { pathname: string; body: any }[] = [];
+
+function installReplayRoutes(needsLine: unknown, runLine: unknown): void {
+  sentCalls = [];
+  const linesByPathname: Record<string, unknown> = { [NEEDS_PATHNAME]: needsLine, [RUN_PATHNAME]: runLine, [COMMIT_PATHNAME]: COMMITTED_LINE };
+  Object.assign(globalThis, {
+    fetch: async (url: unknown, init: RequestInit): Promise<Response> => {
+      const { pathname } = new URL(String(url), "http://localhost:7343");
+      sentCalls.push({ pathname, body: JSON.parse(String(init.body)) });
+      return buildNdjsonResponse([linesByPathname[pathname]]);
+    },
+  });
+}
+
+function readSentPathnames(): string[] {
+  return sentCalls.map((call) => call.pathname);
+}
+
+async function settleCommitFlow(): Promise<void> {
+  for (let round = 0; round < 4; round++)
+    await waitForAsyncWork();
+}
+
+async function clickCommitOnPendingMark(): Promise<void> {
+  setPending({ instant: TICKS[3]!.instant, message: "draft message" });
+  renderJfredStrip(TICKS);
+  openPendingMessage();
+  document.getElementById("jfred-commit-button")!.click();
+  await settleCommitFlow();
+}
+
+async function clickPopupButton(dataComponent: string): Promise<void> {
+  document.querySelector<HTMLElement>(`[data-component="${dataComponent}"]`)!.click();
+  await settleCommitFlow();
+}
 
 function addAnnotationTrack(): HTMLElement {
   const track = document.createElement("div");
@@ -127,14 +171,8 @@ test("test_a_click_on_the_pending_entry_opens_its_message_with_a_commit_button",
 
 test("test_the_commit_button_adds_the_entry_and_the_drawer_shows_it_without_a_button", async () => {
   // Verify: Commit posts, the streamed reply adds c0ffee03 with parent c0ffee02, redraws the column and drops the button.
-  installStreamRoute("/api/layer1-jfred-commit", [
-    { outcome: "committed", commit: { instant: TICKS[3]!.instant, shortHash: "c0ffee03", parentShortHash: "c0ffee02", message: "draft message" } },
-  ]);
-  setPending({ instant: TICKS[3]!.instant, message: "draft message" });
-  renderJfredStrip(TICKS);
-  openPendingMessage();
-  document.getElementById("jfred-commit-button")!.click();
-  await waitForAsyncWork();
+  installReplayRoutes(NO_TASKS_LINE, RUN_REPLY_LINE);
+  await clickCommitOnPendingMark();
   assert.equal(readJfredBranch().commits.at(-1)!.shortHash, "c0ffee03");
   assert.equal(findEntry("c0ffee03").dataset["parentHash"], "c0ffee02");
   assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jnode").length, 4);
@@ -158,4 +196,60 @@ test("test_redraw_builds_the_strip_from_the_stored_ticks", async () => {
   loadJfredBranch(CANNED_VIEW);
   renderJfredEntries();
   assert.equal(document.querySelectorAll("#jfredCommitsDrawerComponent .jnode").length, 3);
+});
+
+test("test_commit_without_tasks_skips_the_popup_and_the_run", async () => {
+  // Verify: no task means no popup, no run request, and a commit with allowScripts false.
+  installReplayRoutes(NO_TASKS_LINE, RUN_REPLY_LINE);
+  await clickCommitOnPendingMark();
+  assert.deepEqual(readSentPathnames(), [NEEDS_PATHNAME, COMMIT_PATHNAME]);
+  assert.equal(document.querySelector('[data-component="runConsentPopup"]'), null);
+  assert.equal(sentCalls[1]!.body.allowScripts, false);
+});
+
+test("test_commit_with_tasks_opens_the_popup_before_the_commit", async () => {
+  // Verify: with one task the popup shows both buttons and only the needs request has been sent.
+  installReplayRoutes(ONE_TASK_LINE, RUN_REPLY_LINE);
+  await clickCommitOnPendingMark();
+  assert.notEqual(document.querySelector('[data-component="runConsentPopup"]'), null);
+  assert.equal(document.querySelector('[data-component="runConsentRunButton"]')!.textContent, "Run scripts");
+  assert.equal(document.querySelector('[data-component="runConsentContinueWithoutRunningButton"]')!.textContent, "Continue without running");
+  assert.deepEqual(readSentPathnames(), [NEEDS_PATHNAME]);
+});
+
+test("test_run_answer_posts_the_run_then_the_commit_with_allow_scripts_true", async () => {
+  // Verify: Run scripts sends needs, run (allowScripts true, toInstant the mark), then the commit with allowScripts true.
+  installReplayRoutes(ONE_TASK_LINE, RUN_REPLY_LINE);
+  await clickCommitOnPendingMark();
+  await clickPopupButton("runConsentRunButton");
+  assert.deepEqual(readSentPathnames(), [NEEDS_PATHNAME, RUN_PATHNAME, COMMIT_PATHNAME]);
+  assert.deepEqual(sentCalls[1]!.body, { toInstant: TICKS[3]!.instant, allowScripts: true });
+  assert.equal(sentCalls[2]!.body.allowScripts, true);
+});
+
+test("test_continue_answer_posts_no_run_and_the_commit_with_allow_scripts_false", async () => {
+  // Verify: Continue without running sends needs, then the commit with allowScripts false, and no run.
+  installReplayRoutes(ONE_TASK_LINE, RUN_REPLY_LINE);
+  await clickCommitOnPendingMark();
+  await clickPopupButton("runConsentContinueWithoutRunningButton");
+  assert.deepEqual(readSentPathnames(), [NEEDS_PATHNAME, COMMIT_PATHNAME]);
+  assert.equal(sentCalls[1]!.body.allowScripts, false);
+});
+
+test("test_needs_range_starts_at_the_tip_instant", async () => {
+  // Verify: the needs request runs from the last jfred commit instant to the mark.
+  installReplayRoutes(NO_TASKS_LINE, RUN_REPLY_LINE);
+  await clickCommitOnPendingMark();
+  assert.deepEqual(sentCalls[0]!.body, { fromInstant: TICKS[2]!.instant, toInstant: TICKS[3]!.instant });
+});
+
+test("test_run_reply_with_a_missing_executable_opens_the_notice_before_the_commit", async () => {
+  // Verify: after Run scripts the notice names the program; the commit is sent only after Close.
+  installReplayRoutes(ONE_TASK_LINE, MISSING_EXECUTABLE_REPLY_LINE);
+  await clickCommitOnPendingMark();
+  await clickPopupButton("runConsentRunButton");
+  assert.match(document.querySelector('[data-component="missingExecutablesPopup"]')!.textContent!, /ffmpeg/);
+  assert.deepEqual(readSentPathnames(), [NEEDS_PATHNAME, RUN_PATHNAME]);
+  await clickPopupButton("missingExecutablesCloseButton");
+  assert.deepEqual(readSentPathnames(), [NEEDS_PATHNAME, RUN_PATHNAME, COMMIT_PATHNAME]);
 });

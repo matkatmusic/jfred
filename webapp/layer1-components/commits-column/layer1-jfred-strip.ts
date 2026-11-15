@@ -4,9 +4,9 @@ import { createElement, getRequiredElementById } from "../../app-dom.ts";
 import { repaintCutMarks } from "./layer1-cut-paint.ts";
 import { openJfredMessage } from "./layer1-jfred-drawer.ts";
 import { buildJfredEntries, JfredEntryKind, listJfredEntries } from "./layer1-jfred-entries.ts";
-import { sendJfredCommit, sendJfredDelete } from "./layer1-jfred-api.ts";
+import { fetchScriptReplayNeeds, runScriptReplay, sendJfredCommit, sendJfredDelete } from "./layer1-jfred-api.ts";
 // import { commitPending, deleteJfredBranch, readJfredBranch } from "./layer1-jfred-state.ts";
-import { appendCommit, buildCommitRequest, deleteJfredBranch, readJfredBranch } from "./layer1-jfred-state.ts";
+import { appendCommit, buildCommitRequest, deleteJfredBranch, readJfredBranch, readTipMs } from "./layer1-jfred-state.ts";
 import type { JfredCommit } from "./layer1-jfred-state.ts";
 import { JfredCommitOutcome } from "./layer1-wire-jfred.ts";
 import type { WireJfredCommitReply } from "./layer1-wire-jfred.ts";
@@ -18,6 +18,7 @@ import { hideLayer1Progress } from "../loading-bar/layer1-progress.ts";
 import { closeBusyShield } from "../popups/layer1-busy-shield.ts";
 import { attachHoverPopup } from "../popups/layer1-hover-popup.ts";
 import type { HoverPopupContent } from "../popups/layer1-hover-popup.ts";
+import { openMissingExecutablesNotice, openScriptReplayConsent } from "../popups/layer1-run-consent.ts";
 import { openYesNoQuestion } from "../popups/layer1-yes-no-row.ts";
 import { wrapTextAtColumns } from "../ruler/layer1-wrap-text.ts";
 
@@ -60,8 +61,37 @@ function openCommitMessage(shortHash: string): void {
 //   openJfredMessage(made);
 // }
 
+// function applyPendingCommit(): void {
+//   void sendJfredCommit(buildCommitRequest()).then(applyCommitReply, reportJfredFailure);
+// }
+
+async function sendCommitAfterScriptReplay(): Promise<WireJfredCommitReply | undefined> {
+  const request = buildCommitRequest();
+  const tipMs = readTipMs();
+  let fromInstant: string | null = null;
+  if (tipMs !== undefined) {
+    fromInstant = new Date(tipMs).toISOString();
+  }
+  const needs = await fetchScriptReplayNeeds({ fromInstant, toInstant: request.markInstant });
+  if (needs === undefined) {
+    return undefined;
+  }
+  let isRunAllowed = false;
+  if (needs.tasks.length > 0) {
+    isRunAllowed = await openScriptReplayConsent(needs);
+    if (isRunAllowed) {
+      const runReply = await runScriptReplay({ toInstant: request.markInstant, allowScripts: true });
+      if (runReply === undefined) {
+        return undefined;
+      }
+      await openMissingExecutablesNotice(runReply);
+    }
+  }
+  return sendJfredCommit({ ...request, allowScripts: isRunAllowed });
+}
+
 function applyPendingCommit(): void {
-  void sendJfredCommit(buildCommitRequest()).then(applyCommitReply, reportJfredFailure);
+  void sendCommitAfterScriptReplay().then(applyCommitReply, reportJfredFailure);
 }
 
 function applyCommitReply(reply: WireJfredCommitReply | undefined): void {
