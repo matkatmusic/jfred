@@ -28,7 +28,7 @@ function buildRowMarker(componentTag: { "data-component": string }, className: s
     return marker;
 }
 
-function buildBarsCutHashLabel(rowIndex: number, rowCount: number, shortHash: string): HTMLElement {
+function buildBarsCutHashLabel(rowIndex: number, rowCount: number, shortHash: string | undefined): HTMLElement {
     return buildRowMarker({ "data-component": "barsCutHashLabel" }, "barsCutHashLabel", rowIndex, rowCount, shortHash);
 }
 
