@@ -8,6 +8,8 @@ import { extname, join, sep } from "node:path";
 import { findComponentSource } from "../src/viewer_server_component_source.ts";
 import { Path } from "../src/structures/domain.ts";
 import { renderBarsRowsAndCutStrip } from "./layer1-bars-rendered-view-helpers.ts";
+import { relative } from "node:path";
+import { collectComponentSourcesByName } from "../src/viewer_server_component_source.ts";
 
 function makeWebappDir(files: Record<string, string>): Path {
     const webappDir = mkdtempSync(join(tmpdir(), "component-source-"));
@@ -98,6 +100,24 @@ test("test_throws_when_the_name_appears_twice_and_lists_both_locations", () => {
     );
 });
 
+test("test_collects_every_tagged_name_with_each_file_and_line_it_is_written_on", () => {
+    // Scenario: one name is written twice, one name once, and one name sits in a skipped folder.
+    // Steps: build a webapp folder with those three cases.
+    const webappDir = makeWebappDir({
+        "a.html": "<div data-component=\"FileNav\"></div>\n<p data-component=\"Crumb\"></p>\n",
+        "b.ts": "\n\"data-component\": \"FileNav\",\n",
+        "dist/c.ts": "\"data-component\": \"Skipped\",\n",
+    });
+    // Steps: collect the names.
+    const sourcesByName = collectComponentSourcesByName(webappDir);
+    // Expect: the skipped folder adds no name.
+    assert.deepEqual([...sourcesByName.keys()].sort(), ["Crumb", "FileNav"]);
+    // Expect: FileNav lists both places, Crumb lists one.
+    const fileNavPlaces = sourcesByName.get("FileNav")!.map((source) => `${relative(webappDir.toString(), source.file.toString())}:${source.line}`).sort();
+    assert.deepEqual(fileNavPlaces, ["a.html:1", "b.ts:2"]);
+    assert.equal(sourcesByName.get("Crumb")!.length, 1);
+});
+
 function collectTaggedComponentNames(webappDir: Path): string[] {
     const taggedNamePattern = /data-component["']?\s*[=:]\s*["']([^"']+)["']/g;
     const skippedFolderNames = new Set(["dist", "vendor", "archive"]);
@@ -166,4 +186,25 @@ test("test_every_name_the_bars_view_renders_resolves_to_one_file_and_line", () =
     for (const renderedName of renderedNames) {
         findComponentSource(webappDir, renderedName);
     }
+});
+
+test("test_find_component_source_skips_a_commented_out_line_with_the_same_name", () => {
+    // Scenario: an old line kept as a comment and the live line both hold data-component "OldRow".
+    // Steps: build a webapp folder with one .ts file: line 1 is the commented-out copy, line 2 is the live line.
+    const webappDir = makeWebappDir({
+        "row.ts": "    // createElement(\"div\", { \"data-component\": \"OldRow\" }),\n    createElement(\"div\", { \"data-component\": \"OldRow\" }),\n",
+    });
+    // Expect: one match, on the live line 2, and no "written more than once" error.
+    const source = findComponentSource(webappDir, "OldRow");
+    assert.equal(source.line, 2);
+});
+
+test("test_collect_component_sources_skips_a_commented_out_line_with_the_same_name", () => {
+    // Scenario: the same two lines as above.
+    const webappDir = makeWebappDir({
+        "row.ts": "    // createElement(\"div\", { \"data-component\": \"OldRow\" }),\n    createElement(\"div\", { \"data-component\": \"OldRow\" }),\n",
+    });
+    // Expect: OldRow has exactly one source, the live line 2.
+    const sources = collectComponentSourcesByName(webappDir).get("OldRow")!;
+    assert.deepEqual(sources.map((source) => source.line), [2]);
 });

@@ -10,6 +10,7 @@ export type ComponentSource = { file: Path; line: number };
 
 const SKIPPED_FOLDER_NAMES = new Set(["dist", "vendor", "archive"]);
 const SEARCHED_EXTENSIONS = new Set([".html", ".ts"]);
+const COMPONENT_ATTRIBUTE_START = String.raw`data-component["']?\s*[=:]\s*["']`;
 
 function replaceRegExpSpecialCharacters(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -26,10 +27,19 @@ function isSearchedFile(relativePath: string): boolean {
   return SEARCHED_EXTENSIONS.has(extname(relativePath));
 }
 
+// ponytail: only `//` lines are skipped; an HTML <!-- --> comment still counts (no such case exists yet).
+function isCommentedOutLine(lineText: string): boolean {
+  return lineText.trim().startsWith("//");
+}
+
 function collectLineMatches(file: Path, componentPattern: RegExp): ComponentSource[] {
   const matches: ComponentSource[] = [];
   const lines = readFileSync(file.toString(), "utf8").split("\n");
   for (const [lineIndex, lineText] of lines.entries()) {
+    const isCommentedOut = isCommentedOutLine(lineText);
+    if (isCommentedOut) {
+      continue;
+    }
     const isComponentLine = componentPattern.test(lineText);
     if (isComponentLine) {
       matches.push({ file, line: lineIndex + 1 });
@@ -40,7 +50,8 @@ function collectLineMatches(file: Path, componentPattern: RegExp): ComponentSour
 
 function collectComponentMatches(webappDir: Path, componentName: string): ComponentSource[] {
   // Matches HTML data-component="X" and TS "data-component": "X", in either quote style.
-  const componentPattern = new RegExp(`data-component["']?\\s*[=:]\\s*["']${replaceRegExpSpecialCharacters(componentName)}["']`);
+  // const componentPattern = new RegExp(`data-component["']?\\s*[=:]\\s*["']${replaceRegExpSpecialCharacters(componentName)}["']`);
+  const componentPattern = new RegExp(`${COMPONENT_ATTRIBUTE_START}${replaceRegExpSpecialCharacters(componentName)}["']`);
   const matches: ComponentSource[] = [];
   for (const relativePath of readdirSync(webappDir.toString(), { recursive: true, encoding: "utf8" })) {
     const isSearched = isSearchedFile(relativePath);
@@ -70,6 +81,31 @@ export function findComponentSource(webappDir: Path, componentName: string): Com
     throw new Error(`data-component="${componentName}" is written more than once: ${formatMatchLocations(matches)}`);
   }
   return firstMatch;
+}
+
+export function collectComponentSourcesByName(webappDir: Path): Map<string, ComponentSource[]> {
+  const namePattern = new RegExp(`${COMPONENT_ATTRIBUTE_START}([^"']+)["']`, "g");
+  const sourcesByName = new Map<string, ComponentSource[]>();
+  for (const relativePath of readdirSync(webappDir.toString(), { recursive: true, encoding: "utf8" })) {
+    const isSearched = isSearchedFile(relativePath);
+    if (isSearched) {
+      const file = new Path(join(webappDir.toString(), relativePath));
+      const lines = readFileSync(file.toString(), "utf8").split("\n");
+      for (const [lineIndex, lineText] of lines.entries()) {
+        const isCommentedOut = isCommentedOutLine(lineText);
+        if (isCommentedOut) {
+          continue;
+        }
+        for (const match of lineText.matchAll(namePattern)) {
+          const name = match[1]!;
+          const sources = sourcesByName.get(name) ?? [];
+          sources.push({ file, line: lineIndex + 1 });
+          sourcesByName.set(name, sources);
+        }
+      }
+    }
+  }
+  return sourcesByName;
 }
 
 export function sendComponentSourceResponse(response: ServerResponse, query: URLSearchParams): void {

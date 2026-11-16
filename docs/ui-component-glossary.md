@@ -95,6 +95,7 @@ The minimap is the first child of `timelineRulerContainer`. It uses `position: f
 ## Every data-component name
 
 Turn the "names" button on, then hover any part of the page to see its name here. Copy gives the file and line.
+A test (tests/glossary-matches-page.test.ts) fails when a page part has no row in this section.
 
 ### Header row
 
@@ -219,6 +220,10 @@ Turn the "names" button on, then hover any part of the page to see its name here
 | loadBarConfirmDialog | layer1-components/loading-bar/loading-bar.html | Question "Cancel this build?" |
 | loadBarConfirmYesButton | layer1-components/loading-bar/loading-bar.html | "Yes, cancel" button |
 | loadBarConfirmNoButton | layer1-components/loading-bar/loading-bar.html | "No" button in that question |
+| loadBarStepList | layer1-components/loading-bar/loading-bar.html | The list of loading steps under the load bar |
+| stepConsoleRow | layer1-components/loading-bar/layer1-step-console.ts | One step line in a step list |
+| stepConsoleLabelText | layer1-components/loading-bar/layer1-step-console.ts | Name of one step |
+| stepConsoleStatusText | layer1-components/loading-bar/layer1-step-console.ts | Status of one step: waiting, running or done |
 
 ### Ruler
 
@@ -245,6 +250,8 @@ Turn the "names" button on, then hover any part of the page to see its name here
 | sessionDotsLine | layer1-components/session-column/layer1-annotation-dots.ts | Line that joins two session dots |
 | sessionDotsBracket | layer1-components/session-column/layer1-annotation-dots.ts | Bracket that joins two session dots |
 | sessionDotsJsonText | layer1-components/session-column/layer1-annotation-click.ts | Raw JSON text in the details pane after a dot click |
+| sessionDotsConnector | layer1-components/session-column/layer1-annotation-dots.ts | Thin line from the lane centre to the farthest extra dot of one session line |
+| sessionLaneStrip | layer1-components/session-column/layer1-session-lane-strip.ts | Strip of lanes in the session column |
 
 ### Commits drawer
 
@@ -322,6 +329,7 @@ Turn the "names" button on, then hover any part of the page to see its name here
 | bubbleReverseLaneRail | layer1-components/bubbles/layer1-reverse-bubble.ts | Thin line of that lane |
 | bubbleReverseStateNode | layer1-components/bubbles/layer1-reverse-bubble.ts | Dot for one file state |
 | bubbleReverseStateText | layer1-components/bubbles/layer1-reverse-bubble.ts | Text beside that dot |
+| bubbleOrphanSnapshotDot | layer1-widgets.ts | Small dot for a snapshot on an orphan row |
 
 ### Timeline marks
 
@@ -356,6 +364,7 @@ Turn the "names" button on, then hover any part of the page to see its name here
 | detailsPaneNodeRawJsonToggle | layer1-components/details-drawer/layer1-drawer-node-detail.ts | Switch that shows the raw JSON of a node |
 | detailsPaneRawJsonExpandButton | inspector-json.ts | Button that opens a long raw JSON text |
 | detailsPaneRawJsonText | inspector-json.ts | Raw JSON text block |
+| detailsPaneRawJsonFormatButton | layer1-components/details-drawer/layer1-drawer-node-detail.ts | 'format' button that shows a raw JSON value as code |
 
 ### Diff view
 
@@ -468,6 +477,15 @@ Turn the "names" button on, then hover any part of the page to see its name here
 | yesNoQuestionText | layer1-components/popups/layer1-yes-no-row.ts | The question |
 | yesNoYesButton | layer1-components/popups/layer1-yes-no-row.ts | Yes button |
 | yesNoNoButton | layer1-components/popups/layer1-yes-no-row.ts | No button |
+| busyShieldStepList | layer1-components/popups/busy-shield.html | The step list inside the busy card |
+| missingExecutablesPopup | layer1-components/popups/layer1-run-consent.ts | Screen behind the missing programs dialog |
+| missingExecutablesDialog | layer1-components/popups/layer1-run-consent.ts | The missing programs dialog |
+| missingExecutablesTitle | layer1-components/popups/layer1-run-consent.ts | Title "Programs missing from the script image" |
+| missingExecutableLineText | layer1-components/popups/layer1-run-consent.ts | One line naming a missing program or module |
+| missingExecutablesCloseButton | layer1-components/popups/layer1-run-consent.ts | "Close" button of the missing programs dialog |
+| runConsentProblemText | layer1-components/popups/layer1-run-consent.ts | Note that names the problem with a script run |
+| runConsentWaitingFilesText | layer1-components/popups/layer1-run-consent.ts | Line "waiting files: ..." under a script run |
+| runConsentEarlierScriptText | layer1-components/popups/layer1-run-consent.ts | Line "earlier script, needed as input" under a script run |
 
 ### engineV3 bar
 
@@ -533,6 +551,7 @@ Turn the "names" button on, then hover any part of the page to see its name here
 | barsCutBranchLabel | layer1-components/bars-view/layer1-bars-cut-strip.ts | Words "jfred branch" |
 | barsCutCommitButton | layer1-components/bars-view/layer1-bars-cut-strip.ts | "Commit" button, shown when a mark is pending |
 | barsCutHint | layer1-components/bars-view/layer1-bars-cut-strip.ts | Words "click scissors to mark" |
+| barsLogFileLine | layer1-components/bars-view/bars-view.html | Line with the name of the log file being read |
 
 ### Page boxes
 
