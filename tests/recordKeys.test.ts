@@ -25,6 +25,36 @@ const OBSERVED_REAL_SESSION_FIELD_SAMPLES: Record<string, Record<string, unknown
         apiErrorStatus: 429,
         // scenarios/executed/s87-demo-composite/1b61dfe4….jsonl:24 (reasoning-effort level)
         effort: "high",
+        // 2b1644e3…/subagents/agent-a30d93510c209e336.jsonl:20
+        advisorModel: "claude-fable-5-1",
+        // 2b1644e3…/subagents/agent-a30d93510c209e336.jsonl:20
+        apiBlockIndex: 0,
+        // 70acab65…/subagents/agent-aefcad428a13e0a09.jsonl:130
+        apiError: "connection_failed",
+        // 7d31cfda-fb91-4f61-ba61-7031cb5484e2.jsonl:716
+        isAbortedMidStream: true,
+        // 2b1644e3…/subagents/agent-a30d93510c209e336.jsonl:20
+        perTurnEffort: "high",
+        // 2b1644e3…/subagents/agent-a30d93510c209e336.jsonl:20
+        promptCacheRequested: "5m",
+        // 94093865…/subagents/agent-ac498c2fcc17a9892.jsonl:16
+        requestedModel: "claude-sonnet-5-5",
+        // 2b1644e3…/subagents/agent-a30d93510c209e336.jsonl:20
+        requestRef: "7c3d9a52-4e81-4b06-8f27-d5a1c0e93b64",
+        // 2fa36f95…/subagents/agent-a1b06c9dba139ae95.jsonl:20
+        serverClassifierRequest: "9f4e2b17-6a30-4c58-b1d9-3e7a85c20f46",
+        // 70acab65…/subagents/agent-aefcad428a13e0a09.jsonl:130
+        streamCutCause: "stale_connection",
+        // 2b1644e3…/subagents/agent-a30d93510c209e336.jsonl:33
+        thinkingDisplay: "updates",
+        // 94093865-0449-5315-b401-1fdee7fe4d1a.jsonl:51 (playground folder)
+        thinkingDurationMs: 1333,
+        // 70acab65-8467-404e-8848-e7478d987dba.jsonl:1401
+        toolInputStreamMs: 1600,
+        // 94093865-0449-5315-b401-1fdee7fe4d1a.jsonl:31 (playground folder)
+        wireIngestContext: { toolu_01Xq7RtLm4Zc9HbNw2KsVdEa: { cwd: "/Users/example/project" } },
+        // 8f9bc86c-c7fc-5521-bdca-8a74c3d0f483.jsonl:32 (playground folder; same-shape stand-in for the command text)
+        wireToolInputs: { toolu_01Pj8WsDy3Fg6TnQc5MvBhUr: { command: "ls", description: "List files" } },
     },
     [RecordType.user]: {
         // cb96ea5f…/subagents/agent-ad5fe73d9db452bf5.jsonl:1

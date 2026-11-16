@@ -30,6 +30,36 @@ export const ALLOWED_TOP_LEVEL_KEYS: Record<RecordType, ReadonlySet<string>> = {
     "agentId", "attributionAgent", "isApiErrorMessage", "error", "apiErrorStatus",
     // reasoning-effort level on assistant turns (s87 capture, 2026-07-17).
     "effort",
+    // newer-CC key, evidence 2026-11-05
+    "advisorModel",
+    // newer-CC key, evidence 2026-11-05
+    "apiBlockIndex",
+    // newer-CC key, evidence 2026-11-05
+    "apiError",
+    // newer-CC key, evidence 2026-10-27
+    "isAbortedMidStream",
+    // newer-CC key, evidence 2026-11-05
+    "perTurnEffort",
+    // newer-CC key, evidence 2026-11-05
+    "promptCacheRequested",
+    // newer-CC key, evidence 2026-11-02
+    "requestedModel",
+    // newer-CC key, evidence 2026-11-05
+    "requestRef",
+    // newer-CC key, evidence 2026-11-03
+    "serverClassifierRequest",
+    // newer-CC key, evidence 2026-11-05
+    "streamCutCause",
+    // newer-CC key, evidence 2026-11-05
+    "thinkingDisplay",
+    // newer-CC key, evidence 2026-11-02
+    "thinkingDurationMs",
+    // newer-CC key, evidence 2026-11-06
+    "toolInputStreamMs",
+    // newer-CC key, evidence 2026-11-02
+    "wireIngestContext",
+    // newer-CC key, evidence 2026-11-02
+    "wireToolInputs",
   ),
   [RecordType.attachment]: buildKeySet(
     ENVELOPE_KEYS, "attachment",
