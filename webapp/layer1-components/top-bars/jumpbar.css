@@ -4,7 +4,7 @@
   .jumpToRowComponent { display: flex; align-items: center; gap: 6px; flex-basis: 100%; }
   .jumpToRowComponent .lbl { font-size: 11.5px; color: var(--muted); margin-right: 4px; }
   .jumpToRowComponent button { padding: 3px 8px; }
-  .jumpToRowComponent [data-component="FindBox"] { position: relative; }
+  .jumpToRowComponent [data-component="jumpToRowFindBox"] { position: relative; }
   .find-results { position: absolute; top: 100%; left: 0; z-index: 20; max-height: 240px; overflow-y: auto; background: var(--surface); border: 1px solid var(--muted); }
   .find-results:empty { display: none; }
   .find-suggestion { padding: 2px 8px; cursor: pointer; white-space: nowrap; font-size: 11.5px; }

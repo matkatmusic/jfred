@@ -166,7 +166,7 @@ function collectRenderedComponentNames(): string[] {
 
 const EXPECTED_BARS_NAMES = [
     "barsFileRow", "barsMark", "barsFilePath", "barsColLeft", "barsColMid", "barsColRight",
-    "FileReconstructionProgressBar", "ProjectLifetimeBar", "barsFill", "barsDotStrip", "BarDot",
+    "barsFileReconstructionProgressBar", "barsProjectLifetimeBar", "barsFill", "barsDotStrip", "barsDot",
     "barsHistoryBlock", "barsPlusSign", "barsMinusSign", "barsMovedAwaySign",
     "barsCutStripLeft", "barsCutStripMiddle", "barsCutStripRight", "barsCutBranchLine",
     "barsCutDottedLine", "barsCutCap", "barsCutHashLabel",

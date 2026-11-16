@@ -1,4 +1,4 @@
-// A long diff line wraps inside the DiffViewSections component instead of running off to the right.
+// A long diff line wraps inside the diffViewFileSection component instead of running off to the right.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";

@@ -103,7 +103,7 @@ A test (tests/glossary-matches-page.test.ts) fails when a page part has no row i
 |---|---|---|
 | headerPageTitle | layer1-components/top-bars/top-bars.html | Big title "Layer 1 View" |
 | headerCrumbReadout | layer1-components/top-bars/top-bars.html | Small count text beside the title |
-| TimeToggle | layer1-components/top-bars/top-bars.html | The "Time:" box with the two buttons |
+| headerTimeToggle | layer1-components/top-bars/top-bars.html | The "Time:" box with the two buttons |
 | headerTimeCommitterButton | layer1-components/top-bars/top-bars.html | "committer" button |
 | headerTimeAuthorButton | layer1-components/top-bars/top-bars.html | "author" button |
 | headerProjectSettingsButton | layer1-components/top-bars/top-bars.html | "project settings" button |
@@ -112,7 +112,7 @@ A test (tests/glossary-matches-page.test.ts) fails when a page part has no row i
 | headerClearResultsConfirmText | layer1-components/top-bars/top-bars.html | Question "Clear all saved results and compute everything again?" |
 | headerClearResultsYesButton | layer1-components/top-bars/top-bars.html | "Yes, clear" button |
 | headerClearResultsNoButton | layer1-components/top-bars/top-bars.html | "No" button next to "Yes, clear" |
-| ZoomBar | layer1-components/top-bars/top-bars.html | The "Zoom:" box with four controls |
+| headerZoomBar | layer1-components/top-bars/top-bars.html | The "Zoom:" box with four controls |
 | headerZoomOutButton | layer1-components/top-bars/top-bars.html | "−" button |
 | headerZoomLevelReadout | layer1-components/top-bars/top-bars.html | Zoom number, for example "100%" |
 | headerZoomInButton | layer1-components/top-bars/top-bars.html | "+" button |
@@ -130,11 +130,11 @@ A test (tests/glossary-matches-page.test.ts) fails when a page part has no row i
 | headerGitRepoInput | layer1-components/top-bars/top-bars.html | Text box for the git repo folder |
 | headerGitRepoOpenButton | layer1-components/top-bars/top-bars.html | "Open…" button by the git repo |
 | headerGitRepoFlagText | layer1-components/top-bars/top-bars.html | Green "✓ git repo" flag |
-| BranchPicker | layer1-components/top-bars/top-bars.html | The "Branch" label with its list |
+| headerBranchPicker | layer1-components/top-bars/top-bars.html | The "Branch" label with its list |
 | headerBranchSelect | layer1-components/top-bars/top-bars.html | Branch drop-down list |
 | headerBranchItem | layer1-refs.ts | One branch name inside the branch list |
 | headerBranchHeadItem | layer1-refs.ts | First choice "(branch head)" in the branch list |
-| CommitPicker | layer1-components/top-bars/top-bars.html | The "Commit" label with its list |
+| headerCommitPicker | layer1-components/top-bars/top-bars.html | The "Commit" label with its list |
 | headerCommitSelect | layer1-components/top-bars/top-bars.html | Commit drop-down list |
 | headerCommitItem | layer1-refs.ts | One commit line inside the commit list |
 | headerRefLabel | layer1-components/top-bars/top-bars.html | The "Ref" label with its box |
@@ -148,7 +148,7 @@ A test (tests/glossary-matches-page.test.ts) fails when a page part has no row i
 | jumpToRowComponent | layer1-components/top-bars/top-bars.html | The whole row that starts with "Jump to:" |
 | jumpToRowNoRepositoryMatchButton | layer1-components/top-bars/top-bars.html | "No repository match" button |
 | jumpToRowNoOnDiskMatchButton | layer1-components/top-bars/top-bars.html | "No on-disk match" button |
-| FindBox | layer1-components/top-bars/top-bars.html | The "Find bubble" label with its box and list |
+| jumpToRowFindBox | layer1-components/top-bars/top-bars.html | The "Find bubble" label with its box and list |
 | jumpToRowFindFileInput | layer1-components/top-bars/top-bars.html | Text box where you type a file name |
 | jumpToRowFindResultsList | layer1-components/top-bars/top-bars.html | Drop-down list of matching files |
 | jumpToRowFindSuggestionItem | layer1-components/top-bars/layer1-find-file.ts | One file path in that drop-down list |
@@ -175,8 +175,8 @@ A test (tests/glossary-matches-page.test.ts) fails when a page part has no row i
 | fileNavFileRow | views/sidebar-file-leaf.ts | One file line in the tree |
 | fileNavRevisionCountReadout | views/sidebar-file-leaf.ts | Number in brackets after a file name |
 | fileNavRenameBadgeText | views/sidebar-file-leaf.ts | Small rename badge on a file line |
-| NavPaneGrip | layer1-components/file-nav/file-nav.html | Thin bar between File Nav and JSONLs; drag it to change heights |
-| FileNavGrip | layer1-components/file-nav/filenav-grip.html | Thin bar at the right of the left panes; drag it to change width |
+| fileNavHeightResizeGrip | layer1-components/file-nav/file-nav.html | Thin bar between File Nav and JSONLs; drag it to change heights |
+| fileNavWidthResizeGrip | layer1-components/file-nav/filenav-grip.html | Thin bar at the right of the left panes; drag it to change width |
 | jsonlsComponent | layer1-components/jsonls-nav/jsonls-nav.html | Left lower pane "JSONLs" |
 | jsonlsPaneTitle | layer1-components/jsonls-nav/jsonls-nav.html | Title strip "JSONLs" |
 | jsonlsAllSessionsButton | layer1-components/jsonls-nav/jsonls-nav.html | "All sessions" button |
@@ -212,7 +212,7 @@ A test (tests/glossary-matches-page.test.ts) fails when a page part has no row i
 
 | Name | File | What you see |
 |---|---|---|
-| LoadProgressBar | layer1-components/loading-bar/loading-bar.html | The whole bar above the timeline while it loads |
+| loadBarComponent | layer1-components/loading-bar/loading-bar.html | The whole bar above the timeline while it loads |
 | loadBarTrackBar | layer1-components/loading-bar/loading-bar.html | Empty track |
 | loadBarFillBar | layer1-components/loading-bar/loading-bar.html | Filled part of the track |
 | loadBarLabelText | layer1-components/loading-bar/loading-bar.html | Progress words |
@@ -267,7 +267,7 @@ A test (tests/glossary-matches-page.test.ts) fails when a page part has no row i
 | commitsPendingCommitButton | layer1-components/commits-column/layer1-jfred-drawer.ts | "Commit" button |
 | commitsMessageText | layer1-components/commits-column/layer1-jfred-drawer.ts | Commit message text |
 | commitsPatchText | layer1-components/commits-column/layer1-jfred-patch.ts | Patch text under a commit message |
-| CommitMode | layer1-components/commits-column/commits-column.html | "Commit mode" button |
+| commitsModeButton | layer1-components/commits-column/commits-column.html | "Commit mode" button |
 
 ### Minimap
 
@@ -284,11 +284,11 @@ A test (tests/glossary-matches-page.test.ts) fails when a page part has no row i
 
 | Name | File | What you see |
 |---|---|---|
-| Bubbles | layer1-pair-widget.ts | One file bubble (column) |
+| bubbleFileBox | layer1-pair-widget.ts | One file bubble (column) |
 | bubbleFileNameText | layer1-pair-widget.ts | File name at the top of a bubble |
 | bubbleCommitCountText | layer1-pair-widget.ts | Text such as "3 commits · on disk" |
 | bubbleCreationUntrustedText | layer1-pair-widget.ts | Text "creation time not trusted" |
-| Lanes | layer1-pair-widget.ts | Vertical time lane inside a bubble |
+| bubbleLane | layer1-pair-widget.ts | Vertical time lane inside a bubble |
 | bubbleLaneRail | layer1-pair-widget.ts | Thin line of that lane |
 | bubbleCreatedNode | layer1-pair-widget.ts | Dot for the file creation time |
 | bubbleCreatedNodeLabel | layer1-pair-widget.ts | Text "created at" |
@@ -370,7 +370,7 @@ A test (tests/glossary-matches-page.test.ts) fails when a page part has no row i
 
 | Name | File | What you see |
 |---|---|---|
-| DiffViewSections | layer1-components/details-drawer/layer1-diff-view.ts | One fold-open section for one file |
+| diffViewFileSection | layer1-components/details-drawer/layer1-diff-view.ts | One fold-open section for one file |
 | diffViewFileHeader | layer1-components/details-drawer/layer1-diff-view.ts | Header strip of a changed file |
 | diffViewFilePathText | layer1-components/details-drawer/layer1-diff-view.ts | File name in a section header |
 | diffViewDeletedFileHeader | layer1-components/details-drawer/layer1-diff-view.ts | Header strip of a deleted file |
@@ -434,7 +434,7 @@ A test (tests/glossary-matches-page.test.ts) fails when a page part has no row i
 
 | Name | File | What you see |
 |---|---|---|
-| JsonlSourcePickers | layer1-components/popups/popups.html | Dark screen behind the source folder dialog |
+| pathPickerJsonlSourcesComponent | layer1-components/popups/popups.html | Dark screen behind the source folder dialog |
 | pathPickerPopup | layer1-components/popups/popups.html | The source folder dialog |
 | pathPickerTitle | layer1-components/popups/popups.html | Title of that dialog |
 | pathPickerFolderList | layer1-components/popups/popups.html | List of folders |
@@ -524,14 +524,14 @@ A test (tests/glossary-matches-page.test.ts) fails when a page part has no row i
 | barsColRight | layer1-components/bars-view/layer1-bars-row.ts | Right column of a row: step text |
 | barsMark | layer1-components/bars-view/layer1-bars-row.ts | Small mark: waiting, running or done |
 | barsFilePath | layer1-components/bars-view/layer1-bars-row.ts | File path text; click opens the file details |
-| ProjectLifetimeBar | layer1-components/bars-view/layer1-bars-row.ts | The bar of one file over the project lifetime |
-| FileReconstructionProgressBar | layer1-components/bars-view/layer1-bars-row.ts | Progress bar of one file while the history loads |
+| barsProjectLifetimeBar | layer1-components/bars-view/layer1-bars-row.ts | The bar of one file over the project lifetime |
+| barsFileReconstructionProgressBar | layer1-components/bars-view/layer1-bars-row.ts | Progress bar of one file while the history loads |
 | barsFill | layer1-components/bars-view/layer1-bars-row.ts | Grey fill up to the selected ruler row |
 | barsPlusSign | layer1-components/bars-view/layer1-bars-row.ts | Plus sign before a file that was created |
 | barsMinusSign | layer1-components/bars-view/layer1-bars-row.ts | Minus sign for a deleted file |
 | barsMovedAwaySign | layer1-components/bars-view/layer1-bars-row.ts | Arrow for a file that moved away |
 | barsDotStrip | layer1-components/bars-view/layer1-bars-row.ts | Strip of event dots under the bar |
-| BarDot | layer1-components/bars-view/layer1-bars-row.ts | One event dot; click opens the details pane |
+| barsDot | layer1-components/bars-view/layer1-bars-row.ts | One event dot; click opens the details pane |
 | barsHistoryBlock | layer1-components/bars-view/layer1-bars-row.ts | Coloured chunk of change history |
 | barsTargetLine | layer1-components/bars-view/layer1-bars-rowlist.ts | One vertical line across all bars at the selected ruler row (#barsTargetLine) |
 | barsFoldLine | layer1-components/bars-view/layer1-bars-rowlist.ts | Line "N files with no change since this row" |

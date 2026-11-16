@@ -6,7 +6,7 @@
     <!--
       Task 282: committer vs author placement; flipping re-loads the view, each button's id suffix is the ?time= value.
     -->
-    <div class="timebar" data-component="TimeToggle">
+    <div class="timebar" data-component="headerTimeToggle">
       <span class="lbl">Time:</span>
       <button id="time-committer" class="current" data-component="headerTimeCommitterButton">committer</button>
       <button id="time-author" data-component="headerTimeAuthorButton">author</button>
@@ -27,7 +27,7 @@
     <span class="clear-results-confirm" id="clear-results-confirm" hidden data-component="headerClearResultsConfirmText">Clear all saved results and compute everything again?
       <button id="clear-results-yes" data-component="headerClearResultsYesButton">Yes, clear</button><button id="clear-results-no" data-component="headerClearResultsNoButton">No</button>
     </span>
-    <div class="zoombar" data-component="ZoomBar">
+    <div class="zoombar" data-component="headerZoomBar">
       <span class="lbl">Zoom:</span>
       <button id="zoom-out" title="Zoom out" data-component="headerZoomOutButton">−</button>
       <span class="zoom-level" id="zoom-level" data-component="headerZoomLevelReadout">100%</span>
@@ -66,8 +66,8 @@
         <input id="repo" type="text" size="34" value="" data-component="headerGitRepoInput">
         <button class="pick" data-for="repo" data-component="headerGitRepoOpenButton">Open…</button></label>
       <span class="repo-flag" data-component="headerGitRepoFlagText">✓ git repo</span>
-      <label class="repo-only" data-component="BranchPicker">Branch <select id="branch" data-component="headerBranchSelect"></select></label>
-      <label class="repo-only" data-component="CommitPicker">Commit <select id="commit" data-component="headerCommitSelect"></select></label>
+      <label class="repo-only" data-component="headerBranchPicker">Branch <select id="branch" data-component="headerBranchSelect"></select></label>
+      <label class="repo-only" data-component="headerCommitPicker">Commit <select id="commit" data-component="headerCommitSelect"></select></label>
       <label data-component="headerRefLabel">Ref <input id="ref" type="text" size="10" value="" placeholder="default branch" data-component="headerRefInput"></label>
       <button id="load" data-component="headerLoadButton">Load</button>
     </div>
@@ -78,7 +78,7 @@
       <span class="lbl">Jump to:</span>
       <button data-bucket="No repository match" title="Scroll to the on-disk files the repository does not have" data-component="jumpToRowNoRepositoryMatchButton">No repository match</button>
       <button data-bucket="No on-disk match" title="Scroll to the repository files that are not on disk" data-component="jumpToRowNoOnDiskMatchButton">No on-disk match</button>
-      <label data-component="FindBox">Find bubble
+      <label data-component="jumpToRowFindBox">Find bubble
         <input id="find-file" type="text" size="22" autocomplete="off" data-component="jumpToRowFindFileInput">
         <div id="find-file-results" class="find-results" data-component="jumpToRowFindResultsList"></div></label>
       <!--
