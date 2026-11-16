@@ -18,6 +18,15 @@ export interface VisualState {
 // The page has finished its ~10 s build and drawn bubbles.
 export const READY_EXPRESSION = "document.querySelectorAll('#fileBubbleContainer .filebox').length > 0";
 
+// The page boots in the Bars view, whose ruler swallows tick clicks; every state is driven and measured in the Bubbles view.
+const SWITCH_TO_BUBBLES_VIEW = `(() => {
+    const slider = document.getElementById('barsViewSliderInput');
+    if (slider === null) { return false; }
+    slider.value = '1';
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+})()`;
+
 // Click the folder row, not the expand triangle — the two are distinct targets (task 253).
 const CLICK_FIRST_FOLDER = `(() => {
     const summary = document.querySelector('#filenav-tree summary.file-folder-name');
@@ -95,7 +104,12 @@ async function waitUntilSettled(page: HeadlessPage, expression: string): Promise
 export const VISUAL_STATES: VisualState[] = [
   {
     name: "01-initial-load",
-    drive: async (page) => waitUntilSettled(page, READY_EXPRESSION),
+    // drive: async (page) => waitUntilSettled(page, READY_EXPRESSION),
+    drive: async (page) => {
+      await waitUntilSettled(page, READY_EXPRESSION);
+      await triggerClickInPage(page, SWITCH_TO_BUBBLES_VIEW, "Bars/Bubbles slider");
+      await waitUntilSettled(page, "document.getElementById('appWindow').classList.contains('barsViewOn') === false");
+    },
   },
   {
     name: "02-folder-filter",
