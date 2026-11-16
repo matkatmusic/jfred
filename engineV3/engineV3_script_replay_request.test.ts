@@ -84,3 +84,12 @@ test("test_buildScriptReplayRequest_keeps_the_exec_open_run_unchanged", () => {
     // the start folder of the request is still "/Users/example/proj".
     assert.equal(request.cwd, "/Users/example/proj");
 });
+
+test("test_buildScriptReplayRequest_throws_on_an_unsupported_command_line", () => {
+    // Scenario: a command line the replay cannot expand never gives a request.
+    // Steps:
+    // a python record ran the script "move.py" with the command "python3 move.py $(date)".
+    const record = makePythonRecord("move.py", "python3 move.py $(date)");
+    // building the request throws an error that says the line uses "$".
+    assert.throws(() => buildScriptReplayRequest(record, PROJECT_ROOT, NO_INPUTS, TIMEOUT_SECONDS), /uses \$/);
+});

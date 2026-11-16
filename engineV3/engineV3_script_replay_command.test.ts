@@ -202,6 +202,68 @@ test("test_parseInvokedCommand_python_startup_setting_is_unsupported", () => {
     assert.equal(result.kind, ParsedCommandKind.unsupported);
 });
 
+test("test_parseInvokedCommand_home_setting_is_unsupported", () => {
+    // Steps:
+    // parse a line that sets HOME.
+    const result = parseInvokedCommand("HOME=/x python3 script.py", SCRIPT_PATH);
+    // the line is unsupported, and the reason names HOME.
+    assert.equal(result.kind, ParsedCommandKind.unsupported);
+    assert.ok(getUnsupportedReason(result).includes("HOME"));
+});
+
+test("test_parseInvokedCommand_tmpdir_setting_is_unsupported", () => {
+    // Steps:
+    // parse a line that sets TMPDIR.
+    const result = parseInvokedCommand("TMPDIR=/x python3 script.py", SCRIPT_PATH);
+    // the line is unsupported, and the reason names TMPDIR.
+    assert.equal(result.kind, ParsedCommandKind.unsupported);
+    assert.ok(getUnsupportedReason(result).includes("TMPDIR"));
+});
+
+test("test_parseInvokedCommand_ld_preload_setting_is_unsupported", () => {
+    // Steps:
+    // parse a line that sets LD_PRELOAD.
+    const result = parseInvokedCommand("LD_PRELOAD=/x python3 script.py", SCRIPT_PATH);
+    // the line is unsupported, and the reason names LD_PRELOAD.
+    assert.equal(result.kind, ParsedCommandKind.unsupported);
+    assert.ok(getUnsupportedReason(result).includes("LD_PRELOAD"));
+});
+
+test("test_parseInvokedCommand_ld_library_path_setting_is_unsupported", () => {
+    // Steps:
+    // parse a line that sets LD_LIBRARY_PATH.
+    const result = parseInvokedCommand("LD_LIBRARY_PATH=/x python3 script.py", SCRIPT_PATH);
+    // the line is unsupported, and the reason names LD_LIBRARY_PATH.
+    assert.equal(result.kind, ParsedCommandKind.unsupported);
+    assert.ok(getUnsupportedReason(result).includes("LD_LIBRARY_PATH"));
+});
+
+test("test_parseInvokedCommand_pythonhome_setting_is_unsupported", () => {
+    // Steps:
+    // parse a line that sets PYTHONHOME.
+    const result = parseInvokedCommand("PYTHONHOME=/x python3 script.py", SCRIPT_PATH);
+    // the line is unsupported, and the reason names PYTHONHOME.
+    assert.equal(result.kind, ParsedCommandKind.unsupported);
+    assert.ok(getUnsupportedReason(result).includes("PYTHONHOME"));
+});
+
+test("test_parseInvokedCommand_env_setting_is_unsupported", () => {
+    // Steps:
+    // parse a line that sets ENV.
+    const result = parseInvokedCommand("ENV=/x python3 script.py", SCRIPT_PATH);
+    // the line is unsupported, and the reason names ENV.
+    assert.equal(result.kind, ParsedCommandKind.unsupported);
+    assert.ok(getUnsupportedReason(result).includes("ENV"));
+});
+
+test("test_parseInvokedCommand_unchecked_text_in_a_later_segment_stays_parsed", () => {
+    // Steps:
+    // parse a line whose script segment comes first and a backtick comes in a later segment.
+    const result = parseInvokedCommand("python3 script.py a; echo `date`", SCRIPT_PATH);
+    // the line stays parsed with the one word.
+    assert.deepEqual(result, makeParsed(["a"]));
+});
+
 test("test_parseInvokedCommand_empty_quoted_word_stays_a_word", () => {
     // Steps:
     // parse a line whose only word is an empty quoted string.
