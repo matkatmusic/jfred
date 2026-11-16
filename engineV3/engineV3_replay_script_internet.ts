@@ -19,7 +19,7 @@ const WHITESPACE_CHARACTERS = new Set([" ", "\t"]);
 const QUOTE_CHARACTERS = new Set(["'", "\""]);
 const DIGITS_ONLY = /^\d+$/;
 const STREAM_NUMBER_CHARACTERS = /^[\d-]$/;
-const ENVIRONMENT_ASSIGNMENT = /^[A-Za-z_]\w*=/;
+export const ENVIRONMENT_ASSIGNMENT = /^[A-Za-z_]\w*=/;
 const URL_HOST = /[A-Za-z][A-Za-z0-9+.-]*:\/\/(\[[^\]]*\]|[^/:?#\s]*)/g;
 const DISCARD_FILE = "/dev/null";
 
