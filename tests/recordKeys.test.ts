@@ -25,27 +25,27 @@ const OBSERVED_REAL_SESSION_FIELD_SAMPLES: Record<string, Record<string, unknown
         apiErrorStatus: 429,
         // scenarios/executed/s87-demo-composite/1b61dfe4….jsonl:24 (reasoning-effort level)
         effort: "high",
-        // 2b1644e3…/subagents/agent-a30d93510c209e336.jsonl:20
+        // agent-a30d93510c209e336.jsonl:20
         advisorModel: "claude-fable-5-1",
-        // 2b1644e3…/subagents/agent-a30d93510c209e336.jsonl:20
+        // agent-a30d93510c209e336.jsonl:20
         apiBlockIndex: 0,
-        // 70acab65…/subagents/agent-aefcad428a13e0a09.jsonl:130
+        // agent-aefcad428a13e0a09.jsonl:130
         apiError: "connection_failed",
         // 7d31cfda-fb91-4f61-ba61-7031cb5484e2.jsonl:716
         isAbortedMidStream: true,
-        // 2b1644e3…/subagents/agent-a30d93510c209e336.jsonl:20
+        // agent-a30d93510c209e336.jsonl:20
         perTurnEffort: "high",
-        // 2b1644e3…/subagents/agent-a30d93510c209e336.jsonl:20
+        // agent-a30d93510c209e336.jsonl:20
         promptCacheRequested: "5m",
-        // 94093865…/subagents/agent-ac498c2fcc17a9892.jsonl:16
+        // agent-ac498c2fcc17a9892.jsonl:16
         requestedModel: "claude-sonnet-5-5",
-        // 2b1644e3…/subagents/agent-a30d93510c209e336.jsonl:20
+        // agent-a30d93510c209e336.jsonl:20
         requestRef: "7c3d9a52-4e81-4b06-8f27-d5a1c0e93b64",
-        // 2fa36f95…/subagents/agent-a1b06c9dba139ae95.jsonl:20
+        // agent-a1b06c9dba139ae95.jsonl:20
         serverClassifierRequest: "9f4e2b17-6a30-4c58-b1d9-3e7a85c20f46",
-        // 70acab65…/subagents/agent-aefcad428a13e0a09.jsonl:130
+        // agent-aefcad428a13e0a09.jsonl:130
         streamCutCause: "stale_connection",
-        // 2b1644e3…/subagents/agent-a30d93510c209e336.jsonl:33
+        // agent-a30d93510c209e336.jsonl:33
         thinkingDisplay: "updates",
         // 94093865-0449-5315-b401-1fdee7fe4d1a.jsonl:51 (playground folder)
         thinkingDurationMs: 1333,
@@ -75,17 +75,17 @@ const OBSERVED_REAL_SESSION_FIELD_SAMPLES: Record<string, Record<string, unknown
         queuePriority: "later",
         // 8f9bc86c-c7fc-5521-bdca-8a74c3d0f483.jsonl:37 (playground folder)
         classifierBoundary: true,
-        // 8f9bc86c…/subagents/agent-a7b8a0ffc16008336.jsonl:249 (playground folder; stand-in counts)
+        // agent-a7b8a0ffc16008336.jsonl:249 (playground folder; stand-in counts)
         classifierMetaLines: "{\"meta\":{\"gitStatus\":{\"staged\":1,\"modified\":2,\"untracked\":3}}}\n",
         // 94093865-0449-5315-b401-1fdee7fe4d1a.jsonl:8 (playground folder)
         clientPlatform: "web_claude_ai",
-        // 8f9bc86c…/subagents/agent-a7b8a0ffc16008336.jsonl:261 (playground folder)
+        // agent-a7b8a0ffc16008336.jsonl:261 (playground folder)
         joinedNoticeLengths: [562],
-        // 8f9bc86c…/subagents/agent-a7b8a0ffc16008336.jsonl:261 (playground folder)
+        // agent-a7b8a0ffc16008336.jsonl:261 (playground folder)
         joinedNoticeOwn: [true],
-        // 8f9bc86c…/subagents/agent-a7b8a0ffc16008336.jsonl:261 (playground folder; stand-in run id)
+        // agent-a7b8a0ffc16008336.jsonl:261 (playground folder; stand-in run id)
         joinedNoticeRunIds: ["0abcdefgh-12345678"],
-        // 8f9bc86c…/subagents/agent-a5ea057b1a1e758ed.jsonl:19 (playground folder)
+        // agent-a5ea057b1a1e758ed.jsonl:19 (playground folder)
         permissionDecision: { decision: "accept", source: "config", reasonType: "classifier" },
         // 6e01d3f7-e389-41bb-ae21-a9da73263097.jsonl:268 (stand-in plugin name and text)
         pluginPrompt: { name: "stand-in-plugin", text: "stand-in text" },
@@ -97,9 +97,9 @@ const OBSERVED_REAL_SESSION_FIELD_SAMPLES: Record<string, Record<string, unknown
         queueSkipSlashCommands: true,
         // 6e01d3f7-e389-41bb-ae21-a9da73263097.jsonl:957
         queueTranscriptOnly: true,
-        // 2b1644e3…/subagents/agent-a30d93510c209e336.jsonl:26
+        // agent-a30d93510c209e336.jsonl:26
         sandboxed: false,
-        // 2b1644e3…/subagents/agent-a30d93510c209e336.jsonl:26 (stand-in uuid, path and branch)
+        // agent-a30d93510c209e336.jsonl:26 (stand-in uuid, path and branch)
         serverClassifierContext: { request: "11111111-2222-4333-8444-555555555555", context: { git_state: { cwd: "/Users/example/project", branch: "main" }, live_cwd: "/Users/example/project", platform: "darwin" } },
         // 94093865-0449-5315-b401-1fdee7fe4d1a.jsonl:8 (playground folder; stand-in uuid)
         turnAttributionKey: "66666666-7777-4888-8999-000000000000",
@@ -117,9 +117,9 @@ const OBSERVED_REAL_SESSION_FIELD_SAMPLES: Record<string, Record<string, unknown
         session_id: "9a9af9cb-d140-40b3-809c-30cc63c35923",
         // 85b520ce-b996-476c-90e2-02be4a08454d.jsonl:15
         sessionKind: "bg",
-        // 8f9bc86c…/subagents/agent-aa885f7b2bfbc7f84.jsonl:3 (playground folder)
+        // agent-aa885f7b2bfbc7f84.jsonl:3 (playground folder)
         rendered: [{ content: "<system-reminder>stand-in text</system-reminder>" }],
-        // 94093865-0449-5315-b401-1fdee7fe4d1a/subagents/agent-ac498c2fcc17a9892.jsonl:13 (playground folder)
+        // agent-ac498c2fcc17a9892.jsonl:13 (playground folder)
         renderedBesideToolResult: true,
         // 6e01d3f7-e389-41bb-ae21-a9da73263097.jsonl:250
         renderedInHumanTurn: [{ content: "<system-reminder>stand-in text</system-reminder>" }, { content: "stand-in text" }],
