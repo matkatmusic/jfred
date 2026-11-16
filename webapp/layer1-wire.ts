@@ -56,6 +56,8 @@ export interface WirePairOf<I, P, U> {
 export interface WireOrphanOf<I, P, U> extends WireInstantOf<I> {
   path: P;
   snapshots?: WireSnapshotOf<I, P, U>[];
+  // absent unless a run's scan or result named this path
+  scriptRuns?: WireScriptRunOf<I, P, U>[];
 }
 
 export interface WireLayer1ViewOf<I, P, U> {
