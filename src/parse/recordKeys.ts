@@ -148,6 +148,42 @@ export const ALLOWED_TOP_LEVEL_KEYS: Record<RecordType, ReadonlySet<string>> = {
     "imagePasteIds", "queuePriority",
     // Newer-CC marker: this tool result ends the assistant turn (audit 2026-07-31).
     "toolEndsTurn",
+    // newer-CC key, evidence 2026-11-02
+    "classifierBoundary",
+    // newer-CC key, evidence 2026-11-02
+    "classifierMetaLines",
+    // newer-CC key, evidence 2026-11-02
+    "clientPlatform",
+    // newer-CC key, evidence 2026-11-02
+    "joinedNoticeLengths",
+    // newer-CC key, evidence 2026-11-02
+    "joinedNoticeOwn",
+    // newer-CC key, evidence 2026-11-02
+    "joinedNoticeRunIds",
+    // newer-CC key, evidence 2026-11-02
+    "permissionDecision",
+    // newer-CC key, evidence 2026-11-03
+    "pluginPrompt",
+    // newer-CC key, evidence 2026-11-03
+    "promptRewritten",
+    // newer-CC key, evidence 2026-11-03
+    "queueSkipAttachments",
+    // newer-CC key, evidence 2026-10-27
+    "queueSkipSlashCommands",
+    // newer-CC key, evidence 2026-11-03
+    "queueTranscriptOnly",
+    // newer-CC key, evidence 2026-11-05
+    "sandboxed",
+    // newer-CC key, evidence 2026-11-05
+    "serverClassifierContext",
+    // newer-CC key, evidence 2026-11-02
+    "turnAttributionKey",
+    // newer-CC key, evidence 2026-11-03
+    "turnCompanion",
+    // newer-CC key, evidence 2026-10-28
+    "turnOrigin",
+    // newer-CC key, evidence 2026-11-03
+    "turnPosition",
   ),
 };
 

@@ -73,6 +73,42 @@ const OBSERVED_REAL_SESSION_FIELD_SAMPLES: Record<string, Record<string, unknown
         imagePasteIds: [1],
         // f7ad55b4-dab8-43df-a818-577dc514ea67.jsonl:746 (queued prompt)
         queuePriority: "later",
+        // 8f9bc86c-c7fc-5521-bdca-8a74c3d0f483.jsonl:37 (playground folder)
+        classifierBoundary: true,
+        // 8f9bc86c…/subagents/agent-a7b8a0ffc16008336.jsonl:249 (playground folder; stand-in counts)
+        classifierMetaLines: "{\"meta\":{\"gitStatus\":{\"staged\":1,\"modified\":2,\"untracked\":3}}}\n",
+        // 94093865-0449-5315-b401-1fdee7fe4d1a.jsonl:8 (playground folder)
+        clientPlatform: "web_claude_ai",
+        // 8f9bc86c…/subagents/agent-a7b8a0ffc16008336.jsonl:261 (playground folder)
+        joinedNoticeLengths: [562],
+        // 8f9bc86c…/subagents/agent-a7b8a0ffc16008336.jsonl:261 (playground folder)
+        joinedNoticeOwn: [true],
+        // 8f9bc86c…/subagents/agent-a7b8a0ffc16008336.jsonl:261 (playground folder; stand-in run id)
+        joinedNoticeRunIds: ["0abcdefgh-12345678"],
+        // 8f9bc86c…/subagents/agent-a5ea057b1a1e758ed.jsonl:19 (playground folder)
+        permissionDecision: { decision: "accept", source: "config", reasonType: "classifier" },
+        // 6e01d3f7-e389-41bb-ae21-a9da73263097.jsonl:268 (stand-in plugin name and text)
+        pluginPrompt: { name: "stand-in-plugin", text: "stand-in text" },
+        // 6e01d3f7-e389-41bb-ae21-a9da73263097.jsonl:268
+        promptRewritten: true,
+        // 6e01d3f7-e389-41bb-ae21-a9da73263097.jsonl:231
+        queueSkipAttachments: true,
+        // 9789f2d0-5506-4633-9117-f64471817355.jsonl:15
+        queueSkipSlashCommands: true,
+        // 6e01d3f7-e389-41bb-ae21-a9da73263097.jsonl:957
+        queueTranscriptOnly: true,
+        // 2b1644e3…/subagents/agent-a30d93510c209e336.jsonl:26
+        sandboxed: false,
+        // 2b1644e3…/subagents/agent-a30d93510c209e336.jsonl:26 (stand-in uuid, path and branch)
+        serverClassifierContext: { request: "11111111-2222-4333-8444-555555555555", context: { git_state: { cwd: "/Users/example/project", branch: "main" }, live_cwd: "/Users/example/project", platform: "darwin" } },
+        // 94093865-0449-5315-b401-1fdee7fe4d1a.jsonl:8 (playground folder; stand-in uuid)
+        turnAttributionKey: "66666666-7777-4888-8999-000000000000",
+        // 6e01d3f7-e389-41bb-ae21-a9da73263097.jsonl:25
+        turnCompanion: true,
+        // c5a578ce-9057-4d32-89d5-a25125e332b3.jsonl:14
+        turnOrigin: "human",
+        // 6e01d3f7-e389-41bb-ae21-a9da73263097.jsonl:14
+        turnPosition: { promptIndex: 1, turnIndex: 1 },
     },
     [RecordType.attachment]: {
         // cb96ea5f…/subagents/agent-ad5fe73d9db452bf5.jsonl:2
