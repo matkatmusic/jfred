@@ -95,7 +95,17 @@ export const ALLOWED_TOP_LEVEL_KEYS: Record<RecordType, ReadonlySet<string>> = {
   [RecordType.forkContextRef]: buildKeySet(
     ["type"], "agentId", "parentSessionId", "parentLastUuid", "contextLength",
   ),
-  [RecordType.lastPrompt]: buildKeySet(META_KEYS, "leafUuid", "lastPrompt"),
+  [RecordType.lastPrompt]: buildKeySet(
+    META_KEYS,
+    "leafUuid",
+    "lastPrompt",
+    // newer-CC key, evidence 2026-11-02
+    "cutUuid",
+    // newer-CC key, evidence 2026-11-02
+    "explicit",
+    // newer-CC key, evidence 2026-11-02
+    "rewound",
+  ),
   [RecordType.mode]: buildKeySet(META_KEYS, "mode"),
   [RecordType.permissionMode]: buildKeySet(META_KEYS, "permissionMode"),
   [RecordType.queueOperation]: buildKeySet(META_KEYS, "operation", "timestamp", "content"),
