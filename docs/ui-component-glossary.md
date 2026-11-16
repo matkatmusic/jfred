@@ -566,3 +566,32 @@ A test (tests/glossary-matches-page.test.ts) fails when a page part has no row i
 | timelineContainer | layer1-layout.ts | The scroll box of the timeline |
 | timelineRulerContainer | layer1-layout.ts | Left sticky box with minimap, ruler, session dots, commits drawer |
 | fileBubbleContainer | layer1-layout.ts | Main area with all file bubbles |
+
+### Layered page and debug page
+
+| Name | File | What you see |
+|---|---|---|
+| layeredHeader | index.html | Top bar of the layered page |
+| layeredDrawerToggleButton | index.html | "☰" button that folds the left drawer |
+| layeredNamesToggleButton | index.html | "names" button |
+| layeredTitleText | index.html | Title "JFRED — Layered Timeline" |
+| layeredClassicAppLink | index.html | Link "classic app" |
+| layeredApp | index.html | Box that holds the drawer, the timeline and the right side |
+| layeredDrawer | index.html | Left drawer with the session list and the file nav |
+| layeredSessionList | index.html | List of JSONL sessions |
+| layeredFileNav | index.html | File tree |
+| layeredTimeline | index.html | Middle part with the legend and the timeline |
+| layeredLegend | index.html | Row of colored marks and their meaning |
+| layeredTimelineScroll | index.html | Scroll box around the timeline |
+| layeredCanvas | index.html | Box the timeline is drawn in |
+| layeredRight | index.html | Right side with details and changes |
+| layeredDetails | index.html | Details of the picked node |
+| layeredChanges | index.html | List of changes (hidden until used) |
+| debugHeader | debug.html | Top bar of the debug page |
+| debugNamesToggleButton | debug.html | "names" button |
+| debugTitleText | debug.html | Title "JFRED — Per-file Debug Viewer" |
+| debugMainAppLink | debug.html | Link "main app" |
+| debugMain | debug.html | Main part of the debug page |
+| debugStatusText | debug.html | Status line |
+| debugFileList | debug.html | List of files |
+| debugLadder | debug.html | Numbered list of the picked file's steps |
