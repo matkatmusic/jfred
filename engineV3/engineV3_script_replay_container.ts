@@ -37,6 +37,8 @@ export type ScriptReplayRequest = {
     source: string;
     inputs: ScriptReplayInputFile[];
     timeoutSeconds: number;
+    commandWords: string[];
+    environmentSettings: Record<string, string>;
 };
 export type ScriptReplayChangedFile = { relativePath: string; changeKind: ScriptReplayChangeKind; text: string | null; isNotText: boolean };
 export type ScriptReplayResponse = { exitCode: number; timedOut: boolean; stdout: string; stderr: string; changedFiles: ScriptReplayChangedFile[]; missingExecutable: string | null };
@@ -50,6 +52,7 @@ const WRAPPER_FILE_NAME = "engineV3_script_replay_wrapper.py";
 const NO_PROGRAM_ERROR_CODE = "ENOENT";
 const DOCKER_FAILURE_STATUS = 125;
 const BACKSTOP_EXTRA_SECONDS = 10;
+const ENVIRONMENT_NAME = /^[A-Za-z_]\w*$/;
 
 export function checkDockerReadiness(): DockerReadiness {
     const versionResult = spawnSync("docker", ["version", "--format", "{{.Server.Version}}"], { timeout: DOCKER_CONTROL_TIMEOUT_MS });
@@ -79,6 +82,19 @@ function assertRequestIsSafe(storeFolder: Path, request: ScriptReplayRequest): v
         }
         if (input.relativePath.split("/").includes("..")) {
             throw new Error(`Input path holds a .. segment: ${input.relativePath}`);
+        }
+    }
+    for (const [name, value] of Object.entries(request.environmentSettings)) {
+        if (!ENVIRONMENT_NAME.test(name)) {
+            throw new Error(`setting name is not a name: ${name}`);
+        }
+        if (value.includes("\u0000")) {
+            throw new Error(`setting value holds a NUL character: ${name}`);
+        }
+    }
+    for (const word of request.commandWords) {
+        if (word.includes("\u0000")) {
+            throw new Error("command word holds a NUL character");
         }
     }
 }
