@@ -108,7 +108,18 @@ export const ALLOWED_TOP_LEVEL_KEYS: Record<RecordType, ReadonlySet<string>> = {
   ),
   [RecordType.mode]: buildKeySet(META_KEYS, "mode"),
   [RecordType.permissionMode]: buildKeySet(META_KEYS, "permissionMode"),
-  [RecordType.queueOperation]: buildKeySet(META_KEYS, "operation", "timestamp", "content"),
+  [RecordType.queueOperation]: buildKeySet(
+    META_KEYS,
+    "operation",
+    "timestamp",
+    "content",
+    // newer-CC key, evidence 2026-11-02
+    "commandUuid",
+    // newer-CC key, evidence 2026-11-02
+    "deliveryId",
+    // newer-CC key, evidence 2026-11-03
+    "reason",
+  ),
   [RecordType.system]: buildKeySet(
     ENVELOPE_KEYS,
     "subtype", "level", "content", "isMeta", "durationMs", "messageCount",

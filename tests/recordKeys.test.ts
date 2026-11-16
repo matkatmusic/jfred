@@ -122,6 +122,14 @@ const OBSERVED_REAL_SESSION_FIELD_SAMPLES: Record<string, Record<string, unknown
         // 8f9bc86c-c7fc-5521-bdca-8a74c3d0f483.jsonl:96
         rewound: true,
     },
+    [RecordType.queueOperation]: {
+        // 94093865-0449-5315-b401-1fdee7fe4d1a.jsonl:97 (playground folder; stand-in uuid)
+        commandUuid: "11111111-2222-4333-8444-555555555555",
+        // 8f9bc86c-c7fc-5521-bdca-8a74c3d0f483.jsonl:81 (playground folder; stand-in uuid)
+        deliveryId: "66666666-7777-4888-8999-000000000000",
+        // 6e01d3f7-e389-41bb-ae21-a9da73263097.jsonl:249
+        reason: "absorbed_mid_turn",
+    },
 };
 
 test("test_parseTranscriptLine_accepts_fields_observed_in_real_sessions", () => {
