@@ -12,7 +12,7 @@ type ParsedShellText = ParsedShellCommand & { end: number };
 // The commands inside a $( ) are read down to this depth of $( ) inside $( ).
 const MAXIMUM_SUBSTITUTION_DEPTH = 3;
 // Stands in a word for the output of a $( ), which is not known.
-const SUBSTITUTION_PLACEHOLDER = "$()";
+export const SUBSTITUTION_PLACEHOLDER = "$()";
 
 const SEGMENT_END_CHARACTERS = new Set([";", "|", "&", "(", ")", "\n"]);
 const WHITESPACE_CHARACTERS = new Set([" ", "\t"]);

@@ -1,6 +1,6 @@
 import { basename, isAbsolute, join } from "node:path";
 
-import { ENVIRONMENT_ASSIGNMENT, parseShellCommand, type ShellSegment } from "./engineV3_replay_script_internet.ts";
+import { ENVIRONMENT_ASSIGNMENT, parseShellCommand, SUBSTITUTION_PLACEHOLDER, type ShellSegment } from "./engineV3_replay_script_internet.ts";
 
 export enum ParsedCommandKind {
     parsed = "parsed",
@@ -13,8 +13,8 @@ export type ParsedInvokedCommand =
 
 const RUNNER_NAMES = new Set(["python3", "python", "bash", "sh"]);
 const REFUSED_SETTING_NAMES = new Set(["PATH", "HOME", "TMPDIR", "LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONHOME", "BASH_ENV", "ENV", "PYTHONSTARTUP"]);
-// Same text as SUBSTITUTION_PLACEHOLDER in engineV3_replay_script_internet.ts, which is not exported.
-const SUBSTITUTION_PLACEHOLDER = "$()";
+// Old local copy; SUBSTITUTION_PLACEHOLDER is now imported.
+// const SUBSTITUTION_PLACEHOLDER = "$()";
 
 // ponytail: a word with a glob character or ~ is passed as typed (parseShellCommand removes the quotes, so the cases cannot be told apart); options between runner and script never reach here.
 export function parseInvokedCommand(commandText: string, invokedScriptPath: string): ParsedInvokedCommand {
