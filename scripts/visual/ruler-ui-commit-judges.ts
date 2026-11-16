@@ -38,6 +38,7 @@ export function isIgnoredToggleRight(hidden: IgnoredState, shown: IgnoredState):
 export const isCommitOff = (f: { stripCount: number; cutTicks: number }) => f.stripCount === 0 && f.cutTicks === 0;
 export const isStripHeadRight = (f: StripFacts) => f.headText.includes("commits") && f.deleteCount === 1;
 export const isNoPopup = (h: HoverFacts) => !h.isVisible;
+export const isBasePopupRight = (h: HoverFacts) => h.isVisible && h.lines.length === 3 && h.lines[0] === "Base commit" && h.lines[1] === FIXTURE_BASE_HASH;
 export const isDrawerRight = (d: DrawerFacts) => d.isOpen && d.text.includes("jfred: reconstruct to");
 export function isStripPlaced(f: StripFacts, offStageLeft: number): boolean {
   const width = f.strip.right - f.strip.left;

@@ -95,6 +95,13 @@ test("test_commit_popup_starts_with_jfred_line_has_the_skipped_line_and_wraps_at
     assert.equal(commit.isNoPopup(POPUP), false);
 });
 
+test("test_base_popup_has_base_commit_the_base_hash_and_a_date", () => {
+    // Step: a visible popup with the label, the base hash and the date passes.
+    assert.equal(commit.isBasePopupRight({ ...POPUP, lines: ["Base commit", "a1b2c3d4", "06-01-2026:09:00"] }), true);
+    // Step: a hidden popup fails.
+    assert.equal(commit.isBasePopupRight({ ...POPUP, isVisible: false, lines: ["Base commit", "a1b2c3d4", "06-01-2026:09:00"] }), false);
+});
+
 test("test_drawer_is_open_with_the_commit_message", () => {
     // Step: an open drawer with the message passes; a closed one or another text fails.
     assert.equal(commit.isDrawerRight({ isOpen: true, text: "jfred: reconstruct to c0ffee02", hasButton: false }), true);

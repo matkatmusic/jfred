@@ -2,48 +2,49 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { getRequiredElementById } from "../webapp/app-dom.ts";
-import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
+// import { getRequiredElementById } from "../webapp/app-dom.ts";
+// import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { buildClampingPane, CONTENT_HEIGHT_PX, CONTENT_WIDTH_PX, initLayer1Dom, PANE_HEIGHT_PX, PANE_WIDTH_PX, readSlackPx } from "./webapp-dom-test-helpers.ts";
 
 initLayer1Dom();
 const { moveToUncoveredCentre } = await import("../webapp/layer1-components/top-bars/layer1-find-file.ts");
 
-const PANE_WIDTH_PX = 500;
-const PANE_HEIGHT_PX = 800;
-const CONTENT_WIDTH_PX = 5000;
-const CONTENT_HEIGHT_PX = 9000;
+// const PANE_WIDTH_PX = 500;
+// const PANE_HEIGHT_PX = 800;
+// const CONTENT_WIDTH_PX = 5000;
+// const CONTENT_HEIGHT_PX = 9000;
 const NODE_SIZE_PX = 15;
 
-function readSlackPx(pane: HTMLElement, side: string): number {
-  return parseFloat(pane.style.getPropertyValue(`--slack-${side}`)) || 0;
-}
-
-function clampScroll(pane: HTMLElement, wanted: number, contentPx: number, viewPx: number, startSide: string, endSide: string): number {
-  const maxScroll = contentPx + readSlackPx(pane, startSide) + readSlackPx(pane, endSide) - viewPx;
-  return Math.min(Math.max(wanted, 0), maxScroll);
-}
-
-// A pane that clamps scroll like a browser and shifts content by its start-side slack.
-function buildClampingPane(): HTMLElement {
-  const pane = getRequiredElementById("timelineContainer");
-  let scrollLeft = 0;
-  let scrollTop = 0;
-  Object.defineProperty(pane, "scrollLeft", {
-    get: () => scrollLeft,
-    set: (wanted: number) => { scrollLeft = clampScroll(pane, wanted, CONTENT_WIDTH_PX, PANE_WIDTH_PX, "left", "right"); },
-  });
-  Object.defineProperty(pane, "scrollTop", {
-    get: () => scrollTop,
-    set: (wanted: number) => { scrollTop = clampScroll(pane, wanted, CONTENT_HEIGHT_PX, PANE_HEIGHT_PX, "top", "bottom"); },
-  });
-  Object.defineProperty(pane, "scrollWidth", { get: () => CONTENT_WIDTH_PX + readSlackPx(pane, "left") + readSlackPx(pane, "right") });
-  Object.defineProperty(pane, "scrollHeight", { get: () => CONTENT_HEIGHT_PX + readSlackPx(pane, "top") + readSlackPx(pane, "bottom") });
-  Object.defineProperty(pane, "clientWidth", { get: () => PANE_WIDTH_PX });
-  Object.defineProperty(pane, "clientHeight", { get: () => PANE_HEIGHT_PX });
-  pane.getBoundingClientRect = () => ({ left: 0, right: PANE_WIDTH_PX, top: 0, bottom: PANE_HEIGHT_PX, width: PANE_WIDTH_PX, height: PANE_HEIGHT_PX }) as DOMRect;
-  getRequiredElementById("detailsPaneContainer").getBoundingClientRect = () => ({ left: PANE_WIDTH_PX, right: PANE_WIDTH_PX, top: 0, bottom: PANE_HEIGHT_PX, width: 0, height: PANE_HEIGHT_PX }) as DOMRect;
-  return pane;
-}
+// function readSlackPx(pane: HTMLElement, side: string): number {
+//   return parseFloat(pane.style.getPropertyValue(`--slack-${side}`)) || 0;
+// }
+//
+// function clampScroll(pane: HTMLElement, wanted: number, contentPx: number, viewPx: number, startSide: string, endSide: string): number {
+//   const maxScroll = contentPx + readSlackPx(pane, startSide) + readSlackPx(pane, endSide) - viewPx;
+//   return Math.min(Math.max(wanted, 0), maxScroll);
+// }
+//
+// // A pane that clamps scroll like a browser and shifts content by its start-side slack.
+// function buildClampingPane(): HTMLElement {
+//   const pane = getRequiredElementById("timelineContainer");
+//   let scrollLeft = 0;
+//   let scrollTop = 0;
+//   Object.defineProperty(pane, "scrollLeft", {
+//     get: () => scrollLeft,
+//     set: (wanted: number) => { scrollLeft = clampScroll(pane, wanted, CONTENT_WIDTH_PX, PANE_WIDTH_PX, "left", "right"); },
+//   });
+//   Object.defineProperty(pane, "scrollTop", {
+//     get: () => scrollTop,
+//     set: (wanted: number) => { scrollTop = clampScroll(pane, wanted, CONTENT_HEIGHT_PX, PANE_HEIGHT_PX, "top", "bottom"); },
+//   });
+//   Object.defineProperty(pane, "scrollWidth", { get: () => CONTENT_WIDTH_PX + readSlackPx(pane, "left") + readSlackPx(pane, "right") });
+//   Object.defineProperty(pane, "scrollHeight", { get: () => CONTENT_HEIGHT_PX + readSlackPx(pane, "top") + readSlackPx(pane, "bottom") });
+//   Object.defineProperty(pane, "clientWidth", { get: () => PANE_WIDTH_PX });
+//   Object.defineProperty(pane, "clientHeight", { get: () => PANE_HEIGHT_PX });
+//   pane.getBoundingClientRect = () => ({ left: 0, right: PANE_WIDTH_PX, top: 0, bottom: PANE_HEIGHT_PX, width: PANE_WIDTH_PX, height: PANE_HEIGHT_PX }) as DOMRect;
+//   getRequiredElementById("detailsPaneContainer").getBoundingClientRect = () => ({ left: PANE_WIDTH_PX, right: PANE_WIDTH_PX, top: 0, bottom: PANE_HEIGHT_PX, width: 0, height: PANE_HEIGHT_PX }) as DOMRect;
+//   return pane;
+// }
 
 function placeNodeAtContentPoint(pane: HTMLElement, contentX: number, contentY: number): HTMLElement {
   const node = document.createElement("i");

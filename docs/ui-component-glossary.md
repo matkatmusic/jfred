@@ -95,6 +95,7 @@ The minimap is the first child of `timelineRulerContainer`. It uses `position: f
 ## Every data-component name
 
 Turn the "names" button on, then hover any part of the page to see its name here. Copy gives the file and line.
+A test (tests/glossary-matches-page.test.ts) fails when a page part has no row in this section.
 
 ### Header row
 
@@ -102,7 +103,7 @@ Turn the "names" button on, then hover any part of the page to see its name here
 |---|---|---|
 | headerPageTitle | layer1-components/top-bars/top-bars.html | Big title "Layer 1 View" |
 | headerCrumbReadout | layer1-components/top-bars/top-bars.html | Small count text beside the title |
-| TimeToggle | layer1-components/top-bars/top-bars.html | The "Time:" box with the two buttons |
+| headerTimeToggle | layer1-components/top-bars/top-bars.html | The "Time:" box with the two buttons |
 | headerTimeCommitterButton | layer1-components/top-bars/top-bars.html | "committer" button |
 | headerTimeAuthorButton | layer1-components/top-bars/top-bars.html | "author" button |
 | headerProjectSettingsButton | layer1-components/top-bars/top-bars.html | "project settings" button |
@@ -111,7 +112,7 @@ Turn the "names" button on, then hover any part of the page to see its name here
 | headerClearResultsConfirmText | layer1-components/top-bars/top-bars.html | Question "Clear all saved results and compute everything again?" |
 | headerClearResultsYesButton | layer1-components/top-bars/top-bars.html | "Yes, clear" button |
 | headerClearResultsNoButton | layer1-components/top-bars/top-bars.html | "No" button next to "Yes, clear" |
-| ZoomBar | layer1-components/top-bars/top-bars.html | The "Zoom:" box with four controls |
+| headerZoomBar | layer1-components/top-bars/top-bars.html | The "Zoom:" box with four controls |
 | headerZoomOutButton | layer1-components/top-bars/top-bars.html | "−" button |
 | headerZoomLevelReadout | layer1-components/top-bars/top-bars.html | Zoom number, for example "100%" |
 | headerZoomInButton | layer1-components/top-bars/top-bars.html | "+" button |
@@ -129,11 +130,11 @@ Turn the "names" button on, then hover any part of the page to see its name here
 | headerGitRepoInput | layer1-components/top-bars/top-bars.html | Text box for the git repo folder |
 | headerGitRepoOpenButton | layer1-components/top-bars/top-bars.html | "Open…" button by the git repo |
 | headerGitRepoFlagText | layer1-components/top-bars/top-bars.html | Green "✓ git repo" flag |
-| BranchPicker | layer1-components/top-bars/top-bars.html | The "Branch" label with its list |
+| headerBranchPicker | layer1-components/top-bars/top-bars.html | The "Branch" label with its list |
 | headerBranchSelect | layer1-components/top-bars/top-bars.html | Branch drop-down list |
 | headerBranchItem | layer1-refs.ts | One branch name inside the branch list |
 | headerBranchHeadItem | layer1-refs.ts | First choice "(branch head)" in the branch list |
-| CommitPicker | layer1-components/top-bars/top-bars.html | The "Commit" label with its list |
+| headerCommitPicker | layer1-components/top-bars/top-bars.html | The "Commit" label with its list |
 | headerCommitSelect | layer1-components/top-bars/top-bars.html | Commit drop-down list |
 | headerCommitItem | layer1-refs.ts | One commit line inside the commit list |
 | headerRefLabel | layer1-components/top-bars/top-bars.html | The "Ref" label with its box |
@@ -147,7 +148,7 @@ Turn the "names" button on, then hover any part of the page to see its name here
 | jumpToRowComponent | layer1-components/top-bars/top-bars.html | The whole row that starts with "Jump to:" |
 | jumpToRowNoRepositoryMatchButton | layer1-components/top-bars/top-bars.html | "No repository match" button |
 | jumpToRowNoOnDiskMatchButton | layer1-components/top-bars/top-bars.html | "No on-disk match" button |
-| FindBox | layer1-components/top-bars/top-bars.html | The "Find bubble" label with its box and list |
+| jumpToRowFindBox | layer1-components/top-bars/top-bars.html | The "Find bubble" label with its box and list |
 | jumpToRowFindFileInput | layer1-components/top-bars/top-bars.html | Text box where you type a file name |
 | jumpToRowFindResultsList | layer1-components/top-bars/top-bars.html | Drop-down list of matching files |
 | jumpToRowFindSuggestionItem | layer1-components/top-bars/layer1-find-file.ts | One file path in that drop-down list |
@@ -174,8 +175,8 @@ Turn the "names" button on, then hover any part of the page to see its name here
 | fileNavFileRow | views/sidebar-file-leaf.ts | One file line in the tree |
 | fileNavRevisionCountReadout | views/sidebar-file-leaf.ts | Number in brackets after a file name |
 | fileNavRenameBadgeText | views/sidebar-file-leaf.ts | Small rename badge on a file line |
-| NavPaneGrip | layer1-components/file-nav/file-nav.html | Thin bar between File Nav and JSONLs; drag it to change heights |
-| FileNavGrip | layer1-components/file-nav/filenav-grip.html | Thin bar at the right of the left panes; drag it to change width |
+| fileNavHeightResizeGrip | layer1-components/file-nav/file-nav.html | Thin bar between File Nav and JSONLs; drag it to change heights |
+| fileNavWidthResizeGrip | layer1-components/file-nav/filenav-grip.html | Thin bar at the right of the left panes; drag it to change width |
 | jsonlsComponent | layer1-components/jsonls-nav/jsonls-nav.html | Left lower pane "JSONLs" |
 | jsonlsPaneTitle | layer1-components/jsonls-nav/jsonls-nav.html | Title strip "JSONLs" |
 | jsonlsAllSessionsButton | layer1-components/jsonls-nav/jsonls-nav.html | "All sessions" button |
@@ -211,7 +212,7 @@ Turn the "names" button on, then hover any part of the page to see its name here
 
 | Name | File | What you see |
 |---|---|---|
-| LoadProgressBar | layer1-components/loading-bar/loading-bar.html | The whole bar above the timeline while it loads |
+| loadBarComponent | layer1-components/loading-bar/loading-bar.html | The whole bar above the timeline while it loads |
 | loadBarTrackBar | layer1-components/loading-bar/loading-bar.html | Empty track |
 | loadBarFillBar | layer1-components/loading-bar/loading-bar.html | Filled part of the track |
 | loadBarLabelText | layer1-components/loading-bar/loading-bar.html | Progress words |
@@ -219,6 +220,10 @@ Turn the "names" button on, then hover any part of the page to see its name here
 | loadBarConfirmDialog | layer1-components/loading-bar/loading-bar.html | Question "Cancel this build?" |
 | loadBarConfirmYesButton | layer1-components/loading-bar/loading-bar.html | "Yes, cancel" button |
 | loadBarConfirmNoButton | layer1-components/loading-bar/loading-bar.html | "No" button in that question |
+| loadBarStepList | layer1-components/loading-bar/loading-bar.html | The list of loading steps under the load bar |
+| stepConsoleRow | layer1-components/loading-bar/layer1-step-console.ts | One step line in a step list |
+| stepConsoleLabelText | layer1-components/loading-bar/layer1-step-console.ts | Name of one step |
+| stepConsoleStatusText | layer1-components/loading-bar/layer1-step-console.ts | Status of one step: waiting, running or done |
 
 ### Ruler
 
@@ -245,6 +250,8 @@ Turn the "names" button on, then hover any part of the page to see its name here
 | sessionDotsLine | layer1-components/session-column/layer1-annotation-dots.ts | Line that joins two session dots |
 | sessionDotsBracket | layer1-components/session-column/layer1-annotation-dots.ts | Bracket that joins two session dots |
 | sessionDotsJsonText | layer1-components/session-column/layer1-annotation-click.ts | Raw JSON text in the details pane after a dot click |
+| sessionDotsConnector | layer1-components/session-column/layer1-annotation-dots.ts | Thin line from the lane centre to the farthest extra dot of one session line |
+| sessionLaneStrip | layer1-components/session-column/layer1-session-lane-strip.ts | Strip of lanes in the session column |
 
 ### Commits drawer
 
@@ -259,7 +266,8 @@ Turn the "names" button on, then hover any part of the page to see its name here
 | commitsHoverLine | layer1-components/commits-column/layer1-jfred-entries.ts | Horizontal line that shows when you point at a commit dot |
 | commitsPendingCommitButton | layer1-components/commits-column/layer1-jfred-drawer.ts | "Commit" button |
 | commitsMessageText | layer1-components/commits-column/layer1-jfred-drawer.ts | Commit message text |
-| CommitMode | layer1-components/commits-column/commits-column.html | "Commit mode" button |
+| commitsPatchText | layer1-components/commits-column/layer1-jfred-patch.ts | Patch text under a commit message |
+| commitsModeButton | layer1-components/commits-column/commits-column.html | "Commit mode" button |
 
 ### Minimap
 
@@ -276,11 +284,11 @@ Turn the "names" button on, then hover any part of the page to see its name here
 
 | Name | File | What you see |
 |---|---|---|
-| Bubbles | layer1-pair-widget.ts | One file bubble (column) |
+| bubbleFileBox | layer1-pair-widget.ts | One file bubble (column) |
 | bubbleFileNameText | layer1-pair-widget.ts | File name at the top of a bubble |
 | bubbleCommitCountText | layer1-pair-widget.ts | Text such as "3 commits · on disk" |
 | bubbleCreationUntrustedText | layer1-pair-widget.ts | Text "creation time not trusted" |
-| Lanes | layer1-pair-widget.ts | Vertical time lane inside a bubble |
+| bubbleLane | layer1-pair-widget.ts | Vertical time lane inside a bubble |
 | bubbleLaneRail | layer1-pair-widget.ts | Thin line of that lane |
 | bubbleCreatedNode | layer1-pair-widget.ts | Dot for the file creation time |
 | bubbleCreatedNodeLabel | layer1-pair-widget.ts | Text "created at" |
@@ -321,14 +329,15 @@ Turn the "names" button on, then hover any part of the page to see its name here
 | bubbleReverseLaneRail | layer1-components/bubbles/layer1-reverse-bubble.ts | Thin line of that lane |
 | bubbleReverseStateNode | layer1-components/bubbles/layer1-reverse-bubble.ts | Dot for one file state |
 | bubbleReverseStateText | layer1-components/bubbles/layer1-reverse-bubble.ts | Text beside that dot |
+| bubbleOrphanSnapshotDot | layer1-widgets.ts | Small dot for a snapshot on an orphan row |
 
 ### Timeline marks
 
 | Name | File | What you see |
 |---|---|---|
-| Leaders | layer1-components/bubbles/bubbles.html | Layer that holds all leader lines |
+| timelineLeadersContainer | layer1-components/bubbles/bubbles.html | Layer that holds all leader lines |
 | timelineLeaderBar | layer1-components/bubbles/layer1-stage-render.ts | One horizontal line from a ruler tick across the bubbles |
-| SessionRangeBar | layer1-components/bubbles/bubbles.html | Narrow strip at the left that holds the range bars |
+| timelineSessionRangesContainer | layer1-components/bubbles/bubbles.html | Narrow strip at the left that holds the range bars |
 | timelineSessionRangeBar | layer1-components/bubbles/layer1-ranges.ts | One thin range bar for a session |
 | timelineWash | layer1-components/bubbles/layer1-wash.ts | Soft coloured band behind the bubbles |
 | timelineWashEdgeLabel | layer1-components/bubbles/layer1-diff-wash.ts | Text "selected diff range base" or "target" on the ruler |
@@ -355,12 +364,13 @@ Turn the "names" button on, then hover any part of the page to see its name here
 | detailsPaneNodeRawJsonToggle | layer1-components/details-drawer/layer1-drawer-node-detail.ts | Switch that shows the raw JSON of a node |
 | detailsPaneRawJsonExpandButton | inspector-json.ts | Button that opens a long raw JSON text |
 | detailsPaneRawJsonText | inspector-json.ts | Raw JSON text block |
+| detailsPaneRawJsonFormatButton | layer1-components/details-drawer/layer1-drawer-node-detail.ts | 'format' button that shows a raw JSON value as code |
 
 ### Diff view
 
 | Name | File | What you see |
 |---|---|---|
-| DiffViewSections | layer1-components/details-drawer/layer1-diff-view.ts | One fold-open section for one file |
+| diffViewFileSection | layer1-components/details-drawer/layer1-diff-view.ts | One fold-open section for one file |
 | diffViewFileHeader | layer1-components/details-drawer/layer1-diff-view.ts | Header strip of a changed file |
 | diffViewFilePathText | layer1-components/details-drawer/layer1-diff-view.ts | File name in a section header |
 | diffViewDeletedFileHeader | layer1-components/details-drawer/layer1-diff-view.ts | Header strip of a deleted file |
@@ -424,7 +434,7 @@ Turn the "names" button on, then hover any part of the page to see its name here
 
 | Name | File | What you see |
 |---|---|---|
-| JsonlSourcePickers | layer1-components/popups/popups.html | Dark screen behind the source folder dialog |
+| pathPickerJsonlSourcesComponent | layer1-components/popups/popups.html | Dark screen behind the source folder dialog |
 | pathPickerPopup | layer1-components/popups/popups.html | The source folder dialog |
 | pathPickerTitle | layer1-components/popups/popups.html | Title of that dialog |
 | pathPickerFolderList | layer1-components/popups/popups.html | List of folders |
@@ -467,6 +477,15 @@ Turn the "names" button on, then hover any part of the page to see its name here
 | yesNoQuestionText | layer1-components/popups/layer1-yes-no-row.ts | The question |
 | yesNoYesButton | layer1-components/popups/layer1-yes-no-row.ts | Yes button |
 | yesNoNoButton | layer1-components/popups/layer1-yes-no-row.ts | No button |
+| busyShieldStepList | layer1-components/popups/busy-shield.html | The step list inside the busy card |
+| missingExecutablesPopup | layer1-components/popups/layer1-run-consent.ts | Screen behind the missing programs dialog |
+| missingExecutablesDialog | layer1-components/popups/layer1-run-consent.ts | The missing programs dialog |
+| missingExecutablesTitle | layer1-components/popups/layer1-run-consent.ts | Title "Programs missing from the script image" |
+| missingExecutableLineText | layer1-components/popups/layer1-run-consent.ts | One line naming a missing program or module |
+| missingExecutablesCloseButton | layer1-components/popups/layer1-run-consent.ts | "Close" button of the missing programs dialog |
+| runConsentProblemText | layer1-components/popups/layer1-run-consent.ts | Note that names the problem with a script run |
+| runConsentWaitingFilesText | layer1-components/popups/layer1-run-consent.ts | Line "waiting files: ..." under a script run |
+| runConsentEarlierScriptText | layer1-components/popups/layer1-run-consent.ts | Line "earlier script, needed as input" under a script run |
 
 ### engineV3 bar
 
@@ -505,14 +524,14 @@ Turn the "names" button on, then hover any part of the page to see its name here
 | barsColRight | layer1-components/bars-view/layer1-bars-row.ts | Right column of a row: step text |
 | barsMark | layer1-components/bars-view/layer1-bars-row.ts | Small mark: waiting, running or done |
 | barsFilePath | layer1-components/bars-view/layer1-bars-row.ts | File path text; click opens the file details |
-| ProjectLifetimeBar | layer1-components/bars-view/layer1-bars-row.ts | The bar of one file over the project lifetime |
-| FileReconstructionProgressBar | layer1-components/bars-view/layer1-bars-row.ts | Progress bar of one file while the history loads |
+| barsProjectLifetimeBar | layer1-components/bars-view/layer1-bars-row.ts | The bar of one file over the project lifetime |
+| barsFileReconstructionProgressBar | layer1-components/bars-view/layer1-bars-row.ts | Progress bar of one file while the history loads |
 | barsFill | layer1-components/bars-view/layer1-bars-row.ts | Grey fill up to the selected ruler row |
 | barsPlusSign | layer1-components/bars-view/layer1-bars-row.ts | Plus sign before a file that was created |
 | barsMinusSign | layer1-components/bars-view/layer1-bars-row.ts | Minus sign for a deleted file |
 | barsMovedAwaySign | layer1-components/bars-view/layer1-bars-row.ts | Arrow for a file that moved away |
 | barsDotStrip | layer1-components/bars-view/layer1-bars-row.ts | Strip of event dots under the bar |
-| BarDot | layer1-components/bars-view/layer1-bars-row.ts | One event dot; click opens the details pane |
+| barsDot | layer1-components/bars-view/layer1-bars-row.ts | One event dot; click opens the details pane |
 | barsHistoryBlock | layer1-components/bars-view/layer1-bars-row.ts | Coloured chunk of change history |
 | barsTargetLine | layer1-components/bars-view/layer1-bars-rowlist.ts | One vertical line across all bars at the selected ruler row (#barsTargetLine) |
 | barsFoldLine | layer1-components/bars-view/layer1-bars-rowlist.ts | Line "N files with no change since this row" |
@@ -532,6 +551,7 @@ Turn the "names" button on, then hover any part of the page to see its name here
 | barsCutBranchLabel | layer1-components/bars-view/layer1-bars-cut-strip.ts | Words "jfred branch" |
 | barsCutCommitButton | layer1-components/bars-view/layer1-bars-cut-strip.ts | "Commit" button, shown when a mark is pending |
 | barsCutHint | layer1-components/bars-view/layer1-bars-cut-strip.ts | Words "click scissors to mark" |
+| barsLogFileLine | layer1-components/bars-view/bars-view.html | Line with the name of the log file being read |
 
 ### Page boxes
 
@@ -546,3 +566,32 @@ Turn the "names" button on, then hover any part of the page to see its name here
 | timelineContainer | layer1-layout.ts | The scroll box of the timeline |
 | timelineRulerContainer | layer1-layout.ts | Left sticky box with minimap, ruler, session dots, commits drawer |
 | fileBubbleContainer | layer1-layout.ts | Main area with all file bubbles |
+
+### Layered page and debug page
+
+| Name | File | What you see |
+|---|---|---|
+| layeredHeader | index.html | Top bar of the layered page |
+| layeredDrawerToggleButton | index.html | "☰" button that folds the left drawer |
+| layeredNamesToggleButton | index.html | "names" button |
+| layeredTitleText | index.html | Title "JFRED — Layered Timeline" |
+| layeredClassicAppLink | index.html | Link "classic app" |
+| layeredApp | index.html | Box that holds the drawer, the timeline and the right side |
+| layeredDrawer | index.html | Left drawer with the session list and the file nav |
+| layeredSessionList | index.html | List of JSONL sessions |
+| layeredFileNav | index.html | File tree |
+| layeredTimeline | index.html | Middle part with the legend and the timeline |
+| layeredLegend | index.html | Row of colored marks and their meaning |
+| layeredTimelineScroll | index.html | Scroll box around the timeline |
+| layeredCanvas | index.html | Box the timeline is drawn in |
+| layeredRight | index.html | Right side with details and changes |
+| layeredDetails | index.html | Details of the picked node |
+| layeredChanges | index.html | List of changes (hidden until used) |
+| debugHeader | debug.html | Top bar of the debug page |
+| debugNamesToggleButton | debug.html | "names" button |
+| debugTitleText | debug.html | Title "JFRED — Per-file Debug Viewer" |
+| debugMainAppLink | debug.html | Link "main app" |
+| debugMain | debug.html | Main part of the debug page |
+| debugStatusText | debug.html | Status line |
+| debugFileList | debug.html | List of files |
+| debugLadder | debug.html | Numbered list of the picked file's steps |

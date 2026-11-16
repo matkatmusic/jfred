@@ -6,6 +6,7 @@ import type { BarsCutStripHandlers } from "../bars-view/layer1-bars-cut-strip.ts
 import { isBarsViewOn } from "../bars-view/layer1-bars-mode.ts";
 import { repaintCutMarks } from "./layer1-cut-paint.ts";
 import { openJfredMessage } from "./layer1-jfred-drawer.ts";
+import { appendJfredPatch } from "./layer1-jfred-patch.ts";
 import { buildJfredEntries, JfredEntryKind, listJfredEntries } from "./layer1-jfred-entries.ts";
 import { fetchScriptReplayNeeds, runScriptReplay, sendJfredCommit, sendJfredDelete } from "./layer1-jfred-api.ts";
 // import { commitPending, deleteJfredBranch, readJfredBranch } from "./layer1-jfred-state.ts";
@@ -24,9 +25,11 @@ import type { HoverPopupContent } from "../popups/layer1-hover-popup.ts";
 import { openMissingExecutablesNotice, openScriptReplayConsent } from "../popups/layer1-run-consent.ts";
 import { openYesNoQuestion } from "../popups/layer1-yes-no-row.ts";
 import { wrapTextAtColumns } from "../ruler/layer1-wrap-text.ts";
+import { formatInstantDisplay } from "../ruler/layer1-ruler-rows.ts";
 
 const STRIP_ID = "jfredCommitsDrawerComponent";
 const POPUP_COLUMNS = 50;
+const BASE_POPUP_LABEL = "Base commit";
 export const DELETE_QUESTION = "Delete the jfred branch? This removes every jfred commit from the list.";
 const MOVE_QUESTION_START = "This range changes no file, so no commit is made. Move the end mark to ";
 const NO_LATER_CHANGE_TEXT = "No commit: this range changes no file, and no later time changes a file.";
@@ -51,6 +54,10 @@ function openCommitMessage(shortHash: string): void {
   for (const commit of readJfredBranch().commits) {
     if (commit.shortHash === shortHash) {
       openJfredMessage(commit);
+      const isRealBranch = !readJfredBranch().isCanned;
+      if (isRealBranch) {
+        void appendJfredPatch(commit.shortHash).then(undefined, reportJfredFailure);
+      }
       return;
     }
   }
@@ -128,6 +135,10 @@ function applyServerCommit(commit: JfredCommit): void {
   renderJfredEntries();
   repaintCutMarks();
   openJfredMessage(commit);
+  const isRealBranch = !readJfredBranch().isCanned;
+  if (isRealBranch) {
+    void appendJfredPatch(commit.shortHash).then(undefined, reportJfredFailure);
+  }
 }
 
 function reportJfredFailure(error: unknown): never {
@@ -227,7 +238,8 @@ function findEntryMessage(element: HTMLElement): string {
   throw new Error(`no jfred entry for ${element.dataset["entryKind"]}`);
 }
 
-// The base has no message, so it gets no popup.
+// // The base has no message, so it gets no popup.
+// The base shows its label, short hash and date; a commit shows its message.
 function readEntryPopup(target: HTMLElement): HoverPopupContent | undefined {
   const element = target.closest<HTMLElement>("[data-entry-kind]");
   const hasNoEntry = element === null;
@@ -235,7 +247,8 @@ function readEntryPopup(target: HTMLElement): HoverPopupContent | undefined {
     return undefined;
   const isBase = element.dataset["entryKind"] === JfredEntryKind.base;
   if (isBase)
-    return undefined;
+    // return undefined;
+    return { lines: [BASE_POPUP_LABEL, element.dataset["shortHash"]!, formatInstantDisplay(element.dataset["instant"]!)] };
   return { lines: wrapTextAtColumns(findEntryMessage(element), POPUP_COLUMNS).split("\n") };
 }
 

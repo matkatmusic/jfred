@@ -2,6 +2,7 @@
 // ponytail: native CSS `zoom`, never `transform: scale()`: `zoom` shrinks the scrollable area, and it scales tick labels too.
 
 import { getRequiredElementById } from "../../app-dom.ts";
+import { placeEngineV3LineLeftEdge } from "../engine-v3/layer1-engine-v3-line.ts";
 
 // Zoom bounds and step: 1.25 per click, and 0.1 shrinks the 832-widget render to fit one screen.
 const ZOOM_STEP = 1.25;
@@ -23,6 +24,7 @@ export function applyZoom(requestedZoom: number): void {
   // Native `zoom` keeps the scroll position, so a lit bubble drifts off screen; re-anchor on it, as layer1-drawer.ts does.
   // ponytail: anchor is the selection only; with nothing lit, zoom pivots on the scroll origin. Upgrade: save pane centre.
   document.querySelector(".filebox.found")?.scrollIntoView({ block: "start", inline: "center" });
+  placeEngineV3LineLeftEdge();
 }
 
 // Wire the three buttons and set the opening level so the readout starts at 100%.

@@ -135,7 +135,7 @@ test("test_a_model_row_has_one_dot_per_dot_at_its_percent", () => {
     assert.equal(dots[1]?.style.left, "75%");
     assert.equal(dots[0]?.title, "commit  row1");
     assert.equal(dots[1]?.title, "disk now  row3");
-    assert.equal(dots[0]?.dataset.component, "BarDot");
+    assert.equal(dots[0]?.dataset.component, "barsDot");
     assert.equal(dots[0]?.parentElement?.className, "barsDotStrip");
 });
 

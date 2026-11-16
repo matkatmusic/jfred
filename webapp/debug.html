@@ -7,15 +7,25 @@
     <link rel="stylesheet" href="/app/layered-styles.css">
 </head>
 <body>
-    <header class="layered-header">
-        <h1 class="layered-title">JFRED — Per-file Debug Viewer</h1>
-        <a class="layered-old-link" href="/" title="The main layered timeline page">main app</a>
+    <!-- <header class="layered-header"> -->
+    <header class="layered-header" data-component="debugHeader">
+        <!-- <h1 class="layered-title">JFRED — Per-file Debug Viewer</h1> -->
+        <h1 class="layered-title" data-component="debugTitleText">JFRED — Per-file Debug Viewer</h1>
+        <!-- <a class="layered-old-link" href="/" title="The main layered timeline page">main app</a> -->
+        <a class="layered-old-link" data-component="debugMainAppLink" href="/" title="The main layered timeline page">main app</a>
+        <button class="layered-toolbar-btn" data-component-inspector-toggle data-component="debugNamesToggleButton" title="Show the name of each part under the pointer">names</button>
     </header>
-    <main>
-        <p id="debug-status"></p>
-        <div id="debug-file-list"></div>
-        <ol id="debug-ladder"></ol>
+    <!-- <main> -->
+    <main data-component="debugMain">
+        <!-- <p id="debug-status"></p> -->
+        <p id="debug-status" data-component="debugStatusText"></p>
+        <!-- <div id="debug-file-list"></div> -->
+        <div id="debug-file-list" data-component="debugFileList"></div>
+        <!-- <ol id="debug-ladder"></ol> -->
+        <ol id="debug-ladder" data-component="debugLadder"></ol>
     </main>
+    <div data-component-inspector-rows></div>
     <script type="module" src="/app/debug-app.js"></script>
+    <script type="module" src="/app/component-inspector/component-inspector.js"></script>
 </body>
 </html>

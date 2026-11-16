@@ -10,7 +10,7 @@ export type BarRowElements = {
     rowElement: HTMLElement;
     markElement: HTMLElement;
     pathElement: HTMLElement;
-    progressBarElement: HTMLElement;   // the FileReconstructionProgressBar
+    progressBarElement: HTMLElement;   // the barsFileReconstructionProgressBar
     fillElement: HTMLElement;
     // targetElement: HTMLElement | undefined;   // undefined on a stream row
     rightElement: HTMLElement;
@@ -26,11 +26,11 @@ function buildBarsFillDiv(): HTMLElement {
 }
 
 function buildFileReconstructionProgressBarDiv(): HTMLElement {
-    return buildDiv("FileReconstructionProgressBar", { "data-component": "FileReconstructionProgressBar" });
+    return buildDiv("FileReconstructionProgressBar", { "data-component": "barsFileReconstructionProgressBar" });
 }
 
 function buildProjectLifetimeBarDiv(): HTMLElement {
-    return buildDiv("ProjectLifetimeBar", { "data-component": "ProjectLifetimeBar" });
+    return buildDiv("ProjectLifetimeBar", { "data-component": "barsProjectLifetimeBar" });
 }
 
 function buildBarsColLeftDiv(): HTMLElement {
@@ -77,7 +77,7 @@ function buildBarDot(dot: BarDotModel, fileIndex: number, dotIndex: number, rule
     if (isPlaceholder) {
         className += " dotPlaceholder";
     }
-    const dotElement = buildDiv(className, { "data-component": "BarDot" });
+    const dotElement = buildDiv(className, { "data-component": "barsDot" });
     dotElement.style.left = computeBarPercent(dot.rowIndex, rulerRows.length) + "%";
     dotElement.title = BAR_DOT_LABELS[dot.kind] + "  " + formatRowText(rulerRows, dot.rowIndex);
     dotElement.dataset.fileIndex = String(fileIndex);

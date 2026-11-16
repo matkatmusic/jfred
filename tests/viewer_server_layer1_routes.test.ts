@@ -6,6 +6,7 @@ import { Readable } from "node:stream";
 import { test } from "node:test";
 import { enableFixtureMode } from "../src/viewer_api_layer1_fixture.ts";
 import { dispatchLayer1Route } from "../src/viewer_server_layer1_routes.ts";
+import { createJfredTempRepo } from "./jfred-write-test-helpers.ts";
 import { createTempDir } from "./overrides-test-helpers.ts";
 
 function dispatchGet(pathAndQuery: string): { handled: boolean; body: string } {
@@ -28,6 +29,13 @@ test("test_dispatch_routes_layer1_branches_to_the_real_handler", () => {
     const { handled, body } = dispatchGet(`/api/layer1-branches?dir=${encodeURIComponent(createTempDir())}`);
     assert.equal(handled, true);
     assert.deepEqual(JSON.parse(body), { pairs: [] });
+});
+
+test("test_dispatch_routes_layer1_jfred_patch_to_the_real_handler", () => {
+    const { repoDir, commitHashes } = createJfredTempRepo();
+    const { handled, body } = dispatchGet(`/api/layer1-jfred-patch?repo=${encodeURIComponent(repoDir)}&hash=${commitHashes[1]!.slice(0, 8)}`);
+    assert.equal(handled, true);
+    assert.match(body, /^\+second$/m);
 });
 
 test("test_dispatch_leaves_unknown_paths_unowned", () => {

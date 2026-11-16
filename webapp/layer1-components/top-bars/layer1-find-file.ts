@@ -29,7 +29,8 @@ export function markLandedElement(landed: HTMLElement): void {
   document.dispatchEvent(new window.CustomEvent(LANDED_EVENT, { detail: landed }));
 }
 
-function computeUncoveredArea(view: DOMRect, drawer: DOMRect): { left: number; right: number; top: number; bottom: number } {
+// function computeUncoveredArea(view: DOMRect, drawer: DOMRect): { left: number; right: number; top: number; bottom: number } {
+export function computeUncoveredArea(view: DOMRect, drawer: DOMRect): { left: number; right: number; top: number; bottom: number } {
   const area = { left: view.left, right: view.right, top: view.top, bottom: view.bottom };
   const isCovered = Math.min(view.right, drawer.right) > Math.max(view.left, drawer.left)
         && Math.min(view.bottom, drawer.bottom) > Math.max(view.top, drawer.top);

@@ -2,7 +2,8 @@
 
 import { createElement, getRequiredElementById } from "../../app-dom.ts";
 import { formatInstantLabel } from "../ruler/layer1-ruler-rows.ts";
-import { listVisibleSessions, selectedPaths } from "./layer1-sessions.ts";
+// import { listVisibleSessions, selectedPaths } from "./layer1-sessions.ts";
+import { listSessionPathsInView, listVisibleSessions, selectedPaths } from "./layer1-sessions.ts";
 import type { WireSession } from "../../layer1-wire.ts";
 
 // Plain click picks one; a re-click on the only pick clears; shift toggles just this one.
@@ -30,8 +31,10 @@ function buildSessionItem(session: WireSession, onChange: () => void): HTMLEleme
   const item = createElement("div", { class: `session-item${selectedPaths.has(session.fullPath) ? " selected" : ""}`, "data-component": "jsonlsSessionRow" }, [
     createElement("div", { class: "sname", "data-component": "jsonlsSessionFileNameText", text: session.file }),
     ...titleRows,
-    // The day, then how many project files this session touched.
-    createElement("div", { class: "smeta", "data-component": "jsonlsSessionMetaText", text: `${formatInstantLabel(session.started).slice(0, 11)} · ${session.paths.length} files` }),
+    // // The day, then how many project files this session touched.
+    // createElement("div", { class: "smeta", "data-component": "jsonlsSessionMetaText", text: `${formatInstantLabel(session.started).slice(0, 11)} · ${session.paths.length} files` }),
+    // The day, then how many of the session's files the drawn view shows (the bubbles a click on this row keeps).
+    createElement("div", { class: "smeta", "data-component": "jsonlsSessionMetaText", text: `${formatInstantLabel(session.started).slice(0, 11)} · ${listSessionPathsInView(session).length} files` }),
   ]);
   item.title = [...distinctTitles, `${formatInstantLabel(session.started)} → ${formatInstantLabel(session.ended)}`,
     ...session.paths].join("\n");

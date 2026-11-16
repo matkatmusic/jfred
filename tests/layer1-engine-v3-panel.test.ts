@@ -6,7 +6,8 @@ import { getRequiredElementById } from "../webapp/app-dom.ts";
 import { renderEngineV3LineAtTicks } from "../webapp/layer1-components/engine-v3/layer1-engine-v3-line.ts";
 import { loadEngineV3Steps } from "../webapp/layer1-components/engine-v3/layer1-engine-v3-panel.ts";
 import { EngineV3StepKind, type WireEngineV3Step } from "../webapp/layer1-components/engine-v3/layer1-wire-engine-v3.ts";
-import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
+// import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { buildClampingPane, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 
 const STEPS: WireEngineV3Step[] = [
     { nodeId: "aaaa1111", nodeTime: "2026-06-01T09:00:00Z", kind: EngineV3StepKind.commit, filesChanged: ["src/index.ts", "README.md"], sentence: "The first commit in the repo overwrites two files." },
@@ -44,7 +45,10 @@ function drawNodes(): void {
 async function openPanel(): Promise<void> {
     initLayer1Dom();
     installStepsFetch();
+    const detailsPane = getRequiredElementById("detailsPaneContainer");
     drawNodes();
+    // drawNodes empties the container the way a stage redraw does, so the details pane goes back in.
+    getRequiredElementById("fileBubbleContainer").append(detailsPane);
     await loadEngineV3Steps({ annotations: [] });
 }
 
@@ -80,7 +84,8 @@ function watchLineScrolls(): { scrolls: unknown[] } {
 }
 
 test("test_every_button_click_scrolls_the_line_into_view_when_it_is_off_screen", async () => {
-    // Steps: click each of the five buttons that is on, expect one scroll per click.
+    // // Steps: click each of the five buttons that is on, expect one scroll per click.
+    // Steps: click each of the five buttons that is on; the four step buttons scroll the line, the two commit jumps centre the node instead.
     await openPanel();
     const { scrolls } = watchLineScrolls();
     clickButton("Step forward");
@@ -89,7 +94,9 @@ test("test_every_button_click_scrolls_the_line_into_view_when_it_is_off_screen",
     clickButton("Jump to previous commit");
     clickButton("Step forward");
     clickButton("Start over");
-    assert.equal(scrolls.length, 6);
+    // assert.equal(scrolls.length, 6);
+    // Verify: the two commit jumps centre a node and do not scroll the line, so four clicks scroll it.
+    assert.equal(scrolls.length, 4);
 });
 
 test("test_a_node_click_scrolls_the_line_into_view_when_it_is_off_screen", async () => {
@@ -203,4 +210,40 @@ test("test_jump_to_next_commit_is_off_when_no_commit_comes_after_the_marker", as
     assert.equal(isButtonOff("Jump to next commit"), false);
     clickButton("Jump to next commit");
     assert.equal(isButtonOff("Jump to next commit"), true);
+});
+
+test("test_the_next_commit_button_centres_the_first_node_of_that_commit", async () => {
+    // Scenario: the marker is on the first commit; "Jump to next commit" moves to bbbb2222 and centres its first node.
+    // Steps: open the panel, put a clamping pane in place, give the first bbbb2222 node a far box, click the button.
+    await openPanel();
+    const pane = buildClampingPane();
+    const secondCommitNodes = document.querySelectorAll<HTMLElement>('i.node.n-commit[title="bbbb2222"]');
+    secondCommitNodes[0]!.getBoundingClientRect = () => ({ left: 900, right: 915, top: 700, bottom: 715, width: 15, height: 15 }) as DOMRect;
+    clickButton("Jump to next commit");
+    assert.equal(pane.scrollLeft, 657.5);
+    assert.equal(pane.scrollTop, 307.5);
+});
+
+test("test_the_previous_commit_button_centres_the_first_node_of_that_commit", async () => {
+    // Scenario: the marker jumps to bbbb2222, then "Jump to previous commit" returns to aaaa1111 and centres its first node.
+    // Steps: open the panel, put a clamping pane in place, jump to the next commit, reset the scroll to 0, give the first aaaa1111 node a far box, click the button.
+    await openPanel();
+    const pane = buildClampingPane();
+    clickButton("Jump to next commit");
+    pane.scrollLeft = 0;
+    pane.scrollTop = 0;
+    const firstCommitNodes = document.querySelectorAll<HTMLElement>('i.node.n-commit[title="aaaa1111"]');
+    firstCommitNodes[0]!.getBoundingClientRect = () => ({ left: 900, right: 915, top: 700, bottom: 715, width: 15, height: 15 }) as DOMRect;
+    clickButton("Jump to previous commit");
+    // Expect: the same box as the next-commit test, so the same scroll: 657.5 and 307.5.
+    assert.equal(pane.scrollLeft, 657.5);
+    assert.equal(pane.scrollTop, 307.5);
+});
+
+test("test_the_step_forward_button_does_not_scroll_side_to_side", async () => {
+    // Scenario: only the commit buttons centre a node; "Step forward" keeps the old line centering.
+    await openPanel();
+    const pane = buildClampingPane();
+    clickButton("Step forward");
+    assert.equal(pane.scrollLeft, 0);
 });

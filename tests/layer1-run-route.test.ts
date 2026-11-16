@@ -7,7 +7,7 @@ import { renderShowRowWithKindFilter } from "../webapp/layer1-components/show-ro
 import { clearNeedsCache, computeRunRoutes, runQueueState } from "../webapp/layer1-run-route.ts";
 import { getRunOutcome, isRunStarted, markRunStarted, resetRunResults, storeRunResult } from "../webapp/layer1-run-results.ts";
 import { WireConfidence } from "../webapp/layer1-wire-edits.ts";
-import { WireNeedState, WireRunOutcome, type WireNeededRun } from "../webapp/layer1-wire-script-results.ts";
+import { WireNeedState, WireRunOutcome, WireRunStreamKind, type WireNeededRun } from "../webapp/layer1-wire-script-results.ts";
 import type { WireScriptRun } from "../webapp/layer1-wire-script-runs.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { appendBlockedDot } from "./layer1-blocked-dot-test-helpers.ts";
@@ -152,6 +152,50 @@ test("test_computeRunRoutes_redraws_after_a_reset_need_before_routing_again", as
   assert.deepEqual(runQueueState.queue, []);
   assert.notEqual(readPopup(), null);
 });
+
+test("test_computeRunRoutes_a_needs_reply_asked_before_a_result_landed_does_not_reset_that_run", async () => {
+  // Scenario: run held-a is running while a route pass asks the needs of waiting-b. held-a finishes during that wait.
+  resetRouteState();
+  const view = drawView(buildView({ "x.ts": [buildRun("held-a", 1)], "b.ts": [buildRun("waiting-b", 5)] }));
+  markRunStarted("held-a");
+  runQueueState.runningId = "held-a";
+  // The first needs request is held open by hand and, when released, says held-a is unreplayed (old news).
+  const urls: string[] = [];
+  let releaseOldReply: () => void = () => {};
+  const oldReplyIsPending = new Promise<void>((resolve) => {
+    releaseOldReply = resolve;
+  });
+  const buildReply = (needs: WireNeededRun[]): Response => {
+    const payload = { toolUseId: "t", needs };
+    return { ok: true, status: 200, json: async () => payload, text: async () => JSON.stringify(payload) } as unknown as Response;
+  };
+  const readHeldThenFreshReply = async (url: unknown): Promise<Response> => {
+    urls.push(String(url));
+    const isFirstRequest = urls.length === 1;
+    if (isFirstRequest) {
+      await oldReplyIsPending;
+      return buildReply([buildNeed("held-a", 1)]);
+    }
+    return buildReply([]);
+  };
+  Object.assign(globalThis, { fetch: readHeldThenFreshReply });
+  // The route pass sends its request and waits.
+  const routing = computeRunRoutes(view, ["waiting-b", "held-a"]);
+  // held-a finishes while the request is pending: the queue stores the result, frees the runner, clears the cache.
+  runQueueState.runningId = undefined;
+  storeRunResult(view, { kind: WireRunStreamKind.result, toolUseId: "held-a", outcome: WireRunOutcome.replayed, files: [], stdout: "", stderr: "", timedOut: false, isOutputSaved: true });
+  clearNeedsCache();
+  // The old reply arrives after the result.
+  releaseOldReply();
+  await routing;
+  // held-a keeps its result and its started mark.
+  assert.equal(getRunOutcome("held-a"), WireRunOutcome.replayed);
+  assert.equal(isRunStarted("held-a"), true);
+  // The old reply was dropped and asked again; held-a is not queued, only waiting-b is.
+  assert.equal(urls.length, 2);
+  assert.deepEqual(listQueuedIds(), ["waiting-b"]);
+});
+
 test("test_clearNeedsCache_forces_a_new_needs_request", async () => {
   // Verify: a second walk reads the cache; after the clear it asks the server again.
   resetRouteState();

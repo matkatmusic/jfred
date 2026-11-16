@@ -9,6 +9,7 @@ import { sendLayer1InverseReposResponse } from "./viewer_api_layer1_inverse_repo
 import { sendLayer1InverseDiffResponse, sendLayer1InverseStateResponse } from "./viewer_api_layer1_inverse_state.ts";
 import { sendLayer1Record } from "./viewer_api_layer1_record.ts";
 import { sendLayer1RefsResponse } from "./viewer_api_layer1_refs.ts";
+import { sendLayer1JfredPatchResponse } from "./viewer_api_layer1_jfred_patch.ts";
 import { receiveJfredCommit, receiveJfredDelete } from "./viewer_api_layer1_jfred_route.ts";
 import { sendLayer1ViewResponse } from "./viewer_api_layer1_route.ts";
 import { sendClearResultsResponse } from "./viewer_api_clear_results.ts";
@@ -46,6 +47,7 @@ const LAYER1_ROUTES = new Map<string, Layer1RouteHandler>([
   ["/api/layer1-clear-results", (request, response) => sendClearResultsResponse(request, response)],
   ["/api/layer1-jfred-commit", (request, response, url) => receiveJfredCommit(request, response, url)],
   ["/api/layer1-jfred-delete", (request, response, url) => receiveJfredDelete(request, response, url)],
+  ["/api/layer1-jfred-patch", (_request, response, url) => sendLayer1JfredPatchResponse(response, url.searchParams)],
   ["/api/layer1-view", (_request, response, url) => sendLayer1ViewResponse(response, url.searchParams)],
   ["/api/layer1-refs", (_request, response, url) => sendLayer1RefsResponse(response, url.searchParams)],
   ["/api/layer1-sessions", (_request, response, url) => sendLayer1SessionsResponse(response, url.searchParams)],
