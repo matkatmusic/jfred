@@ -77,6 +77,30 @@ test("a wrapped commit row is reported, a single-line one is not", () => {
     assert.equal(found[0]!.rule, "wrapped-commit-row");
 });
 
+test("test_a_one_line_label_made_17px_tall_by_an_emoji_at_a_10px_font_is_not_reported", () => {
+    // Scenario: the camera version label is one line, but its emoji makes the line box 17px.
+    // Step: build one label, 17px tall, with lineHeight 10 (what the probe measures).
+    const cameraLabel = geometry({
+        labels: [measured("nlabel", { x: 0, y: 0, w: 37, h: 17 }, { lineHeight: 10, text: "@v1 📸" })],
+    });
+    // Step: run the rule.
+    // Expect: no violation. RED at the limit 16 (10 x 1.6).
+    assert.equal(findTextOverflow(cameraLabel).length, 0);
+});
+
+test("test_a_label_that_is_22px_tall_at_a_10px_font_is_still_reported_as_wrapped", () => {
+    // Scenario: a real second line is about 22px at a 10px font.
+    // Step: build one label, 22px tall, with lineHeight 10.
+    const twoLineLabel = geometry({
+        labels: [measured("nlabel", { x: 0, y: 0, w: 48, h: 22 }, { lineHeight: 10, text: "0f2a91cc" })],
+    });
+    // Step: run the rule.
+    // Expect: one wrapped-commit-row violation. Green before and after the change.
+    const found = findTextOverflow(twoLineLabel);
+    assert.equal(found.length, 1);
+    assert.equal(found[0]!.rule, "wrapped-commit-row");
+});
+
 test("a commit row that runs past its bubble onto a neighbour is reported", () => {
     const view = geometry({
         fileboxes: [
