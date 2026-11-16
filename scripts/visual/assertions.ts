@@ -5,7 +5,9 @@ import { findBucketTitleLabels } from "./bucket-title-assertions.ts";
 import { formatMeasured, isOverlapping, type Violation } from "./violation-geometry.ts";
 
 // 1.6x clears line-height rounding without reaching a genuine second line.
-const WRAP_HEIGHT_RATIO = 1.6;
+// const WRAP_HEIGHT_RATIO = 1.6;
+// 2.0x also clears the one-line camera label (17px at a 10px font, emoji line box); a real second line is about 22px.
+const WRAP_HEIGHT_RATIO = 2.0;
 
 function compareByLeftEdge(left: Measured, right: Measured): number {
   return left.box.x - right.box.x;
