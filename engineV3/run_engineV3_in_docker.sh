@@ -27,6 +27,9 @@ trap 'docker rm -f "$NAME" >/dev/null' EXIT
 
 docker exec "$NAME" mkdir -p /input/jfred "$REPO_FOLDER"
 docker exec "$NAME" chown replay "$REPO_FOLDER"
+# The engine writes the Mac temp files that hooks saved (block-parent-edits) under the Mac temp folder /var/folders/<..>/T.
+docker exec "$NAME" mkdir -p /var/folders
+docker exec "$NAME" chown replay /var/folders
 CHECK_FOLDER=/Users/matkatmusicllc/Programming/typesafe-playground-check
 docker exec "$NAME" mkdir -p "$CHECK_FOLDER"
 docker exec "$NAME" chown replay "$CHECK_FOLDER"
@@ -49,6 +52,11 @@ done
 docker cp "$REPO_FOLDER/.git" "$NAME:/input/repo.git"
 for JSONL_FOLDER in "$@"; do
     docker cp "$JSONL_FOLDER" "$NAME:$(dirname "$JSONL_FOLDER")/"
+done
+for JSONL_FOLDER in "$@"; do
+    if [ -d "$JSONL_FOLDER/memory" ]; then
+        docker exec "$NAME" chown -R replay "$JSONL_FOLDER/memory"
+    fi
 done
 # docker cp "$BUNDLE_FOLDER/engineV3_replay.mjs" "$NAME:/input/"
 docker cp "$JFRED_FOLDER/src" "$NAME:/input/jfred/src"

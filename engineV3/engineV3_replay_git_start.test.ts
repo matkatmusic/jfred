@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { Path } from "../src/structures/domain.ts";
 import { createStartRepo, readStartPoint, type StartPoint } from "./engineV3_replay_git_start.ts";
@@ -85,6 +85,18 @@ test("test_createStartRepo_copies_the_origin_url", (t) => {
     const stateFolder = makeStartState(t, source);
     // the state repo reports the same url
     assert.equal(readGit(stateFolder, ["config", "remote.origin.url"]), ORIGIN_URL);
+});
+
+test("test_createStartRepo_adds_no_remote_when_the_source_repo_has_none", (t) => {
+    // Scenario: a source repo with no remote gives a start repo with no remote, and no crash.
+    const source = makeSourceRepo(t);
+    // take the remote away from the source repo
+    readGit(dirname(source.gitFolder), ["remote", "remove", "origin"]);
+    const stateFolder = makeStartState(t, source);
+    // the start repo has no remote
+    assert.equal(readGit(stateFolder, ["remote"]), "");
+    // the refs still exist
+    assert.equal(readGit(stateFolder, ["symbolic-ref", "refs/remotes/origin/HEAD"]), "refs/remotes/origin/master");
 });
 
 test("test_createStartRepo_points_HEAD_at_develop", (t) => {

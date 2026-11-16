@@ -6,6 +6,7 @@ import { getContentBlocks, type ContentBlock } from "./structures/content-blocks
 import { collectErroredToolUseIds } from "./structures/tool-results.ts";
 import { readWriteInput } from "./structures/tool-result-shapes.ts";
 import { singleWhitespace } from "./regex_expressions.ts";
+import { matchOneOf, whitespace, wordChar, wrapNegativeLookbehind } from "./regex_tokens.ts";
 import { ScriptExecutorKind, type ScriptRun } from "./reconstruction_script_execution.ts";
 
 // The final path segment of a "/"-separated path string.
@@ -89,11 +90,18 @@ export function isScriptFile(name: string): boolean {
 function parseDirectInvocation(code: string): string | undefined {
   const runners = ["python3", "python", "bash", "sh", "node", "npx tsx"];
   for (const runner of runners) {
-    const runnerIndex = code.indexOf(runner);
-    if (runnerIndex < 0) {
+    // const runnerIndex = code.indexOf(runner);
+    // if (runnerIndex < 0) {
+    //   continue;
+    // }
+    // const after = code.slice(runnerIndex + runner.length).trimStart();
+    // A runner counts only as a whole word: not right after a letter, digit, "_", "." or "-", and followed by whitespace.
+    const runnerPattern = new RegExp(wrapNegativeLookbehind(matchOneOf(wordChar + ".-")) + runner + whitespace);
+    const runnerMatch = runnerPattern.exec(code);
+    if (runnerMatch === null) {
       continue;
     }
-    const after = code.slice(runnerIndex + runner.length).trimStart();
+    const after = code.slice(runnerMatch.index + runnerMatch[0].length).trimStart();
     // first word after the runner, e.g. "apply.py --dry-run" -> "apply.py".
     const filename = after.split(singleWhitespace)[0] ?? "";
     const isScript = isScriptFile(filename);

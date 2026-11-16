@@ -160,7 +160,7 @@ test("test_docker_arguments_have_no_privilege_flags", () => {
 });
 
 function makeRequest(interpreter: ScriptInterpreter, source: string, overrides: Partial<ScriptReplayRequest> = {}): ScriptReplayRequest {
-    return { projectRoot: FAKE_PROJECT_ROOT, cwd: FAKE_PROJECT_ROOT, pythonImportFolder: FAKE_PROJECT_ROOT, interpreter, source, inputs: [], timeoutSeconds: 30, ...overrides };
+    return { projectRoot: FAKE_PROJECT_ROOT, cwd: FAKE_PROJECT_ROOT, pythonImportFolder: FAKE_PROJECT_ROOT, interpreter, source, commandWords: [], environmentSettings: {}, inputs: [], timeoutSeconds: 30, ...overrides };
 }
 
 function runScriptInContainer(request: ScriptReplayRequest, signal: AbortSignal = new AbortController().signal): Promise<ScriptReplayResponse> {

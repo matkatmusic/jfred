@@ -12,14 +12,14 @@ type ParsedShellText = ParsedShellCommand & { end: number };
 // The commands inside a $( ) are read down to this depth of $( ) inside $( ).
 const MAXIMUM_SUBSTITUTION_DEPTH = 3;
 // Stands in a word for the output of a $( ), which is not known.
-const SUBSTITUTION_PLACEHOLDER = "$()";
+export const SUBSTITUTION_PLACEHOLDER = "$()";
 
 const SEGMENT_END_CHARACTERS = new Set([";", "|", "&", "(", ")", "\n"]);
 const WHITESPACE_CHARACTERS = new Set([" ", "\t"]);
 const QUOTE_CHARACTERS = new Set(["'", "\""]);
 const DIGITS_ONLY = /^\d+$/;
 const STREAM_NUMBER_CHARACTERS = /^[\d-]$/;
-const ENVIRONMENT_ASSIGNMENT = /^[A-Za-z_]\w*=/;
+export const ENVIRONMENT_ASSIGNMENT = /^[A-Za-z_]\w*=/;
 const URL_HOST = /[A-Za-z][A-Za-z0-9+.-]*:\/\/(\[[^\]]*\]|[^/:?#\s]*)/g;
 const DISCARD_FILE = "/dev/null";
 

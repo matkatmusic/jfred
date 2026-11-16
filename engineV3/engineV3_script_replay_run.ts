@@ -26,8 +26,9 @@ import { FileEventType, type FileEvent } from "./engineV3_replay_reverse_events.
 import {
     DockerReadiness, SCRIPT_REPLAY_CONTAINER_PREFIX, SCRIPT_REPLAY_TIMEOUT_SECONDS, ScriptInterpreter,
     checkDockerReadiness, executeScriptReplayInContainer, removeScriptReplayContainers,
-    type ScriptReplayChangeKind, type ScriptReplayRequest, type ScriptReplayResponse,
+    type ScriptReplayChangeKind, type ScriptReplayInputFile, type ScriptReplayRequest, type ScriptReplayResponse,
 } from "./engineV3_script_replay_container.ts";
+import { ParsedCommandKind, parseInvokedCommand } from "./engineV3_script_replay_command.ts";
 import {
     ReplayGapKind, convertScriptRunToTaskRecord, isGapHalfDropped, listReplayGapsFromStates, readReplayGapsSidecar,
     type ReplayGap, type ScriptReplayTaskRecord,
@@ -133,6 +134,20 @@ export function getScriptReplayRefusal(record: ScriptReplayTaskRecord, recordedP
     if (!isCwdInsideFolder(new Path(record.cwd), recordedProjectFolder)) {
         return `the working folder ${record.cwd} is outside the project folder ${recordedProjectFolder.toString()}`;
     }
+    if (record.invokedCommand !== undefined) {
+        if (record.invokedScriptPath !== null) {
+            const parsedCommand = parseInvokedCommand(record.invokedCommand, record.invokedScriptPath);
+            if (parsedCommand.kind === ParsedCommandKind.unsupported) {
+                return parsedCommand.reason;
+            }
+            if (parsedCommand.workingFolder !== null) {
+                const scriptFolder = resolve(record.cwd, parsedCommand.workingFolder);
+                if (!isCwdInsideFolder(new Path(scriptFolder), new Path(record.cwd))) {
+                    return `the script changes to ${scriptFolder}, outside the start folder of the run`;
+                }
+            }
+        }
+    }
     if (record.invokedScriptPath !== null) {
         if (record.invokedScriptPath.endsWith(".js")) {
             return `the script ${record.invokedScriptPath} is JavaScript or TypeScript`;
@@ -231,6 +246,36 @@ function applyResponseToOutcome(outcome: ScriptTaskOutcome, response: ScriptRepl
     }
 }
 
+export function buildScriptReplayRequest(record: ScriptReplayTaskRecord, projectRoot: Path, inputs: ScriptReplayInputFile[], timeoutSeconds: number): ScriptReplayRequest {
+    let commandWords: string[] = [];
+    let environmentSettings: Record<string, string> = {};
+    let cwd = record.cwd;
+    if (record.invokedCommand !== undefined) {
+        if (record.invokedScriptPath !== null) {
+            const parsedCommand = parseInvokedCommand(record.invokedCommand, record.invokedScriptPath);
+            if (parsedCommand.kind === ParsedCommandKind.unsupported) {
+                throw new Error(parsedCommand.reason);
+            }
+            commandWords = parsedCommand.words;
+            environmentSettings = parsedCommand.settings;
+            if (parsedCommand.workingFolder !== null) {
+                cwd = resolve(record.cwd, parsedCommand.workingFolder);
+            }
+        }
+    }
+    return {
+        projectRoot: projectRoot.toString(),
+        cwd,
+        pythonImportFolder: choosePythonImportFolder({ ...record, cwd }),
+        interpreter: chooseScriptInterpreter(record),
+        source: record.code,
+        inputs,
+        timeoutSeconds,
+        commandWords,
+        environmentSettings,
+    };
+}
+
 async function executeTaskOnce(context: ReplayContext, task: ScriptReplayTask): Promise<TaskRun> {
     const cachedTaskRun = context.taskRunsByTaskId.get(task.record.taskId);
     if (cachedTaskRun !== undefined) {
@@ -246,15 +291,16 @@ async function executeTaskOnce(context: ReplayContext, task: ScriptReplayTask): 
         outcome.reason = refusal;
         return taskRun;
     }
-    const request: ScriptReplayRequest = {
-        projectRoot: context.settings.recordedProjectFolder.toString(),
-        cwd: task.record.cwd,
-        pythonImportFolder: choosePythonImportFolder(task.record),
-        interpreter: chooseScriptInterpreter(task.record),
-        source: task.record.code,
-        inputs: context.workspace.listInputFilesJustBefore(task.instant),
-        timeoutSeconds: SCRIPT_REPLAY_TIMEOUT_SECONDS,
-    };
+    const request = buildScriptReplayRequest(task.record, context.settings.recordedProjectFolder, context.workspace.listInputFilesJustBefore(task.instant), SCRIPT_REPLAY_TIMEOUT_SECONDS);
+    // const request: ScriptReplayRequest = {
+    //     projectRoot: context.settings.recordedProjectFolder.toString(),
+    //     cwd: task.record.cwd,
+    //     pythonImportFolder: choosePythonImportFolder(task.record),
+    //     interpreter: chooseScriptInterpreter(task.record),
+    //     source: task.record.code,
+    //     inputs: context.workspace.listInputFilesJustBefore(task.instant),
+    //     timeoutSeconds: SCRIPT_REPLAY_TIMEOUT_SECONDS,
+    // };
     const response = await executeScriptReplayInContainer(context.settings.storeFolder, request, context.signal, context.settings.containerNamePrefix);
     taskRun.response = response;
     applyResponseToOutcome(outcome, response);

@@ -71,8 +71,39 @@ def build_command(request):
     if request["interpreter"] == "python3":
         with open(PYTHON_SCRIPT_PATH, "w") as script_file:
             script_file.write(request["source"])
-        return ["python3", PYTHON_SCRIPT_PATH]
-    return ["bash", "-c", request["source"]]
+        # return ["python3", PYTHON_SCRIPT_PATH]
+        return ["python3", PYTHON_SCRIPT_PATH, *request["commandWords"]]
+    # return ["bash", "-c", request["source"]]
+    return ["bash", "-c", request["source"], "script", *request["commandWords"]]
+
+
+def list_nonempty_path_entries(path_text):
+    entries = []
+    for entry in path_text.split(":"):
+        if entry != "":
+            entries.append(entry)
+    return entries
+
+
+def build_environment(request):
+    environment = os.environ.copy()
+    environment.update(request["environmentSettings"])
+    # if request["interpreter"] == "python3":
+    #     recorded_python_path = request["environmentSettings"].get("PYTHONPATH")
+    #     if recorded_python_path:
+    #         environment["PYTHONPATH"] = recorded_python_path + ":" + request["pythonImportFolder"]
+    #     else:
+    #         environment["PYTHONPATH"] = request["pythonImportFolder"]
+    recorded_entries = []
+    if "PYTHONPATH" in request["environmentSettings"]:
+        recorded_entries = list_nonempty_path_entries(request["environmentSettings"]["PYTHONPATH"])
+        if recorded_entries:
+            environment["PYTHONPATH"] = ":".join(recorded_entries)
+        else:
+            del environment["PYTHONPATH"]
+    if request["interpreter"] == "python3":
+        environment["PYTHONPATH"] = ":".join([*recorded_entries, request["pythonImportFolder"]])
+    return environment
 
 
 def read_output_text(path):
@@ -86,9 +117,10 @@ def run_script(request):
     stdout_path = OUTPUT_FOLDER + "/stdout"
     stderr_path = OUTPUT_FOLDER + "/stderr"
     command = build_command(request)
-    environment = os.environ.copy()
-    if request["interpreter"] == "python3":
-        environment["PYTHONPATH"] = request["pythonImportFolder"]
+    # environment = os.environ.copy()
+    # if request["interpreter"] == "python3":
+    #     environment["PYTHONPATH"] = request["pythonImportFolder"]
+    environment = build_environment(request)
     timed_out = False
     # Output goes to files, not pipes: a background process that keeps a pipe open would block the wait.
     with open(stdout_path, "wb") as stdout_file, open(stderr_path, "wb") as stderr_file:
@@ -181,4 +213,6 @@ def main():
     print(json.dumps(response))
 
 
-main()
+# main()
+if __name__ == "__main__":
+    main()

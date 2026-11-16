@@ -33,6 +33,7 @@ export type ScriptReplayTaskRecord = {
     cwd: string;
     code: string;
     invokedScriptPath: string | null;
+    invokedCommand?: string;
     runInBackground: boolean;
 };
 
@@ -126,7 +127,7 @@ export function convertScriptRunToTaskRecord(run: ScriptRun): ScriptReplayTaskRe
         throw new Error(`convertScriptRunToTaskRecord: the script run at ${run.source.filePath}:${run.source.lineNumber} has no timestamp`);
     }
     const toolUseId = run.toolUseId?.toString() ?? null;
-    return {
+    const taskRecord: ScriptReplayTaskRecord = {
         taskId: `${run.source.filePath}:${run.source.lineNumber}:${toolUseId ?? "none"}`,
         instant: run.timestamp.toISOString(),
         jsonlPath: run.source.filePath,
@@ -140,6 +141,10 @@ export function convertScriptRunToTaskRecord(run: ScriptRun): ScriptReplayTaskRe
         invokedScriptPath: run.invokedScriptPath ?? null,
         runInBackground: run.runInBackground ?? false,
     };
+    if (run.invokedCommand !== undefined) {
+        taskRecord.invokedCommand = run.invokedCommand;
+    }
+    return taskRecord;
 }
 
 export function convertTaskRecordToScriptRun(record: ScriptReplayTaskRecord): ScriptRun {
@@ -159,6 +164,9 @@ export function convertTaskRecordToScriptRun(record: ScriptReplayTaskRecord): Sc
     }
     if (record.invokedScriptPath !== null) {
         run.invokedScriptPath = record.invokedScriptPath;
+    }
+    if (record.invokedCommand !== undefined) {
+        run.invokedCommand = record.invokedCommand;
     }
     return run;
 }

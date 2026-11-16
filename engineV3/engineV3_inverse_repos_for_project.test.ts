@@ -238,8 +238,11 @@ test("test_every_event_of_a_file_carries_its_project_relative_path_with_forward_
     const events: ProgressEvent[] = [];
     // The project function builds both repos.
     buildProject(project, (event) => events.push(event));
-    // Every event carries the file field, and it is one of the two paths.
-    assert.ok(events.every((event) => event.file === "a.txt" || event.file === "sub/b.txt"));
+    // // Every event carries the file field, and it is one of the two paths.
+    // Every non-building event carries the path in the file field; every building event carries it in buildingFile. Each path is one of the two.
+    // assert.ok(events.every((event) => event.file === "a.txt" || event.file === "sub/b.txt"));
+    assert.ok(events.filter((event) => event.buildingFile === undefined).every((event) => event.file === "a.txt" || event.file === "sub/b.txt"));
+    assert.ok(events.filter((event) => event.buildingFile !== undefined).every((event) => event.buildingFile === "a.txt" || event.buildingFile === "sub/b.txt"));
     // Both files are in the events.
     assert.ok(events.some((event) => event.file === "sub/b.txt"));
 });

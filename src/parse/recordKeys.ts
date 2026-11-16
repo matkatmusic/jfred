@@ -30,14 +30,60 @@ export const ALLOWED_TOP_LEVEL_KEYS: Record<RecordType, ReadonlySet<string>> = {
     "agentId", "attributionAgent", "isApiErrorMessage", "error", "apiErrorStatus",
     // reasoning-effort level on assistant turns (s87 capture, 2026-07-17).
     "effort",
+    // newer-CC key, evidence 2026-11-05
+    "advisorModel",
+    // newer-CC key, evidence 2026-11-05
+    "apiBlockIndex",
+    // newer-CC key, evidence 2026-11-05
+    "apiError",
+    // newer-CC key, evidence 2026-10-27
+    "isAbortedMidStream",
+    // newer-CC key, evidence 2026-11-05
+    "perTurnEffort",
+    // newer-CC key, evidence 2026-11-05
+    "promptCacheRequested",
+    // newer-CC key, evidence 2026-11-02
+    "requestedModel",
+    // newer-CC key, evidence 2026-11-05
+    "requestRef",
+    // newer-CC key, evidence 2026-11-03
+    "serverClassifierRequest",
+    // newer-CC key, evidence 2026-11-05
+    "streamCutCause",
+    // newer-CC key, evidence 2026-11-05
+    "thinkingDisplay",
+    // newer-CC key, evidence 2026-11-02
+    "thinkingDurationMs",
+    // newer-CC key, evidence 2026-11-06
+    "toolInputStreamMs",
+    // newer-CC key, evidence 2026-11-02
+    "wireIngestContext",
+    // newer-CC key, evidence 2026-11-02
+    "wireToolInputs",
   ),
   [RecordType.attachment]: buildKeySet(
     ENVELOPE_KEYS, "attachment",
     ...OBSERVED_SESSION_METADATA_KEYS,
     // subagent identity (audit 2026-07-05).
     "agentId",
+    // newer-CC key, evidence 2026-11-02
+    "rendered",
+    // newer-CC key, evidence 2026-11-02
+    "renderedBesideToolResult",
+    // newer-CC key, evidence 2026-11-03
+    "renderedInHumanTurn",
+    // newer-CC key, evidence 2026-11-03
+    "renderedRole",
   ),
-  [RecordType.bridgeSession]: buildKeySet(META_KEYS, "bridgeSessionId", "lastSequenceNum"),
+  [RecordType.bridgeSession]: buildKeySet(
+    META_KEYS,
+    "bridgeSessionId",
+    "lastSequenceNum",
+    // newer-CC key, evidence 2026-11-03
+    "ownerAccountUuid",
+    // newer-CC key, evidence 2026-10-28
+    "ownerOrganizationUuid",
+  ),
   [RecordType.fileHistorySnapshot]: buildKeySet(
     ["type"], "messageId", "snapshot", "isSnapshotUpdate",
   ),
@@ -49,10 +95,31 @@ export const ALLOWED_TOP_LEVEL_KEYS: Record<RecordType, ReadonlySet<string>> = {
   [RecordType.forkContextRef]: buildKeySet(
     ["type"], "agentId", "parentSessionId", "parentLastUuid", "contextLength",
   ),
-  [RecordType.lastPrompt]: buildKeySet(META_KEYS, "leafUuid", "lastPrompt"),
+  [RecordType.lastPrompt]: buildKeySet(
+    META_KEYS,
+    "leafUuid",
+    "lastPrompt",
+    // newer-CC key, evidence 2026-11-02
+    "cutUuid",
+    // newer-CC key, evidence 2026-11-02
+    "explicit",
+    // newer-CC key, evidence 2026-11-02
+    "rewound",
+  ),
   [RecordType.mode]: buildKeySet(META_KEYS, "mode"),
   [RecordType.permissionMode]: buildKeySet(META_KEYS, "permissionMode"),
-  [RecordType.queueOperation]: buildKeySet(META_KEYS, "operation", "timestamp", "content"),
+  [RecordType.queueOperation]: buildKeySet(
+    META_KEYS,
+    "operation",
+    "timestamp",
+    "content",
+    // newer-CC key, evidence 2026-11-02
+    "commandUuid",
+    // newer-CC key, evidence 2026-11-02
+    "deliveryId",
+    // newer-CC key, evidence 2026-11-03
+    "reason",
+  ),
   [RecordType.system]: buildKeySet(
     ENVELOPE_KEYS,
     "subtype", "level", "content", "isMeta", "durationMs", "messageCount",
@@ -63,6 +130,12 @@ export const ALLOWED_TOP_LEVEL_KEYS: Record<RecordType, ReadonlySet<string>> = {
     // Legacy/variant spellings and retry fields from corpus audit.
     "url", "pendingBackgroundAgentCount", "preventContinuation",
     "error", "retryInMs", "retryAttempt", "maxRetries", "cause",
+    // newer-CC key, evidence 2026-11-03
+    "commandRun",
+    // newer-CC key, evidence 2026-10-27
+    "commands",
+    // newer-CC key, evidence 2026-11-03
+    "promptSubmitEnding",
   ),
   [RecordType.user]: buildKeySet(
     ENVELOPE_KEYS,
@@ -75,6 +148,42 @@ export const ALLOWED_TOP_LEVEL_KEYS: Record<RecordType, ReadonlySet<string>> = {
     "imagePasteIds", "queuePriority",
     // Newer-CC marker: this tool result ends the assistant turn (audit 2026-07-31).
     "toolEndsTurn",
+    // newer-CC key, evidence 2026-11-02
+    "classifierBoundary",
+    // newer-CC key, evidence 2026-11-02
+    "classifierMetaLines",
+    // newer-CC key, evidence 2026-11-02
+    "clientPlatform",
+    // newer-CC key, evidence 2026-11-02
+    "joinedNoticeLengths",
+    // newer-CC key, evidence 2026-11-02
+    "joinedNoticeOwn",
+    // newer-CC key, evidence 2026-11-02
+    "joinedNoticeRunIds",
+    // newer-CC key, evidence 2026-11-02
+    "permissionDecision",
+    // newer-CC key, evidence 2026-11-03
+    "pluginPrompt",
+    // newer-CC key, evidence 2026-11-03
+    "promptRewritten",
+    // newer-CC key, evidence 2026-11-03
+    "queueSkipAttachments",
+    // newer-CC key, evidence 2026-10-27
+    "queueSkipSlashCommands",
+    // newer-CC key, evidence 2026-11-03
+    "queueTranscriptOnly",
+    // newer-CC key, evidence 2026-11-05
+    "sandboxed",
+    // newer-CC key, evidence 2026-11-05
+    "serverClassifierContext",
+    // newer-CC key, evidence 2026-11-02
+    "turnAttributionKey",
+    // newer-CC key, evidence 2026-11-03
+    "turnCompanion",
+    // newer-CC key, evidence 2026-10-28
+    "turnOrigin",
+    // newer-CC key, evidence 2026-11-03
+    "turnPosition",
   ),
 };
 

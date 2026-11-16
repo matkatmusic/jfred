@@ -24,7 +24,7 @@ export type FileInverseRepoResult = { file: Path; repoFolder: Path; eventCount: 
 type InverseRepoStampInputs = { diskBytesHash: string; diskModifiedMilliseconds: number | null; transcriptFile: string; logFilesHash: string; formatVersion: number };
 type InverseRepoStamp = { inputs: InverseRepoStampInputs; eventCount: number; stateCount: number; commitCount: number; unknownStateCount: number };
 
-export const INVERSE_REPO_FORMAT_VERSION = 3;
+export const INVERSE_REPO_FORMAT_VERSION = 4;
 const STAMP_FILE_NAME = "jfred-stamp.json";
 const ABSENT_DISK_BYTES_HASH = "absent";
 

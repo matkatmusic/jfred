@@ -146,7 +146,12 @@ export function createStartRepo(sourceRepo: Path, state: Path, startPoint: Start
   // executeGit(state, ["fetch", "-q", "--no-tags", sourceRepo.toString(), ...fullHashes]);
   executeGit(state, ["fetch", "-q", "--no-tags", getUploadPackOption(sourceRepo), sourceRepo.toString(), ...fullHashes]);
   setRefs(state, startPoint);
-  const originUrl = readGitText(sourceRepo, ["config", "remote.origin.url"]);
-  executeGit(state, ["remote", "add", "origin", originUrl]);
+  // const originUrl = readGitText(sourceRepo, ["config", "remote.origin.url"]);
+  // executeGit(state, ["remote", "add", "origin", originUrl]);
+  const remoteNames = readGitText(sourceRepo, ["remote"]).split("\n");
+  if (remoteNames.includes("origin")) {
+    const originUrl = readGitText(sourceRepo, ["config", "remote.origin.url"]);
+    executeGit(state, ["remote", "add", "origin", originUrl]);
+  }
   executeGit(state, ["reset", "-q", "--hard"]);
 }

@@ -126,3 +126,25 @@ test("test_applyScriptIndirection_returns_the_run_unchanged_when_no_script_was_w
     const run = buildRun("python3 missing.py", "2026-01-01T00:00:02Z", ScriptExecutorKind.python);
     assert.equal(applyScriptIndirection(run, new Map()), run);
 });
+
+test("test_applyScriptIndirection_ignores_a_runner_name_inside_a_folder_name", () => {
+    // Scenario: the recorded pytest line holds the folder name `python-migration`; "python" there is not a runner.
+    // Steps: a Write of test_git_lib.py exists, then a Bash run of the pytest line.
+    const written = collectWrittenContentByBasename([
+        buildWriteRecord("toolu_1", "/Users/example/jot-worktrees/python-migration/tests/test_git_lib.py", "print(1)", "2026-01-01T00:00:01Z"),
+    ]);
+    const run = buildRun("/opt/homebrew/bin/pytest /Users/example/jot-worktrees/python-migration/tests/test_git_lib.py -v 2>&1 | tail -50", "2026-01-01T00:00:02Z", ScriptExecutorKind.bash);
+    const resolved = applyScriptIndirection(run, written);
+    // Verify: no indirection happened; the same run object comes back, with no invoked path.
+    assert.equal(resolved, run);
+    assert.equal(resolved.invokedScriptPath, undefined);
+});
+
+test("test_applyScriptIndirection_resolves_a_runner_given_by_full_path", () => {
+    // Scenario: a runner named by its full path still counts as a runner (this must pass before and after the fix).
+    const written = collectWrittenContentByBasename([
+        buildWriteRecord("toolu_1", "/proj/apply.py", "print(1)", "2026-01-01T00:00:01Z"),
+    ]);
+    const run = buildRun("/usr/bin/python3 apply.py --dry-run", "2026-01-01T00:00:02Z", ScriptExecutorKind.bash);
+    assert.equal(applyScriptIndirection(run, written).code, "print(1)");
+});
