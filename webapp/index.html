@@ -7,20 +7,31 @@
     <link rel="stylesheet" href="/app/layered-styles.css">
 </head>
 <body>
-    <header class="layered-header">
-        <button id="layered-drawer-toggle" class="layered-toolbar-btn" title="Collapse or restore the drawer">☰</button>
-        <h1 class="layered-title">JFRED — Layered Timeline</h1>
-        <a class="layered-old-link" href="/webapp_old.html" title="The preserved pre-redesign page (spec S7)">classic app</a>
+    <!-- <header class="layered-header"> -->
+    <header class="layered-header" data-component="layeredHeader">
+        <!-- <button id="layered-drawer-toggle" class="layered-toolbar-btn" title="Collapse or restore the drawer">☰</button> -->
+        <button id="layered-drawer-toggle" class="layered-toolbar-btn" data-component="layeredDrawerToggleButton" title="Collapse or restore the drawer">☰</button>
+        <button class="layered-toolbar-btn" data-component-inspector-toggle data-component="layeredNamesToggleButton" title="Show the name of each part under the pointer">names</button>
+        <!-- <h1 class="layered-title">JFRED — Layered Timeline</h1> -->
+        <h1 class="layered-title" data-component="layeredTitleText">JFRED — Layered Timeline</h1>
+        <!-- <a class="layered-old-link" href="/webapp_old.html" title="The preserved pre-redesign page (spec S7)">classic app</a> -->
+        <a class="layered-old-link" href="/webapp_old.html" title="The preserved pre-redesign page (spec S7)" data-component="layeredClassicAppLink">classic app</a>
     </header>
-    <div class="layered-app">
-        <nav id="layered-drawer" class="layered-drawer">
+    <!-- <div class="layered-app"> -->
+    <div class="layered-app" data-component="layeredApp">
+        <!-- <nav id="layered-drawer" class="layered-drawer"> -->
+        <nav id="layered-drawer" class="layered-drawer" data-component="layeredDrawer">
             <h3>JSONL sessions</h3>
-            <div id="layered-session-list"></div>
+            <!-- <div id="layered-session-list"></div> -->
+            <div id="layered-session-list" data-component="layeredSessionList"></div>
             <h3>File nav</h3>
-            <div id="layered-file-nav"></div>
+            <!-- <div id="layered-file-nav"></div> -->
+            <div id="layered-file-nav" data-component="layeredFileNav"></div>
         </nav>
-        <main id="layered-timeline" class="layered-timeline">
-            <div id="layered-legend" class="layered-legend">
+        <!-- <main id="layered-timeline" class="layered-timeline"> -->
+        <main id="layered-timeline" class="layered-timeline" data-component="layeredTimeline">
+            <!-- <div id="layered-legend" class="layered-legend"> -->
+            <div id="layered-legend" class="layered-legend" data-component="layeredLegend">
                 <span><i class="legend-anchor"></i> anchor</span>
                 <span><i class="legend-commit"></i> commit</span>
                 <span><i class="legend-snapshot"></i> snapshot</span>
@@ -30,15 +41,22 @@
                 <span><i class="legend-disk"></i> on-disk</span>
                 <span>dimmed = ignored (rewound branch)</span>
             </div>
-            <div id="layered-timeline-scroll" class="layered-timeline-scroll">
-                <div id="layered-canvas" class="layered-canvas"></div>
+            <!-- <div id="layered-timeline-scroll" class="layered-timeline-scroll"> -->
+            <div id="layered-timeline-scroll" class="layered-timeline-scroll" data-component="layeredTimelineScroll">
+                <!-- <div id="layered-canvas" class="layered-canvas"></div> -->
+                <div id="layered-canvas" class="layered-canvas" data-component="layeredCanvas"></div>
             </div>
         </main>
-        <aside id="layered-right" class="layered-right">
-            <section id="layered-details" class="layered-details"></section>
-            <section id="layered-changes" class="layered-changes" hidden></section>
+        <!-- <aside id="layered-right" class="layered-right"> -->
+        <aside id="layered-right" class="layered-right" data-component="layeredRight">
+            <!-- <section id="layered-details" class="layered-details"></section> -->
+            <section id="layered-details" class="layered-details" data-component="layeredDetails"></section>
+            <!-- <section id="layered-changes" class="layered-changes" hidden></section> -->
+            <section id="layered-changes" class="layered-changes" data-component="layeredChanges" hidden></section>
         </aside>
     </div>
+    <div data-component-inspector-rows></div>
     <script type="module" src="/app/layered-app.js"></script>
+    <script type="module" src="/app/component-inspector/component-inspector.js"></script>
 </body>
 </html>

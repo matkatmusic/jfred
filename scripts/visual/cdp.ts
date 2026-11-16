@@ -49,6 +49,9 @@ export async function waitForHttp(url: string, timeoutMs: number): Promise<void>
   throw new Error(`nothing answered ${url} within ${timeoutMs}ms`);
 }
 
+// Layer 1 writes its load error into #crumb (webapp/layer1-page.ts); any other page has none, so the text is empty.
+const PAGE_ERROR_TEXT_EXPRESSION = "document.getElementById('crumb')?.textContent ?? ''";
+
 // Standalone to avoid triple nesting inside openHeadlessPage.
 export async function waitUntilTruthy(
   evaluate: <T>(expression: string) => Promise<T>,
@@ -63,7 +66,9 @@ export async function waitUntilTruthy(
     }
     await waitMilliseconds(250);
   }
-  throw new Error(`page never satisfied: ${expression}`);
+  // throw new Error(`page never satisfied: ${expression}`);
+  const pageErrorText = await evaluate<string>(PAGE_ERROR_TEXT_EXPRESSION);
+  throw new Error(`page never satisfied: ${expression} (the page's #crumb says: "${pageErrorText}")`);
 }
 
 export interface HeadlessPage {

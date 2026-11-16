@@ -46,8 +46,8 @@ function buildEntryElement(tag: string, className: string, componentTag: { "data
     "data-short-hash": entry.shortHash,
     "data-parent-hash": entry.parentShortHash,
     "data-instant": entry.instant,
-    // The hover popup shows the message; only the base keeps a native title.
-    title: entry.message === undefined ? `${entry.label} | ${entry.instant}` : undefined,
+    // // The hover popup shows the message; only the base keeps a native title.
+    // title: entry.message === undefined ? `${entry.label} | ${entry.instant}` : undefined,
     text,
   });
   element.style.setProperty("--axis-px", String(computeAxisPixelsAt(Date.parse(entry.instant), ticks)));

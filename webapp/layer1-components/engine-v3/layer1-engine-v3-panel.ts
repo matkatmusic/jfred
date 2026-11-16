@@ -5,7 +5,8 @@ import {
   CURRENT_NODE_CLASS, containsCommitAfterMarker, isMarkerOnFirstStep, isMarkerOnLastStep, moveMarkerBackward, moveMarkerForward, moveMarkerToNextCommit,
   moveMarkerToNode, moveMarkerToPreviousCommit, readCurrentStep, readMarkerIndex, resetMarkerToStart, storeEngineV3Steps,
 } from "./layer1-engine-v3-state.ts";
-import { renderEngineV3Line, moveEngineV3LineIntoView } from "./layer1-engine-v3-line.ts";
+// import { renderEngineV3Line, moveEngineV3LineIntoView } from "./layer1-engine-v3-line.ts";
+import { renderEngineV3Line, moveEngineV3LineIntoView, moveEngineV3CommitNodeIntoView } from "./layer1-engine-v3-line.ts";
 import type { WireEngineV3Steps } from "./layer1-wire-engine-v3.ts";
 import type { WireLayer1View } from "../../layer1-wire.ts";
 
@@ -75,21 +76,31 @@ function moveMarkerOnNodeClick(event: MouseEvent): void {
   moveEngineV3LineIntoView();
 }
 
+// // Assigned, so a re-render never stacks handlers.
+// function attachMarkerButton(id: string, moveMarker: () => void): void {
+//   getRequiredElementById(id).onclick = () => {
+//     moveMarker();
+//     renderMarker();
+//     moveEngineV3LineIntoView();
+//   };
+// }
 // Assigned, so a re-render never stacks handlers.
-function attachMarkerButton(id: string, moveMarker: () => void): void {
+function attachMarkerButton(id: string, moveMarker: () => void, moveIntoView: () => void = moveEngineV3LineIntoView): void {
   getRequiredElementById(id).onclick = () => {
     moveMarker();
     renderMarker();
-    moveEngineV3LineIntoView();
+    moveIntoView();
   };
 }
 
 function attachMarkerButtons(): void {
   attachMarkerButton("engine-v3-start-over", resetMarkerToStart);
-  attachMarkerButton("engine-v3-previous-commit", moveMarkerToPreviousCommit);
+  // attachMarkerButton("engine-v3-previous-commit", moveMarkerToPreviousCommit);
+  attachMarkerButton("engine-v3-previous-commit", moveMarkerToPreviousCommit, moveEngineV3CommitNodeIntoView);
   attachMarkerButton("engine-v3-step-backwards", moveMarkerBackward);
   attachMarkerButton("engine-v3-step-forward", moveMarkerForward);
-  attachMarkerButton("engine-v3-next-commit", moveMarkerToNextCommit);
+  // attachMarkerButton("engine-v3-next-commit", moveMarkerToNextCommit);
+  attachMarkerButton("engine-v3-next-commit", moveMarkerToNextCommit, moveEngineV3CommitNodeIntoView);
 }
 
 async function fetchEngineV3Steps(): Promise<WireEngineV3Steps> {

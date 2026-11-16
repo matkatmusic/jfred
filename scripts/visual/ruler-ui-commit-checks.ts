@@ -12,7 +12,8 @@ import {
 import { reportCheck } from "./mockup-checks.ts";
 import {
   COMMIT_HASHES, isBothRight, isCommitOff, isCommitPopupRight, isDrawerRight, isEntryColumnRight, isEveryLineRight, isEveryMarkRight,
-  isIgnoredToggleRight, isNoPopup, isStripHeadRight, isStripPlaced, type BothFacts, type IgnoredDot, type IgnoredState, type StripFacts,
+  // isIgnoredToggleRight, isNoPopup, isStripHeadRight, isStripPlaced, type BothFacts, type IgnoredDot, type IgnoredState, type StripFacts,
+  isBasePopupRight, isIgnoredToggleRight, isNoPopup, isStripHeadRight, isStripPlaced, type BothFacts, type IgnoredDot, type IgnoredState, type StripFacts,
 } from "./ruler-ui-commit-judges.ts";
 import { isRowsPlain, reportFacts, shootRulerState, validateDefaultState, validateExpandedState } from "./ruler-ui-checks.ts";
 import {
@@ -67,7 +68,8 @@ async function validatePopups(page: HeadlessPage): Promise<void> {
   const label = `[...document.querySelectorAll('#jfredCommitsDrawerComponent .jlabel')].find(l => l.textContent.includes('${COMMIT_HASHES[1]}'))`;
   await reportFacts(page, buildHoverProbe(node), "RULER commits: hovering the commit node shows its message in lines of 50 characters or fewer", isCommitPopupRight);
   await reportFacts(page, buildHoverProbe(label), "RULER commits: hovering the hash label shows the same message", isCommitPopupRight);
-  await reportFacts(page, buildHoverProbe(`document.querySelector('#jfredCommitsDrawerComponent .jnode[data-entry-kind="base"]')`), "RULER commits: the base entry shows no popup", isNoPopup);
+  // await reportFacts(page, buildHoverProbe(`document.querySelector('#jfredCommitsDrawerComponent .jnode[data-entry-kind="base"]')`), "RULER commits: the base entry shows no popup", isNoPopup);
+  await reportFacts(page, buildHoverProbe(`document.querySelector('#jfredCommitsDrawerComponent .jnode[data-entry-kind="base"]')`), "RULER commits: hovering the base entry shows Base commit, its short hash and its date", isBasePopupRight);
   await page.evaluate(buildClickEntry(COMMIT_HASHES[1]!));
   await reportFacts(page, DRAWER_FACTS, "RULER commits: a click on an entry opens the Details drawer with the message", isDrawerRight);
   await page.evaluate(buildClickById("dclose"));

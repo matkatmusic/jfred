@@ -5,7 +5,8 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { computeLayer1Defaults } from "../../src/viewer_api_layer1_defaults.ts";
+// import { computeLayer1Defaults } from "../../src/viewer_api_layer1_defaults.ts";
+import { computeLayer1Defaults, DEBUG_CONFIG_PATH, type Layer1Defaults } from "../../src/viewer_api_layer1_defaults.ts";
 import { listStateViolations } from "./assertions.ts";
 import type { Violation } from "./violation-geometry.ts";
 import { formatViolationSummary, listExamples } from "./violation-report.ts";
@@ -22,10 +23,12 @@ const VIEWPORT_HEIGHT = 1000;
 
 const JFRED_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-// Uses debugConfig.json defaults if present, else this repo as its own fixture.
+// // Uses debugConfig.json defaults if present, else this repo as its own fixture.
+// Without the file the run stops (see buildViewUrl).
 const DEBUG_DEFAULTS = computeLayer1Defaults();
-const VIEW_DIR = DEBUG_DEFAULTS.dir ?? JFRED_ROOT;
-const VIEW_REPO = DEBUG_DEFAULTS.repo ?? JFRED_ROOT;
+// const VIEW_DIR = DEBUG_DEFAULTS.dir ?? JFRED_ROOT;
+// const VIEW_REPO = DEBUG_DEFAULTS.repo ?? JFRED_ROOT;
+const MISSING_DEBUG_CONFIG_MESSAGE = `the visual run needs ${DEBUG_CONFIG_PATH} with the fields "dir" (a project folder) and "repo" (its git repo); the page also reads "jsonl" and "fileHistory" from it; copy jfred/debugConfig.example.json there and fill them in (the file is gitignored)`;
 
 // Layer 1 ignores projects dir; demo bundle avoids touching ~/.claude/projects.
 const PROJECTS_DIR = join(JFRED_ROOT, "demo", "projects");
@@ -49,8 +52,18 @@ async function launchViewer(port: number): Promise<ChildProcess> {
   return server;
 }
 
-export function buildViewUrl(port: number): string {
-  const params = new URLSearchParams({ dir: VIEW_DIR, repo: VIEW_REPO });
+// export function buildViewUrl(port: number): string {
+//   const params = new URLSearchParams({ dir: VIEW_DIR, repo: VIEW_REPO });
+//   return `http://127.0.0.1:${port}/app/layer1.html?${params}`;
+// }
+export function buildViewUrl(port: number, defaults: Layer1Defaults = DEBUG_DEFAULTS): string {
+  if (defaults.dir === undefined) {
+    throw new Error(MISSING_DEBUG_CONFIG_MESSAGE);
+  }
+  if (defaults.repo === undefined) {
+    throw new Error(MISSING_DEBUG_CONFIG_MESSAGE);
+  }
+  const params = new URLSearchParams({ dir: defaults.dir, repo: defaults.repo });
   return `http://127.0.0.1:${port}/app/layer1.html?${params}`;
 }
 
@@ -88,6 +101,8 @@ async function executeVisualRun(): Promise<number> {
   const label = process.argv[2] ?? "run";
   const outDir = join(JFRED_ROOT, "scripts", "visual", "out", label);
   mkdirSync(outDir, { recursive: true });
+  // Fails in a second when the debug config is missing, before the tsc build and the server start.
+  buildViewUrl(0);
 
   buildWebapp();
   stopPort(CONVENTIONAL_PORT);

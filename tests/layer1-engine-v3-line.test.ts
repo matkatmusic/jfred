@@ -4,12 +4,16 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { getRequiredElementById } from "../webapp/app-dom.ts";
-import { renderEngineV3Line, renderEngineV3LineAtTicks, moveEngineV3LineIntoView } from "../webapp/layer1-components/engine-v3/layer1-engine-v3-line.ts";
+// import { renderEngineV3Line, renderEngineV3LineAtTicks, moveEngineV3LineIntoView } from "../webapp/layer1-components/engine-v3/layer1-engine-v3-line.ts";
+// import { renderEngineV3Line, renderEngineV3LineAtTicks, moveEngineV3LineIntoView, placeEngineV3LineLeftEdge, computeEngineV3LineLeftEdgePx } from "../webapp/layer1-components/engine-v3/layer1-engine-v3-line.ts";
+import { renderEngineV3Line, renderEngineV3LineAtTicks, moveEngineV3LineIntoView, moveEngineV3CommitNodeIntoView, placeEngineV3LineLeftEdge, computeEngineV3LineLeftEdgePx } from "../webapp/layer1-components/engine-v3/layer1-engine-v3-line.ts";
 import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { CURRENT_NODE_CLASS, moveMarkerForward, storeEngineV3Steps } from "../webapp/layer1-components/engine-v3/layer1-engine-v3-state.ts";
 import { EngineV3StepKind, type WireEngineV3Step } from "../webapp/layer1-components/engine-v3/layer1-wire-engine-v3.ts";
 import type { WireRulerTick } from "../webapp/layer1-wire.ts";
-import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
+// import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { buildClampingPane, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { applyZoom } from "../webapp/layer1-components/top-bars/layer1-zoom.ts";
 
 const TICKS: WireRulerTick[] = [
     { instant: "2026-06-01T09:00:00.000Z", axisPx: 100, eventCount: 1 },
@@ -222,4 +226,164 @@ test("test_the_line_color_differs_from_the_clicked_ruler_line_color", () => {
     const readValue = (name: string): string => new RegExp(`${name}: (#[0-9a-f]+)`).exec(palette)![1]!;
     assert.notEqual(lineVariable, rulerVariable);
     assert.notEqual(readValue(lineVariable), readValue(rulerVariable));
+});
+
+const EDGE_VARIABLE = "--engine-line-left";
+
+function stubElementRect(element: Element, left: number, right: number): void {
+    element.getBoundingClientRect = () => ({ left, right, top: 0, bottom: 800, width: right - left, height: 800 }) as DOMRect;
+}
+
+test("test_the_left_edge_is_the_ruler_container_right_edge_without_a_commit_column", () => {
+    // Scenario: Commit mode is off, no scroll, zoom 1.
+    assert.equal(computeEngineV3LineLeftEdgePx(152, undefined, 0, 1), 152);
+});
+
+test("test_the_left_edge_is_the_commit_column_right_edge_when_it_is_further_right", () => {
+    assert.equal(computeEngineV3LineLeftEdgePx(152, 330, 0, 1), 330);
+});
+
+test("test_the_left_edge_grows_by_the_sideways_scroll", () => {
+    // Scenario: the pane scrolled 300 px; the sticky container stays at the viewport edge and the canvas left edge is -300.
+    assert.equal(computeEngineV3LineLeftEdgePx(152, 330, -300, 1), 630);
+});
+
+test("test_the_left_edge_is_divided_by_the_page_zoom", () => {
+    // Scenario: zoom 2 doubles every viewport rectangle value.
+    assert.equal(computeEngineV3LineLeftEdgePx(304, 660, 0, 2), 330);
+});
+
+test("test_placing_the_edge_reads_the_rectangles_and_sets_the_line_variable", () => {
+    // Scenario: line drawn, container right 152, commit column right 330, canvas scrolled 300 px (left -300).
+    initLayer1Dom();
+    storeEngineV3Steps([buildStep("2026-06-01T10:00:00.000Z")]);
+    renderEngineV3LineAtTicks(TICKS);
+    const commitColumn = document.createElement("div");
+    commitColumn.id = "jfredCommitsDrawerComponent";
+    getRequiredElementById("timelineRulerContainer").append(commitColumn);
+    stubElementRect(getRequiredElementById("timelineRulerContainer"), 0, 152);
+    stubElementRect(commitColumn, 190, 330);
+    stubElementRect(readLine().parentElement!, -300, 5000);
+    placeEngineV3LineLeftEdge();
+    // Expect: (330 - (-300)) / 1 = 630 px.
+    assert.equal(readLine().style.getPropertyValue(EDGE_VARIABLE), "630px");
+});
+
+test("test_the_edge_follows_a_scroll_event_of_the_pane", () => {
+    // Scenario: edge placed at scroll 0, then the pane scrolls 200 px and fires scroll.
+    initLayer1Dom();
+    storeEngineV3Steps([buildStep("2026-06-01T10:00:00.000Z")]);
+    renderEngineV3LineAtTicks(TICKS);
+    stubElementRect(getRequiredElementById("timelineRulerContainer"), 0, 152);
+    stubElementRect(readLine().parentElement!, 0, 5000);
+    placeEngineV3LineLeftEdge();
+    assert.equal(readLine().style.getPropertyValue(EDGE_VARIABLE), "152px");
+    stubElementRect(readLine().parentElement!, -200, 5000);
+    getRequiredElementById("timelineContainer").dispatchEvent(new window.Event("scroll"));
+    // Expect: 352 px, with no other call.
+    assert.equal(readLine().style.getPropertyValue(EDGE_VARIABLE), "352px");
+});
+
+test("test_placing_the_edge_on_a_page_without_a_line_makes_no_line", () => {
+    // Scenario: refreshJfredStrip and the observers can run before the first stage render.
+    initLayer1Dom();
+    placeEngineV3LineLeftEdge();
+    assert.equal(document.getElementById("engine-v3-line"), null);
+});
+
+test("test_one_observer_watches_the_ruler_container_and_moves_the_edge_on_resize", () => {
+    // Scenario: a recording observer class is installed before the first render; the line renders twice; the kept callback is the browser reporting a resize.
+    initLayer1Dom();
+    const observedTargets: unknown[] = [];
+    const keptCallbacks: Array<() => void> = [];
+    class RecordingResizeObserver {
+        constructor(callback: () => void) {
+            keptCallbacks.push(callback);
+        }
+        observe(target: unknown): void {
+            observedTargets.push(target);
+        }
+        unobserve(_target: unknown): void {}
+        disconnect(): void {}
+    }
+    Object.assign(window, { ResizeObserver: RecordingResizeObserver });
+    storeEngineV3Steps([buildStep("2026-06-01T10:00:00.000Z")]);
+    renderEngineV3LineAtTicks(TICKS);
+    renderEngineV3LineAtTicks(TICKS);
+    assert.equal(observedTargets.length, 1);
+    assert.equal(observedTargets[0], getRequiredElementById("timelineRulerContainer"));
+    stubElementRect(getRequiredElementById("timelineRulerContainer"), 0, 240);
+    stubElementRect(readLine().parentElement!, 0, 5000);
+    keptCallbacks[0]!();
+    // Expect: (240 - 0) / 1 = 240 px.
+    assert.equal(readLine().style.getPropertyValue(EDGE_VARIABLE), "240px");
+});
+
+test("test_the_edge_follows_a_zoom_change_at_a_sideways_scroll", () => {
+    // Scenario: the pane scrolled 200 px (canvas left -200); zoom 2 fires no resize and no scroll event, so applyZoom must place the edge.
+    initLayer1Dom();
+    storeEngineV3Steps([buildStep("2026-06-01T10:00:00.000Z")]);
+    renderEngineV3LineAtTicks(TICKS);
+    stubElementRect(getRequiredElementById("timelineRulerContainer"), 0, 152);
+    stubElementRect(readLine().parentElement!, -200, 5000);
+    applyZoom(2);
+    // Expect: (152 - (-200)) / 2 = 176 px.
+    assert.equal(readLine().style.getPropertyValue(EDGE_VARIABLE), "176px");
+    applyZoom(1);
+});
+
+function appendCurrentCommitNode(left: number, top: number): HTMLElement {
+    const node = document.createElement("i");
+    node.className = "node n-commit current-node";
+    node.getBoundingClientRect = () => ({ left, right: left + 15, top, bottom: top + 15, width: 15, height: 15 }) as DOMRect;
+    getRequiredElementById("fileBubbleContainer").append(node);
+    return node;
+}
+
+test("test_the_commit_jump_centres_the_first_current_commit_node_side_to_side_and_up_and_down", () => {
+    // Scenario: the current commit node is far right of and below the visible part of the pane.
+    // Steps: pane 500x800 at scroll 0, first node at left 900 top 700 (15px box), a second node further right; centre.
+    initLayer1Dom();
+    const pane = buildClampingPane();
+    appendCurrentCommitNode(900, 700);
+    appendCurrentCommitNode(2000, 700);
+    moveEngineV3CommitNodeIntoView();
+    // Expect: the node centre (907.5, 707.5) is moved to the pane centre (250, 400): scroll by 657.5 and 307.5.
+    assert.equal(pane.scrollLeft, 657.5);
+    assert.equal(pane.scrollTop, 307.5);
+});
+
+test("test_the_commit_jump_does_not_scroll_when_the_commit_node_is_already_in_view", () => {
+    // Scenario: the current commit node sits inside the visible part of the pane, right of the sticky left column, so nothing moves (same rule as the line, both directions).
+    // Steps: pane 500x800 at scroll 0, left column right edge at 150, node at left 400 top 600 (inside the pane, off centre); centre; expect scroll still 0 and 0.
+    initLayer1Dom();
+    const pane = buildClampingPane();
+    stubElementRect(getRequiredElementById("timelineRulerContainer"), 0, 150);
+    appendCurrentCommitNode(400, 600);
+    moveEngineV3CommitNodeIntoView();
+    assert.equal(pane.scrollLeft, 0);
+    assert.equal(pane.scrollTop, 0);
+});
+
+test("test_the_commit_jump_centres_a_commit_node_that_sits_under_the_sticky_left_column", () => {
+    // Scenario: the current commit node is inside the pane box but under the sticky left column, so the user cannot see it.
+    // Steps: pane 500x800 at scroll 0, left column right edge at 150, node at left 100 top 600 (inside 0..150, inside the pane top and bottom); centre.
+    initLayer1Dom();
+    const pane = buildClampingPane();
+    stubElementRect(getRequiredElementById("timelineRulerContainer"), 0, 150);
+    appendCurrentCommitNode(100, 600);
+    moveEngineV3CommitNodeIntoView();
+    // Expect: the node moves: the node centre top 607.5 goes to the pane centre 400, so scrollTop is 207.5 (it started at 0).
+    assert.equal(pane.scrollTop, 207.5);
+});
+
+test("test_the_commit_jump_centres_the_line_when_no_commit_node_is_drawn", () => {
+    // Scenario: a filter hides the bubbles, so there is no current commit node.
+    // Steps: step drawn, line far below the pane, no node; expect the old line centering to run.
+    initLayer1Dom();
+    storeEngineV3Steps([buildStep("2026-06-01T10:00:00.000Z")]);
+    renderEngineV3LineAtTicks(TICKS);
+    const { scrolls } = stubRects({ top: 0, bottom: 800 }, { top: 2000, bottom: 2002 });
+    moveEngineV3CommitNodeIntoView();
+    assert.equal(scrolls.length, 1);
 });

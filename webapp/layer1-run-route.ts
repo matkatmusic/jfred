@@ -17,9 +17,11 @@ import type { WireLayer1View } from "./layer1-wire.ts";
 export const runQueueState: { queue: WireScriptRun[]; runningId: string | undefined } = { queue: [], runningId: undefined };
 
 const needsCache = new Map<string, WireNeededRun[]>();
+let needsClearCount = 0;
 
 export function clearNeedsCache(): void {
   needsCache.clear();
+  needsClearCount += 1;
 }
 
 function listQueuedIds(): string[] {
@@ -58,12 +60,18 @@ function listQueueableRuns(view: WireLayer1View, ids: string[]): WireScriptRun[]
   return runs.sort(compareRunOrder);
 }
 
+// A reply asked before a cache clear is old news (a result landed since): drop it and ask again.
 async function readNeeds(run: WireScriptRun): Promise<WireNeededRun[]> {
-  const isCached = needsCache.has(run.toolUseId);
-  if (!isCached) {
+  // const isCached = needsCache.has(run.toolUseId);
+  // if (!isCached) {
+  while (!needsCache.has(run.toolUseId)) {
+    const clearCountAtRequest = needsClearCount;
     const request = { sessionFile: run.sessionFile, toolUseId: run.toolUseId };
     const reply = await fetchScriptNeeds(request, new AbortController().signal);
-    needsCache.set(run.toolUseId, reply.needs);
+    const isReplyCurrent = needsClearCount === clearCountAtRequest;
+    if (isReplyCurrent) {
+      needsCache.set(run.toolUseId, reply.needs);
+    }
   }
   return needsCache.get(run.toolUseId)!;
 }

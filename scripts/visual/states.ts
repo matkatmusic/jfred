@@ -18,6 +18,15 @@ export interface VisualState {
 // The page has finished its ~10 s build and drawn bubbles.
 export const READY_EXPRESSION = "document.querySelectorAll('#fileBubbleContainer .filebox').length > 0";
 
+// The page boots in the Bars view, whose ruler swallows tick clicks; every state is driven and measured in the Bubbles view.
+const SWITCH_TO_BUBBLES_VIEW = `(() => {
+    const slider = document.getElementById('barsViewSliderInput');
+    if (slider === null) { return false; }
+    slider.value = '1';
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+})()`;
+
 // Click the folder row, not the expand triangle — the two are distinct targets (task 253).
 const CLICK_FIRST_FOLDER = `(() => {
     const summary = document.querySelector('#filenav-tree summary.file-folder-name');
@@ -35,9 +44,17 @@ const CLICK_FIRST_NODE = `(() => {
 })()`;
 
 // Unfilter by re-clicking the selected folder so the ruler has multi-event rows to expand.
+// const CLEAR_FOLDER_FILTER = `(() => {
+//     const selected = document.querySelector('#filenav-tree summary.file-folder-name.selected');
+//     if (selected === null) { return false; }
+//     selected.click();
+//     return true;
+// })()`;
+// Step 04 tags the filtered view's ticks in the same call, so the wait cannot pass on a tick of the old view.
 const CLEAR_FOLDER_FILTER = `(() => {
     const selected = document.querySelector('#filenav-tree summary.file-folder-name.selected');
     if (selected === null) { return false; }
+    document.querySelectorAll('#timelineRulerComponent .tick').forEach((tick) => { tick.dataset.beforeUnfilter = ''; });
     selected.click();
     return true;
 })()`;
@@ -87,7 +104,12 @@ async function waitUntilSettled(page: HeadlessPage, expression: string): Promise
 export const VISUAL_STATES: VisualState[] = [
   {
     name: "01-initial-load",
-    drive: async (page) => waitUntilSettled(page, READY_EXPRESSION),
+    // drive: async (page) => waitUntilSettled(page, READY_EXPRESSION),
+    drive: async (page) => {
+      await waitUntilSettled(page, READY_EXPRESSION);
+      await triggerClickInPage(page, SWITCH_TO_BUBBLES_VIEW, "Bars/Bubbles slider");
+      await waitUntilSettled(page, "document.getElementById('appWindow').classList.contains('barsViewOn') === false");
+    },
   },
   {
     name: "02-folder-filter",
@@ -108,7 +130,9 @@ export const VISUAL_STATES: VisualState[] = [
     drive: async (page) => {
       await triggerClickInPage(page, CLEAR_FOLDER_FILTER, "selected folder to unfilter");
       // The multi mark comes after the chunked render ends, so wait for it.
-      await waitUntilSettled(page, "document.querySelector('#timelineRulerComponent .tick.multi')");
+      // await waitUntilSettled(page, "document.querySelector('#timelineRulerComponent .tick.multi')");
+      // A tick without the tag comes from the new render, and the multi mark comes after its chunked render ends.
+      await waitUntilSettled(page, "document.querySelector('#timelineRulerComponent .tick.multi:not([data-before-unfilter])')");
       await triggerClickInPage(page, CLICK_MULTI_TICK, "multi-event ruler row");
       await waitUntilSettled(page, "document.querySelector('#timelineRulerComponent .tickfiles button')");
     },

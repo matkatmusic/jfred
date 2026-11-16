@@ -262,3 +262,35 @@ test("a session hidden by the search box does not light", async () => {
     clickAt(name, TOP_NODE_CENTER_Y);
     assert.deepEqual(listFlashedFiles(), ["b21d84c5.jsonl"]);
 });
+
+const MIXED_PATHS_SESSION = {
+    file: "aaaa1111.jsonl", fullPath: "/p/aaaa1111.jsonl", titles: ["mixed paths"],
+    started: "2026-06-01T08:44:00Z", ended: "2026-06-01T09:12:00Z",
+    paths: [
+        `${PROJECT_FOLDER}/src/index.ts`,
+        `${PROJECT_FOLDER}/README.md`,
+        `${PROJECT_FOLDER}/deleted-long-ago.ts`,
+        "/private/tmp/scratch/helper.py",
+        "/Users/you/.claude/memory/MEMORY.md",
+    ],
+};
+
+test("a session row counts only the project files the view draws", async () => {
+    // Scenario: one session touched 2 drawn files, 1 project file the view does not draw, and 2 files outside the project.
+    // Steps: open the pane with that one session, read the row's meta line.
+    await openSessionPane([MIXED_PATHS_SESSION]);
+    // Expect: the row says 2 files, not 5.
+    const metaText = document.querySelector("#sessions .session-item .smeta")!.textContent!;
+    assert.match(metaText, / 2 files$/);
+});
+
+test("before a view is drawn a session row counts its project files", async () => {
+    // Scenario: no view drawn yet (the known-path set is empty), so the 1 project file that is not drawn still counts.
+    // Steps: open the pane, then reset the known paths to empty and redraw the pane.
+    await openSessionPane([MIXED_PATHS_SESSION]);
+    setKnownProjectPaths(PROJECT_FOLDER, []);
+    renderSessionPane(() => {});
+    // Expect: 3 files (the 3 inside the project), not 5 (outside paths are never counted) and not 2.
+    const metaText = document.querySelector("#sessions .session-item .smeta")!.textContent!;
+    assert.match(metaText, / 3 files$/);
+});

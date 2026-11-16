@@ -93,10 +93,68 @@ test("test_hover_on_a_commit_label_shows_the_message_too", () => {
   assert.equal(document.getElementById("hover-popup")!.hidden, false);
 });
 
-test("test_hover_on_the_base_shows_no_popup", () => {
-  // Verify: the base has no message.
+// test("test_hover_on_the_base_shows_no_popup", () => {
+//   // Verify: the base has no message.
+//   setArmed(true);
+//   renderJfredStrip(TICKS);
+//   hoverEntry("#jfredCommitsDrawerComponent .jnode.j-base");
+//   assert.equal(document.getElementById("hover-popup"), null);
+// });
+
+test("test_hover_on_the_base_shows_base_commit_hash_and_date", () => {
+  // Verify: hovering the base node opens the shared popup with three lines.
   setArmed(true);
   renderJfredStrip(TICKS);
   hoverEntry("#jfredCommitsDrawerComponent .jnode.j-base");
-  assert.equal(document.getElementById("hover-popup"), null);
+  const lines = [...document.querySelectorAll("#hover-popup .hp-line")].map((line) => line.textContent!);
+  assert.deepEqual(lines, ["Base commit", "a1b2c3d4", "06-01-2026:09:00"]);
+  assert.equal(document.getElementById("hover-popup")!.hidden, false);
+});
+
+test("test_hover_on_the_base_label_shows_the_same_three_lines", () => {
+  // Verify: the delegated popup works from the base hash label.
+  setArmed(true);
+  renderJfredStrip(TICKS);
+  hoverEntry('#jfredCommitsDrawerComponent .jlabel[data-entry-kind="base"]');
+  const lines = [...document.querySelectorAll("#hover-popup .hp-line")].map((line) => line.textContent!);
+  assert.deepEqual(lines, ["Base commit", "a1b2c3d4", "06-01-2026:09:00"]);
+  assert.equal(document.getElementById("hover-popup")!.hidden, false);
+});
+
+test("test_click_on_a_commit_node_asks_the_server_for_its_patch", async () => {
+  // Verify: a click on a real branch commit node asks for the patch and shows it in the drawer.
+  const { isCanned, ...realCommits } = CANNED_VIEW.jfredCommits;
+  const realView = { ...CANNED_VIEW, jfredCommits: realCommits };
+  loadJfredBranch(realView);
+  setArmed(true);
+  renderJfredStrip(TICKS);
+  const requestedUrls: string[] = [];
+  Object.assign(globalThis, {
+    fetch: async (url: unknown): Promise<Response> => {
+      requestedUrls.push(String(url));
+      return new Response("patch text");
+    },
+  });
+  const node = document.querySelector<HTMLElement>('#jfredCommitsDrawerComponent .jnode[data-short-hash="c0ffee01"]')!;
+  node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  await waitForAsyncWork();
+  assert.equal(requestedUrls.filter((url) => url.includes("/api/layer1-jfred-patch")).length, 1);
+  assert.ok(document.querySelector("#dbody pre.jfred-patch"));
+});
+
+test("test_click_on_a_commit_node_of_a_canned_branch_asks_for_no_patch", async () => {
+  // Verify: a canned (demo) branch has no real repo, so no patch call goes out.
+  setArmed(true);
+  renderJfredStrip(TICKS);
+  const requestedUrls: string[] = [];
+  Object.assign(globalThis, {
+    fetch: async (url: unknown): Promise<Response> => {
+      requestedUrls.push(String(url));
+      return new Response("patch text");
+    },
+  });
+  const node = document.querySelector<HTMLElement>('#jfredCommitsDrawerComponent .jnode[data-short-hash="c0ffee01"]')!;
+  node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  await waitForAsyncWork();
+  assert.equal(requestedUrls.length, 0);
 });
