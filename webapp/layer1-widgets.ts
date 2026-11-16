@@ -1,10 +1,12 @@
 // Layer 1's orphan bucket widget and the stage's widget list; the pair bubble lives in layer1-pair-widget.ts.
 
 import { createElement } from "./app-dom.ts";
-import { setAxisPx } from "./layer1-components/bubbles/layer1-lane-nodes.ts";
+// import { setAxisPx } from "./layer1-components/bubbles/layer1-lane-nodes.ts";
+import { appendScriptRunNode, setAxisPx } from "./layer1-components/bubbles/layer1-lane-nodes.ts";
 import { buildPairWidget } from "./layer1-pair-widget.ts";
 import { formatInstantLabel } from "./layer1-components/ruler/layer1-ruler-rows.ts";
 import type { WireOrphan, WirePair } from "./layer1-wire.ts";
+import type { WireScriptRun } from "./layer1-wire-script-runs.ts";
 
 // One drawn moment of a file: its mtime, or one of its snapshots.
 interface OrphanLineEntry {
@@ -12,14 +14,17 @@ interface OrphanLineEntry {
   instant: string;
   axisPx: number;
   isSnapshot: boolean;
+  scriptRuns: WireScriptRun[];
 }
 
 function listOrphanLineEntries(rows: WireOrphan[]): OrphanLineEntry[] {
   const entries: OrphanLineEntry[] = [];
   for (const row of rows) {
-    entries.push({ path: row.path, instant: row.instant, axisPx: row.axisPx, isSnapshot: false });
+    // entries.push({ path: row.path, instant: row.instant, axisPx: row.axisPx, isSnapshot: false });
+    entries.push({ path: row.path, instant: row.instant, axisPx: row.axisPx, isSnapshot: false, scriptRuns: row.scriptRuns ?? [] });
     for (const snapshot of row.snapshots ?? []) {
-      entries.push({ path: row.path, instant: snapshot.instant, axisPx: snapshot.axisPx, isSnapshot: true });
+      // entries.push({ path: row.path, instant: snapshot.instant, axisPx: snapshot.axisPx, isSnapshot: true });
+      entries.push({ path: row.path, instant: snapshot.instant, axisPx: snapshot.axisPx, isSnapshot: true, scriptRuns: [] });
     }
   }
   // At one instant the mtime entries come first, so a shared line is never hidden as a snapshot while a file's real line is on it.
@@ -33,6 +38,17 @@ function createOrphanRow(entry: OrphanLineEntry, earliestAxisPx: number): HTMLEl
     createElement("span", { "data-component": "bubbleOrphanPathText", text: entry.path }),
     createElement("em", { "data-component": "bubbleOrphanInstantText", text: formatInstantLabel(entry.instant) }),
   ]), entry.axisPx - earliestAxisPx);
+  if (entry.scriptRuns.length > 0) {
+    const holder = createElement("span", { class: "orphan-run-dots", "data-component": "bubbleOrphanScriptRunDots" });
+    for (const run of entry.scriptRuns) {
+      appendScriptRunNode(holder, entry.axisPx - earliestAxisPx, run);
+      const label = holder.lastElementChild!;
+      const dot = label.previousElementSibling!;
+      label.removeAttribute("data-instant");
+      dot.removeAttribute("data-instant");
+    }
+    line.append(holder);
+  }
   if (entry.isSnapshot) {
     line.classList.add("n-snap");
     line.prepend(createElement("i", { class: "snap-dot", "data-component": "bubbleOrphanSnapshotDot" }));

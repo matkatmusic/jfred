@@ -8,6 +8,8 @@ import { CreatedNotTrustedReason } from "../webapp/layer1-components/bubbles/lay
 import { ShowRowKind } from "../webapp/layer1-components/show-row/layer1-show-row.ts";
 import { WireRecordKind }from "../webapp/layer1-components/session-column/layer1-wire-annotations.ts";
 import type { WireOrphan, WirePair, WireSnapshot } from "../webapp/layer1-wire.ts";
+import { WireScriptExecutorKind, type WireScriptRun } from "../webapp/layer1-wire-script-runs.ts";
+import { WireScriptLanguage } from "../webapp/layer1-components/details-drawer/layer1-script-language.ts";
 
 initLayer1Dom();
 const { buildStagePairs, buildOrphanBucket } = await import("../webapp/layer1-widgets.ts");
@@ -219,4 +221,150 @@ test("test_the_ruler_row_lookup_reports_a_snapshot_line_as_the_snapshot_kind", (
   container.append(bucket);
   const events = listAllEventsAtRow([NINE_AM.axisPx], collectStageBubbles());
   assert.deepEqual(events.map((event) => event.nodeKind), [ShowRowKind.snapshot]);
+});
+
+const ORPHAN_RUN_PATH = "scratch/disk_only_example.py";
+const ORPHAN_RUN_HOLDER = "[data-component='bubbleOrphanScriptRunDots']";
+
+function buildOrphanRun(toolUseId: string): WireScriptRun {
+  return {
+    toolUseId,
+    executorKind: WireScriptExecutorKind.python,
+    language: WireScriptLanguage.python,
+    code: "print('fixture')",
+    sessionId: "session-a",
+    sessionFile: "session-a.jsonl",
+    instant: "2026-06-02T09:30:00.000Z",
+    axisPx: 550,
+  };
+}
+
+function buildOrphanWithRuns(path: string, when: { instant: string; axisPx: number }, scriptRuns: WireScriptRun[]): WireOrphan {
+  return { path, ...when, scriptRuns };
+}
+
+function countScriptDotsAtRow(axisPxList: number[], snapshot: ReturnType<typeof collectStageBubbles>): number {
+  return listAllEventsAtRow(axisPxList, snapshot).filter((event) => event.element.matches("i.n-script")).length;
+}
+
+function collectBucketSnapshot(bucket: HTMLElement): ReturnType<typeof collectStageBubbles> {
+  const container = document.getElementById("fileBubbleContainer")!;
+  clearFileBubbles(container);
+  container.append(bucket);
+  return collectStageBubbles();
+}
+
+test("test_a_disk_orphan_row_shows_one_script_dot_per_run", () => {
+  // Scenario: an orphan with two runs draws two script dots inside one holder that follows the instant text.
+  // Steps:
+  // build a bucket whose one orphan holds two runs.
+  const orphan = buildOrphanWithRuns(ORPHAN_RUN_PATH, EIGHT_AM, [buildOrphanRun("toolu_fixture_orphan_1"), buildOrphanRun("toolu_fixture_orphan_2")]);
+  const [row] = listRowLines(buildOrphanBucket("No repository match", [orphan])!);
+  // the row holds two script dots.
+  // RED: Expected values to be strictly equal: 0 !== 2
+  assert.equal(row!.querySelectorAll("i.n-script").length, 2);
+  // the dots sit in one holder with the holder class, and the holder comes right after the em.
+  const holder = row!.querySelector<HTMLElement>(ORPHAN_RUN_HOLDER);
+  assert.notEqual(holder, null);
+  assert.equal(holder!.classList.contains("orphan-run-dots"), true);
+  assert.equal(holder!.previousElementSibling, row!.querySelector("em"));
+  assert.equal(holder!.querySelectorAll("i.n-script[data-component='laneScriptRunNode']").length, 2);
+});
+
+test("test_an_orphan_run_dot_has_the_run_end_class_of_its_run", () => {
+  // Scenario: no result is stored for the run, so its dot carries the not-run end class right after the build.
+  // Steps:
+  // build a bucket whose orphan holds one run with no stored result.
+  const orphan = buildOrphanWithRuns(ORPHAN_RUN_PATH, EIGHT_AM, [buildOrphanRun("toolu_fixture_orphan_run_end")]);
+  const dot = buildOrphanBucket("No repository match", [orphan])!.querySelector<HTMLElement>("i.n-script");
+  // the dot exists.
+  // RED: the dot is missing, so notEqual fails with null !== null
+  assert.notEqual(dot, null);
+  // the dot has the class run-end-not-run.
+  assert.equal(dot!.classList.contains("run-end-not-run"), true);
+});
+
+test("test_the_dot_keeps_the_data_attributes_the_connectors_read", () => {
+  // Scenario: the connector code groups dots by data-tool-use-id; the dot and its label keep it and lose data-instant.
+  // Steps:
+  // build a bucket whose orphan holds one run.
+  const orphan = buildOrphanWithRuns(ORPHAN_RUN_PATH, EIGHT_AM, [buildOrphanRun("toolu_fixture_orphan_attributes")]);
+  const dot = buildOrphanBucket("No repository match", [orphan])!.querySelector<HTMLElement>("i.n-script");
+  // the dot exists.
+  // RED: the dot is missing, so notEqual fails with null !== null
+  assert.notEqual(dot, null);
+  // the dot keeps data-tool-use-id, which layer1-script-connectors.ts reads as dataset.toolUseId.
+  assert.equal(dot!.getAttribute("data-tool-use-id"), "toolu_fixture_orphan_attributes");
+  // the dot has no data-instant.
+  assert.equal(dot!.hasAttribute("data-instant"), false);
+  // the label beside the dot keeps data-tool-use-id and has no data-instant.
+  const label = dot!.nextElementSibling!;
+  assert.equal(label.matches("span.nlabel.n-script"), true);
+  assert.equal(label.getAttribute("data-tool-use-id"), "toolu_fixture_orphan_attributes");
+  assert.equal(label.hasAttribute("data-instant"), false);
+});
+
+test("test_a_tick_at_the_first_instant_of_the_bucket_does_not_list_the_orphan_run", () => {
+  // Scenario: the run's dot sits on the row at 400 px; a tick at the first row (100 px) lists no dot and a tick at 400 px lists exactly one.
+  // Steps:
+  // build a bucket with a plain row at 100 px and a row with one run at 400 px, and put it on the stage.
+  const runOrphan = buildOrphanWithRuns(ORPHAN_RUN_PATH, NINE_AM, [buildOrphanRun("toolu_fixture_orphan_tick")]);
+  const bucket = buildOrphanBucket("No repository match", [EARLY_ORPHAN, runOrphan])!;
+  const snapshot = collectBucketSnapshot(bucket);
+  // the tick at the dot's own row lists exactly one dot (the li row is an event too, so only dots are counted).
+  // RED: Expected values to be strictly equal: 0 !== 1
+  assert.equal(countScriptDotsAtRow([NINE_AM.axisPx], snapshot), 1);
+  // the tick at the first row lists no dot.
+  assert.equal(countScriptDotsAtRow([EIGHT_AM.axisPx], snapshot), 0);
+  // the dot's axis offset is its row's own offset from the bucket start.
+  assert.equal(bucket.querySelector<HTMLElement>("i.n-script")!.style.getPropertyValue("--axis-px"), "300");
+});
+
+test("test_one_run_on_two_rows_at_different_instants_is_listed_once_per_tick", () => {
+  // Scenario: one run is drawn on two rows; each tick lists its own dot only, and neither dot has data-instant.
+  // Steps:
+  // build a bucket of two orphans at 100 px and 400 px that hold the same run, and put it on the stage.
+  const sharedRun = buildOrphanRun("toolu_fixture_orphan_shared");
+  const firstOrphan = buildOrphanWithRuns("scratch/disk_only_a.py", EIGHT_AM, [sharedRun]);
+  const secondOrphan = buildOrphanWithRuns("scratch/disk_only_b.py", NINE_AM, [sharedRun]);
+  const bucket = buildOrphanBucket("No repository match", [firstOrphan, secondOrphan])!;
+  const snapshot = collectBucketSnapshot(bucket);
+  // the tick at the first row lists one dot.
+  // RED: Expected values to be strictly equal: 0 !== 1
+  assert.equal(countScriptDotsAtRow([EIGHT_AM.axisPx], snapshot), 1);
+  // the tick at the second row lists one dot.
+  assert.equal(countScriptDotsAtRow([NINE_AM.axisPx], snapshot), 1);
+  // neither dot has data-instant.
+  const dots = [...bucket.querySelectorAll("i.n-script")];
+  assert.equal(dots.length, 2);
+  assert.deepEqual(dots.map((dot) => dot.hasAttribute("data-instant")), [false, false]);
+});
+
+test("test_the_more_files_popup_rows_show_their_dots_too", () => {
+  // Scenario: three files share one instant; the second one, listed in the "+2 more" popup, has a run and shows its dot there.
+  // Steps:
+  // build a bucket where the second file of the shared instant holds one run.
+  const runOrphan = buildOrphanWithRuns(SHARED_SECOND.path, SHARED_SECOND, [buildOrphanRun("toolu_fixture_orphan_popup")]);
+  const bucket = buildOrphanBucket("No repository match", [SHARED_FIRST, runOrphan, SHARED_THIRD])!;
+  const popup = bucket.querySelector<HTMLElement>(".more-files")!;
+  // the popup holds one script dot.
+  // RED: Expected values to be strictly equal: 0 !== 1
+  assert.equal(popup.querySelectorAll("i.n-script").length, 1);
+  // the dot sits in a holder inside the popup row of the second file.
+  const popupRow = popup.querySelector<HTMLElement>("li")!;
+  assert.equal(popupRow.querySelector("span")?.textContent, SHARED_SECOND.path);
+  assert.notEqual(popupRow.querySelector(ORPHAN_RUN_HOLDER), null);
+  // the first file's own row has no holder.
+  assert.equal(listRowLines(bucket)[0]!.querySelector(":scope > " + ORPHAN_RUN_HOLDER), null);
+});
+
+test("test_a_disk_orphan_without_runs_has_no_holder", () => {
+  // Scenario: guard, passes before and after: an orphan with no scriptRuns field and an orphan with an empty list draw no holder.
+  // Steps:
+  // build a bucket with one orphan that has no scriptRuns field and one whose scriptRuns is empty.
+  const emptyRunsOrphan = buildOrphanWithRuns(ORPHAN_RUN_PATH, NINE_AM, []);
+  const bucket = buildOrphanBucket("No repository match", [EARLY_ORPHAN, emptyRunsOrphan])!;
+  // neither row has a holder, and the bucket has no script dot.
+  assert.equal(bucket.querySelector(ORPHAN_RUN_HOLDER), null);
+  assert.equal(bucket.querySelector("i.n-script"), null);
 });

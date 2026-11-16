@@ -49,6 +49,9 @@
     font: 11px ui-monospace, Menlo, monospace; color: var(--ink2); }
   .bucket li .snap-dot { flex: none; align-self: center; width: 11px; height: 11px; border-radius: 50%; background: var(--c-snap); }
   .bucket li em { margin-left: auto; font-style: normal; color: var(--muted); font-size: 10px; }
+  .bucket .orphan-run-dots { display: inline-flex; }
+  .bucket .orphan-run-dots .node { position: static; transform: none; }
+  .bucket .orphan-run-dots .nlabel { display: none; }
   /*
     The "+N more" list hangs beside the line and never takes layout space; `visibility` keeps its rows measurable for ruler jumps.
   */
