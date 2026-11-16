@@ -62,6 +62,8 @@ function listQueueableRuns(view: WireLayer1View, ids: string[]): WireScriptRun[]
 
 // A reply asked before a cache clear is old news (a result landed since): drop it and ask again.
 async function readNeeds(run: WireScriptRun): Promise<WireNeededRun[]> {
+  // const isCached = needsCache.has(run.toolUseId);
+  // if (!isCached) {
   while (!needsCache.has(run.toolUseId)) {
     const clearCountAtRequest = needsClearCount;
     const request = { sessionFile: run.sessionFile, toolUseId: run.toolUseId };
