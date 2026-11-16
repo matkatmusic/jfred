@@ -12,7 +12,7 @@ export type ParsedInvokedCommand =
     | { kind: ParsedCommandKind.unsupported; reason: string };
 
 const RUNNER_NAMES = new Set(["python3", "python", "bash", "sh"]);
-const REFUSED_SETTING_NAMES = new Set(["PATH", "HOME", "TMPDIR", "LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONHOME", "BASH_ENV", "ENV", "PYTHONSTARTUP"]);
+const REFUSED_SETTING_NAMES = new Set(["PATH", "HOME", "TMPDIR", "LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONHOME", "BASH_ENV", "ENV", "PYTHONSTARTUP", "LD_AUDIT", "GCONV_PATH"]);
 // Old local copy; SUBSTITUTION_PLACEHOLDER is now imported.
 // const SUBSTITUTION_PLACEHOLDER = "$()";
 

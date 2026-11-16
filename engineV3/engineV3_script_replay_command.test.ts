@@ -256,6 +256,24 @@ test("test_parseInvokedCommand_env_setting_is_unsupported", () => {
     assert.ok(getUnsupportedReason(result).includes("ENV"));
 });
 
+test("test_parseInvokedCommand_ld_audit_setting_is_unsupported", () => {
+    // Steps:
+    // parse a line that sets LD_AUDIT.
+    const result = parseInvokedCommand("LD_AUDIT=/x python3 script.py", SCRIPT_PATH);
+    // the line is unsupported, and the reason names LD_AUDIT.
+    assert.equal(result.kind, ParsedCommandKind.unsupported);
+    assert.ok(getUnsupportedReason(result).includes("LD_AUDIT"));
+});
+
+test("test_parseInvokedCommand_gconv_path_setting_is_unsupported", () => {
+    // Steps:
+    // parse a line that sets GCONV_PATH.
+    const result = parseInvokedCommand("GCONV_PATH=/x python3 script.py", SCRIPT_PATH);
+    // the line is unsupported, and the reason names GCONV_PATH.
+    assert.equal(result.kind, ParsedCommandKind.unsupported);
+    assert.ok(getUnsupportedReason(result).includes("GCONV_PATH"));
+});
+
 test("test_parseInvokedCommand_unchecked_text_in_a_later_segment_stays_parsed", () => {
     // Steps:
     // parse a line whose script segment comes first and a backtick comes in a later segment.
