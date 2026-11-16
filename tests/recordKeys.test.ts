@@ -81,6 +81,14 @@ const OBSERVED_REAL_SESSION_FIELD_SAMPLES: Record<string, Record<string, unknown
         session_id: "9a9af9cb-d140-40b3-809c-30cc63c35923",
         // 85b520ce-b996-476c-90e2-02be4a08454d.jsonl:15
         sessionKind: "bg",
+        // 8f9bc86c…/subagents/agent-aa885f7b2bfbc7f84.jsonl:3 (playground folder)
+        rendered: [{ content: "<system-reminder>stand-in text</system-reminder>" }],
+        // 94093865-0449-5315-b401-1fdee7fe4d1a/subagents/agent-ac498c2fcc17a9892.jsonl:13 (playground folder)
+        renderedBesideToolResult: true,
+        // 6e01d3f7-e389-41bb-ae21-a9da73263097.jsonl:250
+        renderedInHumanTurn: [{ content: "<system-reminder>stand-in text</system-reminder>" }, { content: "stand-in text" }],
+        // 6e01d3f7-e389-41bb-ae21-a9da73263097.jsonl:8
+        renderedRole: "system",
     },
     [RecordType.system]: {
         // b5f72b99-9e83-47ea-a4fe-45d8bbedbb46.jsonl:26 (subtype bridge_status)

@@ -66,6 +66,14 @@ export const ALLOWED_TOP_LEVEL_KEYS: Record<RecordType, ReadonlySet<string>> = {
     ...OBSERVED_SESSION_METADATA_KEYS,
     // subagent identity (audit 2026-07-05).
     "agentId",
+    // newer-CC key, evidence 2026-11-02
+    "rendered",
+    // newer-CC key, evidence 2026-11-02
+    "renderedBesideToolResult",
+    // newer-CC key, evidence 2026-11-03
+    "renderedInHumanTurn",
+    // newer-CC key, evidence 2026-11-03
+    "renderedRole",
   ),
   [RecordType.bridgeSession]: buildKeySet(META_KEYS, "bridgeSessionId", "lastSequenceNum"),
   [RecordType.fileHistorySnapshot]: buildKeySet(
