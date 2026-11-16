@@ -335,9 +335,9 @@ A test (tests/glossary-matches-page.test.ts) fails when a page part has no row i
 
 | Name | File | What you see |
 |---|---|---|
-| Leaders | layer1-components/bubbles/bubbles.html | Layer that holds all leader lines |
+| timelineLeadersContainer | layer1-components/bubbles/bubbles.html | Layer that holds all leader lines |
 | timelineLeaderBar | layer1-components/bubbles/layer1-stage-render.ts | One horizontal line from a ruler tick across the bubbles |
-| SessionRangeBar | layer1-components/bubbles/bubbles.html | Narrow strip at the left that holds the range bars |
+| timelineSessionRangesContainer | layer1-components/bubbles/bubbles.html | Narrow strip at the left that holds the range bars |
 | timelineSessionRangeBar | layer1-components/bubbles/layer1-ranges.ts | One thin range bar for a session |
 | timelineWash | layer1-components/bubbles/layer1-wash.ts | Soft coloured band behind the bubbles |
 | timelineWashEdgeLabel | layer1-components/bubbles/layer1-diff-wash.ts | Text "selected diff range base" or "target" on the ruler |
