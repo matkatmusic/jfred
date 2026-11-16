@@ -71,3 +71,41 @@ test("test_a_dot_outside_a_positioned_stage_throws", () => {
   stubLayout(second.parentElement!.parentElement!, null, 310, 100);
   assert.throws(() => renderScriptConnectors(stage), /positioned stage/);
 });
+
+// RED before the orphan row draws its dots: "Expected values to be strictly equal: 1 !== 2".
+test("test_the_connector_finder_sees_dots_on_orphan_rows", async () => {
+  // Scenario: a run with a dot in a pair bubble and a dot on a disk-only row in the orphan bucket gets one connector.
+  // Steps:
+  // an empty stage holds a pair bubble with one dot of the run.
+  const stage = buildStage();
+  const { buildOrphanBucket } = await import("../webapp/layer1-widgets.ts");
+  buildBubble(stage, "toolu_fixture_orphan_1", 10, 100, 40);
+  // an orphan bucket holds one disk orphan whose scriptRuns has the same run.
+  const orphanRun = {
+    instant: "2026-06-02T09:00:00.000Z",
+    axisPx: 30,
+    toolUseId: "toolu_fixture_orphan_1",
+    executorKind: "python" as const,
+    language: "python" as const,
+    code: "print('fixture')",
+    sessionId: "session_fixture_1",
+    sessionFile: "session_fixture_1.jsonl",
+  };
+  const bucket = buildOrphanBucket("Disk only", [{ path: "scratch/disk_only_example.py", instant: "2026-06-02T09:00:00.000Z", axisPx: 30, scriptRuns: [orphanRun] }])!;
+  stage.append(bucket);
+  // the stage holds two dots: the pair dot and the orphan dot.
+  assert.equal(stage.querySelectorAll("i.n-script").length, 2);
+  // the orphan dot gets a layout chain: dot, holder, li, ul, bucket, stage.
+  const orphanDot = bucket.querySelector<HTMLElement>("i.n-script")!;
+  const holder = orphanDot.parentElement!;
+  const row = holder.parentElement!;
+  const rowList = row.parentElement!;
+  stubLayout(bucket, stage, 310, 100);
+  stubLayout(rowList, bucket, 4, 60);
+  stubLayout(row, rowList, 0, 20);
+  stubLayout(holder, row, 90, 2);
+  stubLayout(orphanDot, holder, 0, 5);
+  // the connector finder draws exactly one connector for the run.
+  renderScriptConnectors(stage);
+  assert.equal(stage.querySelectorAll(".script-connector").length, 1);
+});

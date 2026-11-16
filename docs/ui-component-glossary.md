@@ -330,6 +330,7 @@ A test (tests/glossary-matches-page.test.ts) fails when a page part has no row i
 | bubbleReverseStateNode | layer1-components/bubbles/layer1-reverse-bubble.ts | Dot for one file state |
 | bubbleReverseStateText | layer1-components/bubbles/layer1-reverse-bubble.ts | Text beside that dot |
 | bubbleOrphanSnapshotDot | layer1-widgets.ts | Small dot for a snapshot on an orphan row |
+| bubbleOrphanScriptRunDots | layer1-widgets.ts | Holder of the script-run dots on a disk-only orphan row |
 
 ### Timeline marks
 
