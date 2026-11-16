@@ -77,15 +77,32 @@ def build_command(request):
     return ["bash", "-c", request["source"], "script", *request["commandWords"]]
 
 
+def list_nonempty_path_entries(path_text):
+    entries = []
+    for entry in path_text.split(":"):
+        if entry != "":
+            entries.append(entry)
+    return entries
+
+
 def build_environment(request):
     environment = os.environ.copy()
     environment.update(request["environmentSettings"])
-    if request["interpreter"] == "python3":
-        recorded_python_path = request["environmentSettings"].get("PYTHONPATH")
-        if recorded_python_path:
-            environment["PYTHONPATH"] = recorded_python_path + ":" + request["pythonImportFolder"]
+    # if request["interpreter"] == "python3":
+    #     recorded_python_path = request["environmentSettings"].get("PYTHONPATH")
+    #     if recorded_python_path:
+    #         environment["PYTHONPATH"] = recorded_python_path + ":" + request["pythonImportFolder"]
+    #     else:
+    #         environment["PYTHONPATH"] = request["pythonImportFolder"]
+    recorded_entries = []
+    if "PYTHONPATH" in request["environmentSettings"]:
+        recorded_entries = list_nonempty_path_entries(request["environmentSettings"]["PYTHONPATH"])
+        if recorded_entries:
+            environment["PYTHONPATH"] = ":".join(recorded_entries)
         else:
-            environment["PYTHONPATH"] = request["pythonImportFolder"]
+            del environment["PYTHONPATH"]
+    if request["interpreter"] == "python3":
+        environment["PYTHONPATH"] = ":".join([*recorded_entries, request["pythonImportFolder"]])
     return environment
 
 

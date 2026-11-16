@@ -110,6 +110,72 @@ test("test_build_environment_puts_the_recorded_python_path_before_the_import_fol
     assert.equal(environment.PYTHONPATH, "/a:/b");
 });
 
+test("test_build_environment_drops_a_leading_empty_python_path_entry", () => {
+    // Scenario: a recorded PYTHONPATH with a leading empty entry loses that entry.
+    // Steps:
+    // make a python request with the setting PYTHONPATH ":/a" and the import folder "/b".
+    const request = makeRequest({ interpreter: "python3", environmentSettings: { PYTHONPATH: ":/a" }, pythonImportFolder: "/b" });
+    // call build_environment.
+    const environment = buildEnvironment(request);
+    // PYTHONPATH is "/a:/b".
+    assert.equal(environment.PYTHONPATH, "/a:/b");
+});
+
+test("test_build_environment_drops_a_trailing_empty_python_path_entry", () => {
+    // Scenario: a recorded PYTHONPATH with a trailing empty entry loses that entry.
+    // Steps:
+    // make a python request with the setting PYTHONPATH "/a:" and the import folder "/b".
+    const request = makeRequest({ interpreter: "python3", environmentSettings: { PYTHONPATH: "/a:" }, pythonImportFolder: "/b" });
+    // call build_environment.
+    const environment = buildEnvironment(request);
+    // PYTHONPATH is "/a:/b".
+    assert.equal(environment.PYTHONPATH, "/a:/b");
+});
+
+test("test_build_environment_drops_a_doubled_empty_python_path_entry", () => {
+    // Scenario: a recorded PYTHONPATH with an empty entry between two folders loses that entry.
+    // Steps:
+    // make a python request with the setting PYTHONPATH "/a::/c" and the import folder "/b".
+    const request = makeRequest({ interpreter: "python3", environmentSettings: { PYTHONPATH: "/a::/c" }, pythonImportFolder: "/b" });
+    // call build_environment.
+    const environment = buildEnvironment(request);
+    // PYTHONPATH is "/a:/c:/b".
+    assert.equal(environment.PYTHONPATH, "/a:/c:/b");
+});
+
+test("test_build_environment_gives_only_the_import_folder_for_an_empty_python_path", () => {
+    // Scenario: a recorded PYTHONPATH that is an empty string leaves only the import folder.
+    // Steps:
+    // make a python request with the setting PYTHONPATH "" and the import folder "/b".
+    const request = makeRequest({ interpreter: "python3", environmentSettings: { PYTHONPATH: "" }, pythonImportFolder: "/b" });
+    // call build_environment.
+    const environment = buildEnvironment(request);
+    // PYTHONPATH is exactly "/b".
+    assert.equal(environment.PYTHONPATH, "/b");
+});
+
+test("test_build_environment_drops_an_empty_python_path_entry_for_a_bash_run", () => {
+    // Scenario: a bash run with a recorded PYTHONPATH that has a trailing empty entry loses that entry.
+    // Steps:
+    // make a bash request with source "echo hi" and the setting PYTHONPATH "/a:".
+    const request = makeRequest({ interpreter: "bash", source: "echo hi", environmentSettings: { PYTHONPATH: "/a:" } });
+    // call build_environment.
+    const environment = buildEnvironment(request);
+    // PYTHONPATH is "/a".
+    assert.equal(environment.PYTHONPATH, "/a");
+});
+
+test("test_build_environment_leaves_python_path_unset_for_a_bash_run_when_no_entry_is_left", () => {
+    // Scenario: a bash run with a recorded PYTHONPATH of only an empty entry gets no PYTHONPATH.
+    // Steps:
+    // make a bash request with source "echo hi" and the setting PYTHONPATH ":".
+    const request = makeRequest({ interpreter: "bash", source: "echo hi", environmentSettings: { PYTHONPATH: ":" } });
+    // call build_environment.
+    const environment = buildEnvironment(request);
+    // PYTHONPATH is not set.
+    assert.equal(environment.PYTHONPATH, undefined);
+});
+
 test("test_build_environment_carries_a_recorded_setting_into_the_result", () => {
     // Scenario: a recorded setting appears in the environment of the run.
     // Steps:
