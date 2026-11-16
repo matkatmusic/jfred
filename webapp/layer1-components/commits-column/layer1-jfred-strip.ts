@@ -6,6 +6,7 @@ import type { BarsCutStripHandlers } from "../bars-view/layer1-bars-cut-strip.ts
 import { isBarsViewOn } from "../bars-view/layer1-bars-mode.ts";
 import { repaintCutMarks } from "./layer1-cut-paint.ts";
 import { openJfredMessage } from "./layer1-jfred-drawer.ts";
+import { appendJfredPatch } from "./layer1-jfred-patch.ts";
 import { buildJfredEntries, JfredEntryKind, listJfredEntries } from "./layer1-jfred-entries.ts";
 import { fetchScriptReplayNeeds, runScriptReplay, sendJfredCommit, sendJfredDelete } from "./layer1-jfred-api.ts";
 // import { commitPending, deleteJfredBranch, readJfredBranch } from "./layer1-jfred-state.ts";
@@ -51,6 +52,10 @@ function openCommitMessage(shortHash: string): void {
   for (const commit of readJfredBranch().commits) {
     if (commit.shortHash === shortHash) {
       openJfredMessage(commit);
+      const isRealBranch = !readJfredBranch().isCanned;
+      if (isRealBranch) {
+        void appendJfredPatch(commit.shortHash).then(undefined, reportJfredFailure);
+      }
       return;
     }
   }
@@ -128,6 +133,10 @@ function applyServerCommit(commit: JfredCommit): void {
   renderJfredEntries();
   repaintCutMarks();
   openJfredMessage(commit);
+  const isRealBranch = !readJfredBranch().isCanned;
+  if (isRealBranch) {
+    void appendJfredPatch(commit.shortHash).then(undefined, reportJfredFailure);
+  }
 }
 
 function reportJfredFailure(error: unknown): never {

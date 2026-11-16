@@ -31,6 +31,7 @@
   .timelineRulerComponent .tick.cut-no { opacity: .38; }
   .timelineRulerComponent .tick.cut-pending::after { color: var(--sel-edge); }
   pre.jfred-message { margin: 0; white-space: pre-wrap; font: 11px ui-monospace, Menlo, monospace; color: var(--ink); }
+  pre.jfred-patch { margin: 8px 0 0; white-space: pre; overflow-x: auto; font: 11px ui-monospace, Menlo, monospace; color: var(--ink); }
   .jcommit { margin: 0 0 8px; }
   #commit-mode.current { background: var(--sel-edge); border-color: var(--sel-edge); color: var(--page); }
   #commit-mode:disabled { opacity: 0.5; cursor: not-allowed; }

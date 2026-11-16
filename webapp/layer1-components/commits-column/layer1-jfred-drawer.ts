@@ -23,12 +23,17 @@ function buildMessagePane(view: JfredMessageView, onCommit: (() => void) | undef
   return pane;
 }
 
+export function buildJfredMessageTitle(shortHash: string | undefined): string {
+  return `jfred commit ${shortHash ?? PENDING_HASH_TEXT}`;
+}
+
 export function openJfredMessage(view: JfredMessageView, onCommit?: () => void): void {
   clearDiffPair();
   storeOpenedNode(undefined);
   getRequiredElementById("dprev").hidden = true;
   getRequiredElementById("dnext").hidden = true;
-  getRequiredElementById("dpath").textContent = `jfred commit ${view.shortHash ?? PENDING_HASH_TEXT}`;
+  // getRequiredElementById("dpath").textContent = `jfred commit ${view.shortHash ?? PENDING_HASH_TEXT}`;
+  getRequiredElementById("dpath").textContent = buildJfredMessageTitle(view.shortHash);
   getRequiredElementById("dmeta").textContent = `parent ${view.parentShortHash} | author date ${view.instant}`;
   setDrawerTools("none");
   renderDetailView([buildMessagePane(view, onCommit)]);

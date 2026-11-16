@@ -259,6 +259,7 @@ Turn the "names" button on, then hover any part of the page to see its name here
 | commitsHoverLine | layer1-components/commits-column/layer1-jfred-entries.ts | Horizontal line that shows when you point at a commit dot |
 | commitsPendingCommitButton | layer1-components/commits-column/layer1-jfred-drawer.ts | "Commit" button |
 | commitsMessageText | layer1-components/commits-column/layer1-jfred-drawer.ts | Commit message text |
+| commitsPatchText | layer1-components/commits-column/layer1-jfred-patch.ts | Patch text under a commit message |
 | CommitMode | layer1-components/commits-column/commits-column.html | "Commit mode" button |
 
 ### Minimap
