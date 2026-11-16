@@ -53,7 +53,7 @@ function makeRequest(overrides: Partial<WrapperRequest>): WrapperRequest {
 function callWrapperFunction(functionName: string, request: WrapperRequest): WrapperCallOutput {
     const hostEnvironment = { ...process.env };
     delete hostEnvironment.PYTHONPATH;
-    const spawned = spawnSync("python3", ["-I", "-c", PROGRAM, WRAPPER_PATH, functionName], {
+    const spawned = spawnSync("python3", ["-B", "-I", "-c", PROGRAM, WRAPPER_PATH, functionName], {
         input: JSON.stringify(request),
         encoding: "utf8",
         env: hostEnvironment,
