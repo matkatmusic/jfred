@@ -8,6 +8,7 @@ import { CURRENT_NODE_CLASS, readCurrentStep } from "./layer1-engine-v3-state.ts
 import { EngineV3StepKind } from "./layer1-wire-engine-v3.ts";
 import type { WireRulerTick } from "../../layer1-wire.ts";
 import { getCurrentZoom } from "../top-bars/layer1-zoom.ts";
+import { computeUncoveredArea, moveToUncoveredCentre } from "../top-bars/layer1-find-file.ts";
 
 const LINE_ID = "engine-v3-line";
 const LEFT_EDGE_VARIABLE = "--engine-line-left";
@@ -121,4 +122,25 @@ export function moveEngineV3LineIntoView(): void {
     return;
   }
   line.scrollIntoView({ block: "center" });
+}
+
+export function moveEngineV3CommitNodeIntoView(): void {
+  const commitNode = document.querySelector<HTMLElement>(`i.node.n-commit.${CURRENT_NODE_CLASS}`);
+  if (commitNode === null) {
+    moveEngineV3LineIntoView();
+    return;
+  }
+  const paneBox = getRequiredElementById("timelineContainer").getBoundingClientRect();
+  const area = computeUncoveredArea(paneBox, getRequiredElementById("detailsPaneContainer").getBoundingClientRect());
+  let visibleLeft = Math.max(area.left, getRequiredElementById("timelineRulerContainer").getBoundingClientRect().right);
+  const commitColumn = document.getElementById("jfredCommitsDrawerComponent");
+  if (commitColumn !== null) {
+    visibleLeft = Math.max(visibleLeft, commitColumn.getBoundingClientRect().right);
+  }
+  const nodeBox = commitNode.getBoundingClientRect();
+  const isInView = nodeBox.left >= visibleLeft && nodeBox.right <= area.right && nodeBox.top >= area.top && nodeBox.bottom <= area.bottom;
+  if (isInView) {
+    return;
+  }
+  moveToUncoveredCentre(commitNode);
 }

@@ -5,12 +5,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { getRequiredElementById } from "../webapp/app-dom.ts";
 // import { renderEngineV3Line, renderEngineV3LineAtTicks, moveEngineV3LineIntoView } from "../webapp/layer1-components/engine-v3/layer1-engine-v3-line.ts";
-import { renderEngineV3Line, renderEngineV3LineAtTicks, moveEngineV3LineIntoView, placeEngineV3LineLeftEdge, computeEngineV3LineLeftEdgePx } from "../webapp/layer1-components/engine-v3/layer1-engine-v3-line.ts";
+// import { renderEngineV3Line, renderEngineV3LineAtTicks, moveEngineV3LineIntoView, placeEngineV3LineLeftEdge, computeEngineV3LineLeftEdgePx } from "../webapp/layer1-components/engine-v3/layer1-engine-v3-line.ts";
+import { renderEngineV3Line, renderEngineV3LineAtTicks, moveEngineV3LineIntoView, moveEngineV3CommitNodeIntoView, placeEngineV3LineLeftEdge, computeEngineV3LineLeftEdgePx } from "../webapp/layer1-components/engine-v3/layer1-engine-v3-line.ts";
 import { clearFileBubbles } from "../webapp/layer1-components/bubbles/layer1-file-bubbles-clear.ts";
 import { CURRENT_NODE_CLASS, moveMarkerForward, storeEngineV3Steps } from "../webapp/layer1-components/engine-v3/layer1-engine-v3-state.ts";
 import { EngineV3StepKind, type WireEngineV3Step } from "../webapp/layer1-components/engine-v3/layer1-wire-engine-v3.ts";
 import type { WireRulerTick } from "../webapp/layer1-wire.ts";
-import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
+// import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
+import { buildClampingPane, initLayer1Dom } from "./webapp-dom-test-helpers.ts";
 import { applyZoom } from "../webapp/layer1-components/top-bars/layer1-zoom.ts";
 
 const TICKS: WireRulerTick[] = [
@@ -328,4 +330,60 @@ test("test_the_edge_follows_a_zoom_change_at_a_sideways_scroll", () => {
     // Expect: (152 - (-200)) / 2 = 176 px.
     assert.equal(readLine().style.getPropertyValue(EDGE_VARIABLE), "176px");
     applyZoom(1);
+});
+
+function appendCurrentCommitNode(left: number, top: number): HTMLElement {
+    const node = document.createElement("i");
+    node.className = "node n-commit current-node";
+    node.getBoundingClientRect = () => ({ left, right: left + 15, top, bottom: top + 15, width: 15, height: 15 }) as DOMRect;
+    getRequiredElementById("fileBubbleContainer").append(node);
+    return node;
+}
+
+test("test_the_commit_jump_centres_the_first_current_commit_node_side_to_side_and_up_and_down", () => {
+    // Scenario: the current commit node is far right of and below the visible part of the pane.
+    // Steps: pane 500x800 at scroll 0, first node at left 900 top 700 (15px box), a second node further right; centre.
+    initLayer1Dom();
+    const pane = buildClampingPane();
+    appendCurrentCommitNode(900, 700);
+    appendCurrentCommitNode(2000, 700);
+    moveEngineV3CommitNodeIntoView();
+    // Expect: the node centre (907.5, 707.5) is moved to the pane centre (250, 400): scroll by 657.5 and 307.5.
+    assert.equal(pane.scrollLeft, 657.5);
+    assert.equal(pane.scrollTop, 307.5);
+});
+
+test("test_the_commit_jump_does_not_scroll_when_the_commit_node_is_already_in_view", () => {
+    // Scenario: the current commit node sits inside the visible part of the pane, right of the sticky left column, so nothing moves (same rule as the line, both directions).
+    // Steps: pane 500x800 at scroll 0, left column right edge at 150, node at left 400 top 600 (inside the pane, off centre); centre; expect scroll still 0 and 0.
+    initLayer1Dom();
+    const pane = buildClampingPane();
+    stubElementRect(getRequiredElementById("timelineRulerContainer"), 0, 150);
+    appendCurrentCommitNode(400, 600);
+    moveEngineV3CommitNodeIntoView();
+    assert.equal(pane.scrollLeft, 0);
+    assert.equal(pane.scrollTop, 0);
+});
+
+test("test_the_commit_jump_centres_a_commit_node_that_sits_under_the_sticky_left_column", () => {
+    // Scenario: the current commit node is inside the pane box but under the sticky left column, so the user cannot see it.
+    // Steps: pane 500x800 at scroll 0, left column right edge at 150, node at left 100 top 600 (inside 0..150, inside the pane top and bottom); centre.
+    initLayer1Dom();
+    const pane = buildClampingPane();
+    stubElementRect(getRequiredElementById("timelineRulerContainer"), 0, 150);
+    appendCurrentCommitNode(100, 600);
+    moveEngineV3CommitNodeIntoView();
+    // Expect: the node moves: the node centre top 607.5 goes to the pane centre 400, so scrollTop is 207.5 (it started at 0).
+    assert.equal(pane.scrollTop, 207.5);
+});
+
+test("test_the_commit_jump_centres_the_line_when_no_commit_node_is_drawn", () => {
+    // Scenario: a filter hides the bubbles, so there is no current commit node.
+    // Steps: step drawn, line far below the pane, no node; expect the old line centering to run.
+    initLayer1Dom();
+    storeEngineV3Steps([buildStep("2026-06-01T10:00:00.000Z")]);
+    renderEngineV3LineAtTicks(TICKS);
+    const { scrolls } = stubRects({ top: 0, bottom: 800 }, { top: 2000, bottom: 2002 });
+    moveEngineV3CommitNodeIntoView();
+    assert.equal(scrolls.length, 1);
 });
