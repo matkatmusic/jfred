@@ -107,6 +107,12 @@ const OBSERVED_REAL_SESSION_FIELD_SAMPLES: Record<string, Record<string, unknown
         cause: { code: "ECONNRESET" },
         // 85b520ce-b996-476c-90e2-02be4a08454d.jsonl:11
         sessionKind: "bg",
+        // 6e01d3f7-e389-41bb-ae21-a9da73263097.jsonl:1576 (subtype local_command)
+        commandRun: { command: "exit", args: "", plugin: "idle-state" },
+        // 9789f2d0-5506-4633-9117-f64471817355.jsonl:966 (subtype permission_retry)
+        commands: ["Run shell command"],
+        // 2fa36f95-01f4-42c5-936b-6abbce7a78a9.jsonl:657 (subtype informational; stand-in reason text)
+        promptSubmitEnding: { ending: { kind: "dropped_by_hook", reason: "stand-in reason text" }, promptKept: false },
     },
     [RecordType.bridgeSession]: {
         // 6e01d3f7-e389-41bb-ae21-a9da73263097.jsonl:7 (playground folder; stand-in uuid)

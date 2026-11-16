@@ -130,6 +130,12 @@ export const ALLOWED_TOP_LEVEL_KEYS: Record<RecordType, ReadonlySet<string>> = {
     // Legacy/variant spellings and retry fields from corpus audit.
     "url", "pendingBackgroundAgentCount", "preventContinuation",
     "error", "retryInMs", "retryAttempt", "maxRetries", "cause",
+    // newer-CC key, evidence 2026-11-03
+    "commandRun",
+    // newer-CC key, evidence 2026-10-27
+    "commands",
+    // newer-CC key, evidence 2026-11-03
+    "promptSubmitEnding",
   ),
   [RecordType.user]: buildKeySet(
     ENVELOPE_KEYS,
