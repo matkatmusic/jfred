@@ -3,10 +3,41 @@
 import { closeBusyShield, openBusyShield, renderBusyShield, renderBusyShieldError } from "./layer1-components/popups/layer1-busy-shield.ts";
 import { hideLayer1Progress, readLayer1ViewStream, renderLayer1Progress } from "./layer1-components/loading-bar/layer1-progress.ts";
 import { loadSavedRunResult } from "./layer1-run-results.ts";
+import { getRunResult } from "./layer1-run-results.ts";
+import { WireRunOutcome } from "./layer1-wire-script-results.ts";
 import type { WireScriptRun, WireScriptRunsView } from "./layer1-wire-script-runs.ts";
 import type { WireLayer1View } from "./layer1-wire.ts";
 
 const viewsWithScriptRuns = new WeakSet<WireLayer1View>();
+const runsOnNoViewPairByView = new WeakMap<WireLayer1View, RunOnNoViewPair[]>();
+
+export type RunOnNoViewPair = { path: string; run: WireScriptRun };
+
+export function listRunsOnNoViewPair(view: WireLayer1View): RunOnNoViewPair[] {
+  const entries = runsOnNoViewPairByView.get(view);
+  if (entries === undefined) {
+    throw new Error("script runs are not loaded for this view");
+  }
+  return entries;
+}
+
+export function listReplayedRunsOnNoViewPair(view: WireLayer1View): RunOnNoViewPair[] {
+  const replayedEntries: RunOnNoViewPair[] = [];
+  for (const entry of listRunsOnNoViewPair(view)) {
+    const result = getRunResult(entry.run.toolUseId);
+    if (result === undefined) {
+      continue;
+    }
+    if (result.outcome !== WireRunOutcome.replayed) {
+      continue;
+    }
+    const hasFiles = result.files.length > 0;
+    if (hasFiles) {
+      replayedEntries.push(entry);
+    }
+  }
+  return replayedEntries;
+}
 
 export function isScriptRunsLoaded(view: WireLayer1View): boolean {
   return viewsWithScriptRuns.has(view);
@@ -65,6 +96,37 @@ async function fetchScriptRunsPayload(): Promise<WireScriptRunsView | undefined>
   return payload;
 }
 
+function collectRunsOnNoViewPair(view: WireLayer1View, payload: WireScriptRunsView): RunOnNoViewPair[] {
+  const viewPairPaths = new Set<string>();
+  for (const pair of view.pairs) {
+    viewPairPaths.add(pair.path);
+  }
+  const placedToolUseIds = new Set<string>();
+  for (const entry of payload.pairs) {
+    const isViewPair = viewPairPaths.has(entry.path);
+    if (isViewPair) {
+      for (const run of entry.scriptRuns) {
+        placedToolUseIds.add(run.toolUseId);
+      }
+    }
+  }
+  const entries: RunOnNoViewPair[] = [];
+  for (const pair of payload.pairs) {
+    const isViewPair = viewPairPaths.has(pair.path);
+    if (isViewPair) {
+      continue;
+    }
+    for (const run of convertScriptRuns(pair.scriptRuns)) {
+      const isPlaced = placedToolUseIds.has(run.toolUseId);
+      if (isPlaced) {
+        continue;
+      }
+      entries.push({ path: pair.path, run });
+    }
+  }
+  return entries;
+}
+
 function mergeScriptRunsPayload(view: WireLayer1View, payload: WireScriptRunsView): void {
   const runsByPath = new Map<string, WireScriptRunsView["pairs"][number]["scriptRuns"]>();
   for (const entry of payload.pairs) {
@@ -79,4 +141,5 @@ function mergeScriptRunsPayload(view: WireLayer1View, payload: WireScriptRunsVie
   for (const result of payload.results) {
     loadSavedRunResult(result);
   }
+  runsOnNoViewPairByView.set(view, collectRunsOnNoViewPair(view, payload));
 }

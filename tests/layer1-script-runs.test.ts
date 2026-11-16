@@ -4,6 +4,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getRunResult, resetRunResults } from "../webapp/layer1-run-results.ts";
 import { loadScriptRunsOnce } from "../webapp/layer1-script-runs.ts";
+import { listReplayedRunsOnNoViewPair, listRunsOnNoViewPair } from "../webapp/layer1-script-runs.ts";
+import { WireFileChange, WireRunOutcome } from "../webapp/layer1-wire-script-results.ts";
 import { stopLayer1Load } from "../webapp/layer1-components/loading-bar/layer1-progress.ts";
 import type { WireLayer1View } from "../webapp/layer1-wire.ts";
 import { initLayer1Dom } from "./webapp-dom-test-helpers.ts";
@@ -113,4 +115,109 @@ test("test_a_success_closes_the_shield_after_the_merge", async () => {
   assert.equal(await loadScriptRunsOnce(view), true);
   assert.equal(document.getElementById("busy-shield")!.hasAttribute("hidden"), true);
   assert.equal(view.pairs[0]!.scriptRuns!.length, 1);
+});
+
+test("test_listRunsOnNoViewPair_returns_an_entry_for_a_run_whose_only_payload_path_is_not_a_view_pair", async () => {
+  // Scenario: a run named only a path that is not a view pair is listed with that path and the zero axis.
+  // Steps:
+  initLayer1Dom();
+  // the payload holds one run under "docs/orphan.md", which buildView() does not have as a pair.
+  installStreamRoute("/api/layer1-script-runs", [{ pairs: [{ path: "docs/orphan.md", scriptRuns: [RUN] }], results: [] }]);
+  const view = buildView();
+  // load the script runs for the view.
+  await loadScriptRunsOnce(view);
+  // the list holds one entry: the named path and the run with axisPx 0.
+  assert.deepEqual(listRunsOnNoViewPair(view), [{ path: "docs/orphan.md", run: { ...RUN, axisPx: 0 } }]);
+});
+
+test("test_listRunsOnNoViewPair_lists_a_run_that_names_two_orphan_paths_once_per_path", async () => {
+  // Scenario: one run under two orphan paths gives two entries, one per path.
+  // Steps:
+  initLayer1Dom();
+  // the payload holds the same run under "docs/orphan.md" and "docs/orphan-2.md", neither a view pair.
+  installStreamRoute("/api/layer1-script-runs", [{
+    pairs: [{ path: "docs/orphan.md", scriptRuns: [RUN] }, { path: "docs/orphan-2.md", scriptRuns: [RUN] }], results: [],
+  }]);
+  const view = buildView();
+  // load the script runs for the view.
+  await loadScriptRunsOnce(view);
+  // the list holds two entries, in payload order, each with its own path and the same run.
+  assert.deepEqual(listRunsOnNoViewPair(view), [
+    { path: "docs/orphan.md", run: { ...RUN, axisPx: 0 } },
+    { path: "docs/orphan-2.md", run: { ...RUN, axisPx: 0 } },
+  ]);
+});
+
+test("test_listRunsOnNoViewPair_throws_for_a_view_that_was_never_loaded", () => {
+  // Scenario: reading the list from a view whose script runs were never loaded fails loudly.
+  // Steps:
+  // a view is built and loadScriptRunsOnce is never called for it.
+  const view = buildView();
+  // reading the list throws the not-loaded message.
+  assert.throws(() => listRunsOnNoViewPair(view), { message: "script runs are not loaded for this view" });
+});
+
+test("test_listReplayedRunsOnNoViewPair_returns_only_entries_whose_run_has_a_replayed_result_with_files", async () => {
+  // Scenario: of two orphan runs, only the one with a replayed result that names files is listed.
+  // Steps:
+  initLayer1Dom();
+  // no run results are stored yet.
+  resetRunResults();
+  // two orphan runs, each with its own tool use id, under two orphan paths.
+  const firstRun = { ...RUN, toolUseId: "toolu_fixture_orphan_1" };
+  const secondRun = { ...RUN, toolUseId: "toolu_fixture_orphan_2" };
+  // the first run has a replayed result with one file; the second run has a replay-failed result.
+  const firstResult = { ...SAVED_RESULT, toolUseId: firstRun.toolUseId, outcome: WireRunOutcome.replayed,
+    files: [{ path: "docs/orphan.md", change: WireFileChange.changed }] };
+  const secondResult = { ...SAVED_RESULT, toolUseId: secondRun.toolUseId, outcome: WireRunOutcome.replayFailed, files: [] };
+  installStreamRoute("/api/layer1-script-runs", [{
+    pairs: [{ path: "docs/orphan.md", scriptRuns: [firstRun] }, { path: "docs/orphan-2.md", scriptRuns: [secondRun] }],
+    results: [firstResult, secondResult],
+  }]);
+  const view = buildView();
+  // load the script runs for the view.
+  await loadScriptRunsOnce(view);
+  // the list holds only the first run's entry.
+  assert.deepEqual(listReplayedRunsOnNoViewPair(view), [{ path: "docs/orphan.md", run: { ...firstRun, axisPx: 0 } }]);
+});
+
+test("test_listRunsOnNoViewPair_skips_a_run_that_sits_on_a_view_pair", async () => {
+  // Scenario: a run under a path that is a view pair is placed on the pair and is not listed.
+  // Steps:
+  initLayer1Dom();
+  // the payload holds one run under "src/run.ts", which buildView() has as a pair.
+  installStreamRoute("/api/layer1-script-runs", [{ pairs: [{ path: "src/run.ts", scriptRuns: [RUN] }], results: [] }]);
+  const view = buildView();
+  // load the script runs for the view.
+  await loadScriptRunsOnce(view);
+  // the list is empty.
+  assert.deepEqual(listRunsOnNoViewPair(view), []);
+});
+
+test("test_listRunsOnNoViewPair_skips_a_run_on_a_view_pair_and_a_non_view_path", async () => {
+  // Scenario: a run under both a view-pair path and a non-view path is placed on the pair and is not listed.
+  // Steps:
+  initLayer1Dom();
+  // the payload holds the same run under "src/run.ts" (a pair) and "not/in/the/view.ts" (not a pair).
+  installStreamRoute("/api/layer1-script-runs", [PAYLOAD]);
+  const view = buildView();
+  // load the script runs for the view.
+  await loadScriptRunsOnce(view);
+  // the list is empty.
+  assert.deepEqual(listRunsOnNoViewPair(view), []);
+});
+
+test("test_listReplayedRunsOnNoViewPair_skips_an_entry_with_no_result", async () => {
+  // Scenario: an orphan run with no stored result is not in the replayed list.
+  // Steps:
+  initLayer1Dom();
+  // no run results are stored.
+  resetRunResults();
+  // the payload holds one orphan run and no results.
+  installStreamRoute("/api/layer1-script-runs", [{ pairs: [{ path: "docs/orphan.md", scriptRuns: [RUN] }], results: [] }]);
+  const view = buildView();
+  // load the script runs for the view.
+  await loadScriptRunsOnce(view);
+  // the replayed list is empty.
+  assert.deepEqual(listReplayedRunsOnNoViewPair(view), []);
 });
