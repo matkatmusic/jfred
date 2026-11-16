@@ -58,9 +58,18 @@ test("test_cache_file_with_another_format_version_is_ignored", () => {
     setFileStampCachePath(new Path(cacheFile));
     clearFileStampCaches();
     const sessionFile = new Path(join(tree.projectDir, "a.jsonl"));
-    readSessionEditEvents(sessionFile);
+    // Build the real events and save them to the cache file.
+    const builtEvents = readSessionEditEvents(sessionFile);
     saveFileStampCachesIfChanged();
-    writeFileSync(cacheFile, readFileSync(cacheFile, "utf8").replace('"version":2', '"version":0'));
+    // Doctor the cache file: change the version to 0 and change the saved event content.
+    const savedText = readFileSync(cacheFile, "utf8");
+    const doctoredText = savedText.replace('"version":2', '"version":0').replace('"content":"body\\n"', '"content":"doctored\\n"');
+    // Both replaces must have changed the text, or the doctoring proves nothing.
+    assert.ok(doctoredText.includes('"version":0'));
+    assert.ok(doctoredText.includes('"content":"doctored\\n"'));
+    writeFileSync(cacheFile, doctoredText);
     clearFileStampCaches();
-    assert.equal(readSessionEditEvents(sessionFile).length, 1);
+    // The next read loads the cache file from disk. A version-0 file must be ignored, so the events are rebuilt with the real content.
+    // If the version check were missing, the stamp would match and the doctored content would come back.
+    assert.deepEqual(readSessionEditEvents(sessionFile), builtEvents);
 });
