@@ -63,11 +63,11 @@ export function main(argumentList: string[]): void {
         fileCount: files.length,
         files,
     });
-    console.log(`startTime ${startTime.toISOString()}`);
-    console.log(`endTime ${endTime.toISOString()}`);
-    console.log(`elapsedMilliseconds ${elapsedMilliseconds}`);
-    console.log(`fileCount ${files.length}`);
-    console.log(`jsonFile ${command.outputFile.toString()}`);
+    console.log(`startTime: ${startTime.toISOString()}`);
+    console.log(`endTime: ${endTime.toISOString()}`);
+    console.log(`elapsedMilliseconds: ${elapsedMilliseconds}`);
+    console.log(`fileCount: ${files.length}`);
+    console.log(`jsonFile: "${command.outputFile.toString()}"`);
 }
 
 const isCliRun = process.argv[1] === fileURLToPath(import.meta.url);
