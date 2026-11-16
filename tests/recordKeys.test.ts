@@ -108,6 +108,12 @@ const OBSERVED_REAL_SESSION_FIELD_SAMPLES: Record<string, Record<string, unknown
         // 85b520ce-b996-476c-90e2-02be4a08454d.jsonl:11
         sessionKind: "bg",
     },
+    [RecordType.bridgeSession]: {
+        // 6e01d3f7-e389-41bb-ae21-a9da73263097.jsonl:7 (playground folder; stand-in uuid)
+        ownerAccountUuid: "11111111-2222-4333-8444-555555555555",
+        // 24366073-dc22-42eb-a4fe-73006a20752f.jsonl:6 (playground folder; stand-in uuid)
+        ownerOrganizationUuid: "66666666-7777-4888-8999-000000000000",
+    },
 };
 
 test("test_parseTranscriptLine_accepts_fields_observed_in_real_sessions", () => {

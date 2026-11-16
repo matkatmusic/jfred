@@ -75,7 +75,15 @@ export const ALLOWED_TOP_LEVEL_KEYS: Record<RecordType, ReadonlySet<string>> = {
     // newer-CC key, evidence 2026-11-03
     "renderedRole",
   ),
-  [RecordType.bridgeSession]: buildKeySet(META_KEYS, "bridgeSessionId", "lastSequenceNum"),
+  [RecordType.bridgeSession]: buildKeySet(
+    META_KEYS,
+    "bridgeSessionId",
+    "lastSequenceNum",
+    // newer-CC key, evidence 2026-11-03
+    "ownerAccountUuid",
+    // newer-CC key, evidence 2026-10-28
+    "ownerOrganizationUuid",
+  ),
   [RecordType.fileHistorySnapshot]: buildKeySet(
     ["type"], "messageId", "snapshot", "isSnapshotUpdate",
   ),
