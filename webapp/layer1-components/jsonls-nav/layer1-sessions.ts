@@ -28,18 +28,40 @@ export function listSessionPathsInProject(session: WireSession): string[] {
   return relativePaths;
 }
 
+// The session's project-relative paths that the drawn view knows; with no view drawn yet, every project path counts.
+export function listSessionPathsInView(session: WireSession): string[] {
+  const pathsInProject = listSessionPathsInProject(session);
+  if (knownProjectPaths.size === 0) {
+    return pathsInProject;
+  }
+  const pathsInView: string[] = [];
+  for (const path of pathsInProject) {
+    const isKnown = knownProjectPaths.has(path);
+    if (isKnown) {
+      pathsInView.push(path);
+    }
+  }
+  return pathsInView;
+}
+
 // A session earns a row only if it touched a file this view draws (user, 2026-07-27).
+// function containsKnownProjectPath(session: WireSession): boolean {
+//   if (knownProjectPaths.size === 0) {
+//     return true;
+//   }
+//   for (const path of listSessionPathsInProject(session)) {
+//     const isKnown = knownProjectPaths.has(path);
+//     if (isKnown) {
+//       return true;
+//     }
+//   }
+//   return false;
+// }
 function containsKnownProjectPath(session: WireSession): boolean {
   if (knownProjectPaths.size === 0) {
     return true;
   }
-  for (const path of listSessionPathsInProject(session)) {
-    const isKnown = knownProjectPaths.has(path);
-    if (isKnown) {
-      return true;
-    }
-  }
-  return false;
+  return listSessionPathsInView(session).length > 0;
 }
 
 export function listVisibleSessions(): WireSession[] {
