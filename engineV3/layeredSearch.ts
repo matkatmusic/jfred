@@ -29,12 +29,12 @@ export async function main(argumentList: string[]): Promise<void> {
     let transcriptsToParse: Path[] = [];
 
     const stepAStart = Date.now();
-    candidateTranscripts = await findCandidateTranscripts(files, command.jsonlsFolder, command.ripgrepSearchMode);
+    candidateTranscripts = await findCandidateTranscripts(files, command.jsonlsFolders);
     stepMilliseconds.stepA = Date.now() - stepAStart;
     console.log(`step A: ${candidateTranscripts.length} logs mention a path, ${stepMilliseconds.stepA} ms`);
 
     const stepBStart = Date.now();
-    transcriptsToParse = filterTranscriptsByCwd(candidateTranscripts, command.jsonlsFolder, command.projectFolder, worktreeFolders);
+    transcriptsToParse = filterTranscriptsByCwd(candidateTranscripts, command.jsonlsFolders, command.projectFolder, worktreeFolders);
     stepMilliseconds.stepB = Date.now() - stepBStart;
     console.log(`step B: ${transcriptsToParse.length} logs kept, ${stepMilliseconds.stepB} ms`);
 
@@ -47,9 +47,9 @@ export async function main(argumentList: string[]): Promise<void> {
     const elapsedMilliseconds = endTime.getTime() - startTime.getTime();
     writeJsonFile(command.outputFile, {
         repoFolder: command.repoFolder.toString(),
-        jsonlsFolder: command.jsonlsFolder.toString(),
+        jsonlsFolders: command.jsonlsFolders.map(String),
         projectFolder: command.projectFolder.toString(),
-        ripgrepSearchMode: command.ripgrepSearchMode,
+        // ripgrepSearchMode: command.ripgrepSearchMode,
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
         elapsedMilliseconds,

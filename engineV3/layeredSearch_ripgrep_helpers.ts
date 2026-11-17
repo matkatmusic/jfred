@@ -35,8 +35,8 @@ export function readFirstTranscriptStringField(transcript: Path, fieldName: stri
 }
 
 // One rg over the whole folder: the first value of the field in each log that has it.
-export function readFirstStringFieldOfAllTranscripts(jsonlsFolder: Path, fieldName: string): Map<string, string> {
-    const result = spawnSync("rg", ["-m1", "-o", "--with-filename", "--null", "--no-line-number", "--glob", "*.jsonl", `"${fieldName}":"[^"]*"`, jsonlsFolder.toString()], { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
+export function readFirstStringFieldOfAllTranscripts(jsonlsFolders: Path[], fieldName: string): Map<string, string> {
+    const result = spawnSync("rg", ["-m1", "-o", "--with-filename", "--null", "--no-line-number", "--glob", "*.jsonl", `"${fieldName}":"[^"]*"`, ...jsonlsFolders.map(String)], { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
     assertRipgrepFinished(result.status, result.stderr);
     const valuesByTranscript = new Map<string, string>();
     for (const line of result.stdout.split("\n")) {

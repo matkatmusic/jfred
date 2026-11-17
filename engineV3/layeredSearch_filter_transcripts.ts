@@ -4,9 +4,9 @@ import { Path } from "../src/structures/domain.ts";
 import { isPathInsideAnyFolder, isPathInsideFolder } from "./layeredSearch_path_checks.ts";
 import { readFirstStringFieldOfAllTranscripts } from "./layeredSearch_ripgrep_helpers.ts";
 
-export function filterTranscriptsByCwd(candidateTranscripts: Path[], jsonlsFolder: Path, projectFolder: Path, worktreeFolders: Path[]): Path[] {
+export function filterTranscriptsByCwd(candidateTranscripts: Path[], jsonlsFolders: Path[], projectFolder: Path, worktreeFolders: Path[]): Path[] {
     const startMilliseconds = Date.now();
-    const cwdsByTranscript = readFirstStringFieldOfAllTranscripts(jsonlsFolder, "cwd");
+    const cwdsByTranscript = readFirstStringFieldOfAllTranscripts(jsonlsFolders, "cwd");
     process.stderr.write(`B: read the cwd of ${cwdsByTranscript.size} logs in one search, ${Date.now() - startMilliseconds} ms\n`);
     const keptTranscripts: Path[] = [];
     let droppedForNoCwdCount = 0;
