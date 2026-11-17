@@ -2,10 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { Path } from "../src/structures/domain.ts";
-import { ToolName } from "../src/structures/vocabulary.ts";
+import { InverseStepEngine, ToolName } from "../src/structures/vocabulary.ts";
 import { ReverseStateKind, type EditRow, type WriteRow } from "./engineV3_replay_reverse.ts";
 import { FileEventType, createNodesWhenBytesDiffer, sortEventsNewestToOldest, type FileEvent } from "./engineV3_replay_reverse_events.ts";
-import { StateConfidence, StateMoment, getTextJustBeforeInstant, listKnownStatesForFile, type FileKnownState } from "./engineV3_file_known_states.ts";
+import { StateConfidence, StateMoment, createFileWalk, finishFileWalk, getTextJustBeforeInstant, listKnownStatesForFile, runPassOverEvent, type FileKnownState } from "./engineV3_file_known_states.ts";
 
 const TEXT_AFTER_EDIT = "one TWO three";
 const TEXT_BEFORE_EDIT = "one two three";
@@ -35,6 +35,11 @@ function makeGitCommitEvent(second: number, text: string): FileEvent {
 
 function makePartialEditEvent(second: number, oldString: string, newString: string): FileEvent {
     const row: EditRow = { toolName: ToolName.Edit, timestamp: makeInstant(second), source: undefined, oldString, newString, replaceAll: false, originalFile: undefined };
+    return makeEvent(FileEventType.EditRow, second, { row });
+}
+
+function makePartialReplaceAllEditEvent(second: number, oldString: string, newString: string): FileEvent {
+    const row: EditRow = { toolName: ToolName.Edit, timestamp: makeInstant(second), source: undefined, oldString, newString, replaceAll: true, originalFile: undefined };
     return makeEvent(FileEventType.EditRow, second, { row });
 }
 
@@ -384,6 +389,25 @@ test("test_partial_edit_with_no_known_newer_text_is_not_applied_forward_when_old
     assert.deepEqual(describeStates(states), ["WriteRow/at-event/proven", "EditRow/at-event/unknown", "EditRow/before-event/unknown", "GitCommit/at-event/proven"]);
 });
 
+test("test_replace_all_edit_with_no_known_newer_text_is_applied_forward_onto_the_older_beacon", () => {
+    // Scenario: a Write with no originalFile (no text to undo from), then a replace-all Edit, then a commit that holds "two" twice.
+    const events = [makeWriteEvent(3, TEXT_UNRELATED, false, undefined), makePartialReplaceAllEditEvent(2, "two", "TWO"), makeGitCommitEvent(1, "one two three two")];
+    const states = listKnownStatesForFile(events);
+    // The Edit states are confirmed by the commit.
+    assert.deepEqual(describeStates(states), ["WriteRow/at-event/proven", "EditRow/at-event/confirmed", "EditRow/before-event/confirmed", "GitCommit/at-event/proven"]);
+    // The at-event text has every occurrence replaced; the before-event text is the commit text.
+    assert.equal(states[1]!.text, "one TWO three TWO");
+    assert.equal(states[2]!.text, "one two three two");
+});
+
+test("test_replace_all_edit_with_no_known_newer_text_is_not_applied_forward_when_old_string_is_missing", () => {
+    // Scenario: same as the replace-all forward case, but the commit text does not hold the Edit's oldString.
+    const events = [makeWriteEvent(3, TEXT_UNRELATED, false, undefined), makePartialReplaceAllEditEvent(2, "two", "TWO"), makeGitCommitEvent(1, "nothing here")];
+    const states = listKnownStatesForFile(events);
+    // Both Edit states stay unknown.
+    assert.deepEqual(describeStates(states), ["WriteRow/at-event/proven", "EditRow/at-event/unknown", "EditRow/before-event/unknown", "GitCommit/at-event/proven"]);
+});
+
 test("test_user_edit_notice_gives_a_derived_state_with_its_own_text_that_an_older_beacon_does_not_change", () => {
     // Scenario: disk, a user edit notice that carries the laid-over text, then a commit with another text.
     const noticeEvent = makeEvent(FileEventType.UserEditNotice, 2, { bytes: TEXT_BORN });
@@ -415,4 +439,81 @@ test("test_old_walk_characterization_for_edit_behind_may_write_script", () => {
     // The old walk carries the text across the script and reports one Edit state: kind, undone text, isModifying true.
     const editStates = result.states.filter((state) => state.timestamp?.getTime() === makeInstant(2).getTime());
     assert.deepEqual(editStates.map((state) => [state.kind, state.content, state.isModifying]), [[ReverseStateKind.EditUndone, TEXT_BEFORE_EDIT, true]]);
+});
+
+test("test_a_pass_over_a_partial_edit_that_can_be_undone_from_the_carried_text_reports_the_backward_engine_and_adds_the_states", () => {
+    // Scenario: disk, then a partial Edit whose newString is in the disk text.
+    const events = [makeDiskNowEvent(TEXT_AFTER_EDIT), makePartialEditEvent(2, "two", "TWO")];
+    // Create the walk.
+    const walk = createFileWalk(events);
+    // Run pass 0 over the disk event.
+    runPassOverEvent(walk, 0);
+    // Run pass 1 over the Edit.
+    const engine = runPassOverEvent(walk, 1);
+    // The pass reports the backward engine.
+    assert.equal(engine, InverseStepEngine.Backward);
+    // The walk holds three states and the last one is the text before the Edit.
+    assert.equal(walk.knownStates.length, 3);
+    assert.equal(walk.knownStates[2]!.text, TEXT_BEFORE_EDIT);
+});
+
+test("test_a_pass_over_a_partial_edit_that_fits_only_the_older_beacon_reports_the_forward_engine_and_adds_the_states", () => {
+    // Scenario: disk with unrelated text, a partial Edit, then a commit that holds the Edit's oldString.
+    const events = [makeDiskNowEvent(TEXT_UNRELATED), makePartialEditEvent(20, "two", "TWO"), makeGitCommitEvent(10, TEXT_BEFORE_EDIT)];
+    // Create the walk.
+    const walk = createFileWalk(events);
+    // Run pass 0 over the disk event.
+    runPassOverEvent(walk, 0);
+    // Run pass 1 over the Edit.
+    const engine = runPassOverEvent(walk, 1);
+    // The pass reports the forward engine.
+    assert.equal(engine, InverseStepEngine.Forward);
+    // The state before the Edit, the last state, has the commit text.
+    assert.equal(walk.knownStates[walk.knownStates.length - 1]!.text, TEXT_BEFORE_EDIT);
+});
+
+test("test_a_pass_over_a_partial_edit_that_fits_neither_way_reports_both_failed_and_enters_the_roadblock_with_an_unknown_state", () => {
+    // Scenario: disk text and a partial Edit that match nothing, with no older beacon.
+    const events = [makeDiskNowEvent("abc"), makePartialEditEvent(2, "q", "Z")];
+    // Create the walk.
+    const walk = createFileWalk(events);
+    // Run pass 0 over the disk event.
+    runPassOverEvent(walk, 0);
+    // Run pass 1 over the Edit.
+    const engine = runPassOverEvent(walk, 1);
+    // The pass reports that both engines failed.
+    assert.equal(engine, InverseStepEngine.BothFailed);
+    // The walk is now behind a roadblock.
+    assert.equal(walk.isBehindRoadblock, true);
+    // The state before the Edit, the last state, is unknown.
+    assert.equal(walk.knownStates[walk.knownStates.length - 1]!.confidence, StateConfidence.Unknown);
+});
+
+test("test_a_pass_over_a_beacon_event_reports_no_engine", () => {
+    // Scenario: the only event is the disk event.
+    const walk = createFileWalk([makeDiskNowEvent("abc")]);
+    // Run pass 0 over the disk event.
+    const engine = runPassOverEvent(walk, 0);
+    // A beacon event has no engine to report.
+    assert.equal(engine, undefined);
+});
+
+function makeEveryKindOfEventNewestFirst(): FileEvent[] {
+    return [makeDiskNowEvent(TEXT_AFTER_EDIT), makePartialEditEvent(40, "two", "TWO"), makeEvent(FileEventType.ReadPartial, 30), makeMayWriteScriptEvent(20), makeGitCommitEvent(10, TEXT_BEFORE_EDIT)];
+}
+
+test("test_running_every_pass_then_finishing_gives_the_same_states_as_listKnownStatesForFile", () => {
+    // Scenario: one event list with a disk event, a partial Edit, a partial read, a may-write script and a commit.
+    const expected = listKnownStatesForFile(makeEveryKindOfEventNewestFirst());
+    // Make the events again so the two runs share no objects, and create a walk.
+    const events = makeEveryKindOfEventNewestFirst();
+    const walk = createFileWalk(events);
+    // Run every pass by index.
+    for (let eventIndex = 0; eventIndex < events.length; eventIndex++) {
+        runPassOverEvent(walk, eventIndex);
+    }
+    // Finish the walk.
+    finishFileWalk(walk);
+    // The walk holds the same states as the one-call function.
+    assert.deepEqual(walk.knownStates, expected);
 });

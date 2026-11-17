@@ -43,7 +43,7 @@ export type ReverseEventsResult = { states: ReverseFileState[]; unhandledEvents:
 enum EntryRole { Own, RowAfter, RowBefore }
 type Entry = { event: FileEvent; role: EntryRole; bytes: string | undefined };
 
-function createEvent(type: FileEventType, instant: Date | undefined, source: RecordSource | undefined, fields: Partial<FileEvent> = {}): FileEvent {
+export function createEvent(type: FileEventType, instant: Date | undefined, source: RecordSource | undefined, fields: Partial<FileEvent> = {}): FileEvent {
   return { type, instant, source, commitHash: undefined, bytes: undefined, row: undefined, moveOrCopySourceFile: undefined, removedByScript: false, movedAwayToFile: undefined, scriptRun: undefined, ...fields };
 }
 

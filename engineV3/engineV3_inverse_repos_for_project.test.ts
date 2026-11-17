@@ -16,6 +16,7 @@ import {
     type FileInverseRepoResult, type ProjectFile,
 } from "./engineV3_inverse_repos_for_project.ts";
 import { REPLAY_GAPS_FILE_NAME, isReplayGapsSidecarPresent } from "./engineV3_script_replay_gaps.ts";
+import { buildOnDemandInverseReposForFiles, isInverseRepoOnDemand } from "./engineV3_inverse_repos_for_project.ts";
 
 const DISK_NOW_INSTANT = new Date(Date.UTC(2026, 5, 1, 12, 0, 0));
 
@@ -689,4 +690,117 @@ test("test_script_run_line_that_does_not_name_the_file_reaches_the_events", (t) 
     // The run line does not name core_alpha.py, yet its repo has a commit that says the file was absent.
     const commitsOfAlpha = listCommitsOfCopySceneFile(scene, "core_alpha.py");
     assert.ok(commitsOfAlpha.some((commit) => commit.isFileAbsent));
+});
+
+function listProjectFilesOfProject(project: Project): ProjectFile[] {
+    return [project.fileA, project.fileB].map((file) => ({ file, transcriptFile: file }));
+}
+
+function buildOnDemandProject(project: Project, storeFolder: Path, reportProgress: (event: ProgressEvent) => void = () => {}): FileInverseRepoResult[] {
+    return buildOnDemandInverseReposForFiles(project.projectFolder, listProjectFilesOfProject(project), [project.jsonlsFolder], storeFolder, DISK_NOW_INSTANT, reportProgress);
+}
+
+test("test_an_on_demand_repo_holds_only_the_now_commit", (t) => {
+    // Scenario: the on-demand build writes one commit per file: the disk-now commit.
+    // A project has a.txt on disk and a log with Edit rows for it.
+    const project = makeProject(t);
+    // The on-demand build runs for both files.
+    buildOnDemandProject(project, project.storeFolder);
+    // The repo of a.txt holds exactly one commit.
+    const commitsOfA = listInverseCommits(getInverseRepoFolderForFile(project.storeFolder, project.projectFolder, project.fileA), "a.txt", true);
+    assert.equal(commitsOfA.length, 1);
+    // That commit is at position 0 and its event type is DiskNow.
+    assert.equal(commitsOfA[0]!.position, 0);
+    assert.equal(commitsOfA[0]!.eventType, FileEventType.DiskNow);
+});
+
+test("test_the_on_demand_now_commit_equals_the_first_commit_of_the_full_build", (t) => {
+    // Scenario: the on-demand now commit is the same commit that the full build writes first.
+    // A project is built in full into the store, and on demand into another store, with the same disk-now instant.
+    const project = makeProject(t);
+    const otherStoreFolder = new Path(join(makeTempFolder(t), "other-store"));
+    buildProject(project);
+    buildOnDemandProject(project, otherStoreFolder);
+    // The first commit of a.txt is read from both repos.
+    const fullFirstCommit = listInverseCommits(getInverseRepoFolderForFile(project.storeFolder, project.projectFolder, project.fileA), "a.txt", true)[0]!;
+    const onDemandFirstCommit = listInverseCommits(getInverseRepoFolderForFile(otherStoreFolder, project.projectFolder, project.fileA), "a.txt", true)[0]!;
+    // The tree hashes are equal.
+    assert.equal(onDemandFirstCommit.treeHash.toString(), fullFirstCommit.treeHash.toString());
+    // Every other field is equal; the commit hash is not compared.
+    assert.deepEqual({ ...onDemandFirstCommit, commitHash: undefined }, { ...fullFirstCommit, commitHash: undefined });
+});
+
+test("test_the_stamp_of_an_on_demand_repo_has_the_on_demand_mode", (t) => {
+    // Scenario: the stamp tells an on-demand repo from a full repo.
+    // A project is built on demand into the store and in full into another store.
+    const project = makeProject(t);
+    const otherStoreFolder = new Path(join(makeTempFolder(t), "other-store"));
+    buildOnDemandProject(project, project.storeFolder);
+    buildWithProjectFiles(project, listProjectFilesOfProject(project), otherStoreFolder);
+    // The repo built on demand says it is on demand.
+    assert.equal(isInverseRepoOnDemand(getInverseRepoFolderForFile(project.storeFolder, project.projectFolder, project.fileA)), true);
+    // The repo built in full says it is not.
+    assert.equal(isInverseRepoOnDemand(getInverseRepoFolderForFile(otherStoreFolder, project.projectFolder, project.fileA)), false);
+});
+
+test("test_a_second_on_demand_build_with_the_same_inputs_reuses_the_repo", (t) => {
+    // Scenario: the same inputs a second time do no work for an on-demand repo.
+    // A project is built on demand one time and the commit hash of a.txt is noted.
+    const project = makeProject(t);
+    const firstResults = buildOnDemandProject(project, project.storeFolder);
+    assert.equal(firstResults[0]!.wasReused, false);
+    const repoFolderOfA = getInverseRepoFolderForFile(project.storeFolder, project.projectFolder, project.fileA);
+    const commitHashesBefore = listInverseCommits(repoFolderOfA, "a.txt", true).map((commit) => commit.commitHash.toString());
+    // The second on-demand build runs with the same files and the same logs.
+    const secondResults = buildOnDemandProject(project, project.storeFolder);
+    // Every result says wasReused is true.
+    assert.deepEqual(secondResults.map((result) => result.wasReused), [true, true]);
+    // The commit hash of a.txt is the same.
+    const commitHashesAfter = listInverseCommits(repoFolderOfA, "a.txt", true).map((commit) => commit.commitHash.toString());
+    assert.deepEqual(commitHashesAfter, commitHashesBefore);
+});
+
+test("test_a_full_build_does_not_reuse_an_on_demand_repo", (t) => {
+    // Scenario: a full build never takes an on-demand repo as a full repo.
+    // A project is built on demand into the store.
+    const project = makeProject(t);
+    buildOnDemandProject(project, project.storeFolder);
+    // The full build runs into the same store with the same inputs.
+    const results = buildProject(project);
+    // The result of a.txt says wasReused is false.
+    assert.equal(results[0]!.wasReused, false);
+    // The repo of a.txt now holds more than one commit and is not on demand.
+    const repoFolderOfA = getInverseRepoFolderForFile(project.storeFolder, project.projectFolder, project.fileA);
+    assert.ok(listInverseCommits(repoFolderOfA, "a.txt", true).length > 1);
+    assert.equal(isInverseRepoOnDemand(repoFolderOfA), false);
+});
+
+test("test_an_on_demand_build_does_not_reuse_a_full_repo", (t) => {
+    // Scenario: an on-demand build never takes a full repo as an on-demand repo.
+    // A project is built in full into the store.
+    const project = makeProject(t);
+    buildProject(project);
+    // The on-demand build runs into the same store with the same inputs.
+    const results = buildOnDemandProject(project, project.storeFolder);
+    // The result of a.txt says wasReused is false.
+    assert.equal(results[0]!.wasReused, false);
+    // The repo of a.txt now holds one commit.
+    const repoFolderOfA = getInverseRepoFolderForFile(project.storeFolder, project.projectFolder, project.fileA);
+    assert.equal(listInverseCommits(repoFolderOfA, "a.txt", true).length, 1);
+});
+
+test("test_the_on_demand_build_reports_one_done_line_per_file", (t) => {
+    // Scenario: the on-demand build sends one finished-file event per file, with the bar full.
+    // A project has two files and a progress sink collects the events.
+    const project = makeProject(t);
+    const events: ProgressEvent[] = [];
+    // The on-demand build runs for both files.
+    buildOnDemandProject(project, project.storeFolder, (event) => events.push(event));
+    // There is one event per file.
+    assert.equal(events.length, 2);
+    // The events name the files in order, and current counts up to the total of 2.
+    assert.deepEqual(events.map((event) => event.file), ["a.txt", "sub/b.txt"]);
+    assert.deepEqual(events.map((event) => [event.current, event.total]), [[1, 2], [2, 2]]);
+    // Each event has steps done 1 of steps total 1.
+    assert.deepEqual(events.map((event) => [event.fileStepsDone, event.fileStepsTotal]), [[1, 1], [1, 1]]);
 });

@@ -124,3 +124,29 @@ export enum Verdict {
 }
 
 export const KNOWN_VERDICTS: Verdict[] = Object.values(Verdict);
+
+export enum InverseStepEngine {
+    Backward = "backward",
+    Forward = "forward",
+    BothFailed = "both-failed",
+}
+
+export enum InverseStepOutcome {
+    NewText = "new-text",
+    FileAbsent = "file-absent",
+    UnknownOrRoadblock = "unknown-or-roadblock",
+    NoOlderChange = "no-older-change",
+    MovedBack = "moved-back",
+    NoNewerChange = "no-newer-change",
+    Paused = "paused",
+}
+
+export enum InverseRepoMode {
+    OnDemand = "on-demand",
+}
+
+export enum StepCommand {
+    Forward = "forward",
+    Backward = "backward",
+    Quit = "quit",
+}

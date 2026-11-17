@@ -1,6 +1,7 @@
 // Builds the inverse repo of every file of a project, reading the transcripts one time for all files.
 
 import { createHash } from "node:crypto";
+import { createInterface } from "node:readline";
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,12 +10,16 @@ import { listCurrentFileState } from "../src/layer1_disk_walk.ts";
 import type { ProgressSink } from "../src/parse/loadTranscript.ts";
 import { extractValueFlag } from "../src/reconstruction_cli_flags.ts";
 import { DocumentResponseKind } from "../src/structures/vocabulary_views.ts";
-import { StateConfidence, getTextJustBeforeInstant, listKnownStatesForFile, type FileKnownState } from "./engineV3_file_known_states.ts";
-import { buildInverseRepoByEventKind } from "./engineV3_inverse_repo.ts";
+import { InverseRepoMode } from "../src/structures/vocabulary.ts";
+import { StateConfidence, StateMoment, createProvenState, getTextJustBeforeInstant, listKnownStatesForFile, type FileKnownState } from "./engineV3_file_known_states.ts";
+import { buildInverseRepoByEventKind, createInverseRepo, listInverseCommits } from "./engineV3_inverse_repo.ts";
+import { createFileStep } from "./engineV3_file_step.ts";
+import { runStepCommands } from "./engineV3_step_cli.ts";
 import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
 import type { JSONLLine } from "./engineV3.ts";
 import { loadJSONLLinesNamingFiles } from "./engineV3_jsonl_lines_naming_files.ts";
-import { getAllEventsForFileFromLines, sortEventsNewestToOldest, type FileEvent } from "./engineV3_replay_reverse_events.ts";
+import { FileEventType, createEvent, getAllEventsForFileFromLines, sortEventsNewestToOldest, type FileEvent } from "./engineV3_replay_reverse_events.ts";
+import { readDiskText } from "./engineV3_replay_reverse.ts";
 import { addLinesNamingWrittenScripts } from "./engineV3_jsonl_lines_naming_scripts.ts";
 import { buildReplayGapsSidecar, isReplayGapsSidecarPresent, writeReplayGapsSidecar } from "./engineV3_script_replay_gaps.ts";
 
@@ -22,7 +27,7 @@ export type FileInverseRepoResult = { file: Path; repoFolder: Path; eventCount: 
 
 // The inputs a repo was built from: the bytes on disk, the log path of the file, and the log files with size and modified time.
 type InverseRepoStampInputs = { diskBytesHash: string; diskModifiedMilliseconds: number | null; transcriptFile: string; logFilesHash: string; formatVersion: number };
-type InverseRepoStamp = { inputs: InverseRepoStampInputs; eventCount: number; stateCount: number; commitCount: number; unknownStateCount: number };
+type InverseRepoStamp = { inputs: InverseRepoStampInputs; eventCount: number; stateCount: number; commitCount: number; unknownStateCount: number; mode?: InverseRepoMode };
 
 export const INVERSE_REPO_FORMAT_VERSION = 4;
 const STAMP_FILE_NAME = "jfred-stamp.json";
@@ -30,7 +35,8 @@ const ABSENT_DISK_BYTES_HASH = "absent";
 
 export type InverseReposSettings = { projectFolder: Path; jsonlsFolder: Path; fileHistoryFolder: Path; storeFolder: Path };
 
-const USAGE = "usage: node engineV3_inverse_repos_for_project.ts --project <folder> --jsonls <folder> --file-history <folder> --store <folder>";
+// const USAGE = "usage: node engineV3_inverse_repos_for_project.ts --project <folder> --jsonls <folder> --file-history <folder> --store <folder>";
+const USAGE = "usage: node engineV3_inverse_repos_for_project.ts --project <folder> --jsonls <folder> --file-history <folder> --store <folder> [--step <project-relative file> [--from-now]]";
 
 export const OUTSIDE_PROJECT_PREFIX = ".outside-project/";
 
@@ -140,6 +146,11 @@ function writeInverseRepoStamp(repoFolder: Path, stamp: InverseRepoStamp): void 
     writeFileSync(join(repoFolder.toString(), STAMP_FILE_NAME), JSON.stringify(stamp));
 }
 
+function buildStampInputs(file: Path, transcriptFile: Path, logFilesHash: string): InverseRepoStampInputs {
+    const diskModifiedInstant = getDiskModifiedInstant(file);
+    return { diskBytesHash: getDiskBytesHash(file), diskModifiedMilliseconds: diskModifiedInstant === undefined ? null : diskModifiedInstant.getTime(), transcriptFile: transcriptFile.toString(), logFilesHash, formatVersion: INVERSE_REPO_FORMAT_VERSION };
+}
+
 function isStampBuiltFromInputs(stamp: InverseRepoStamp, inputs: InverseRepoStampInputs): boolean {
     if (stamp.inputs.diskBytesHash === inputs.diskBytesHash) {
         if (stamp.inputs.diskModifiedMilliseconds === inputs.diskModifiedMilliseconds) {
@@ -154,7 +165,7 @@ function isStampBuiltFromInputs(stamp: InverseRepoStamp, inputs: InverseRepoStam
 }
 
 // Script indirection is on here: this is the per-file repo path only.
-function createProjectEventsLoader(projectFiles: ProjectFile[], jsonlsFolders: Path[], snapshotFolders: Path[]): (fileIndex: number) => FileEvent[] {
+export function createProjectEventsLoader(projectFiles: ProjectFile[], jsonlsFolders: Path[], snapshotFolders: Path[]): (fileIndex: number) => FileEvent[] {
     let linesByFileKey: Map<string, JSONLLine[]> | undefined;
     const eventsByFile: (FileEvent[] | undefined)[] = projectFiles.map(() => undefined);
     return (fileIndex: number): FileEvent[] => {
@@ -199,15 +210,18 @@ export function buildInverseReposForFiles(projectFolder: Path, projectFiles: Pro
     for (const [index, { file, transcriptFile }] of projectFiles.entries()) {
         const repoFolder = repoFolders[index]!;
         const diskModifiedInstant = getDiskModifiedInstant(file);
-        const inputs: InverseRepoStampInputs = { diskBytesHash: getDiskBytesHash(file), diskModifiedMilliseconds: diskModifiedInstant === undefined ? null : diskModifiedInstant.getTime(), transcriptFile: transcriptFile.toString(), logFilesHash, formatVersion: INVERSE_REPO_FORMAT_VERSION };
+        // const inputs: InverseRepoStampInputs = { diskBytesHash: getDiskBytesHash(file), diskModifiedMilliseconds: diskModifiedInstant === undefined ? null : diskModifiedInstant.getTime(), transcriptFile: transcriptFile.toString(), logFilesHash, formatVersion: INVERSE_REPO_FORMAT_VERSION };
+        const inputs = buildStampInputs(file, transcriptFile, logFilesHash);
         const existingStamp = readInverseRepoStamp(repoFolder);
         const relativeFile = getRelativePathInProject(projectFolder, file);
         const projectRelativeFile = relativeFile.split(sep).join("/");
         let result: FileInverseRepoResult | undefined;
         if (existingStamp !== undefined) {
-            if (isStampBuiltFromInputs(existingStamp, inputs)) {
-                if (isReplayGapsSidecarPresent(repoFolder)) {
-                    result = { file, repoFolder, eventCount: existingStamp.eventCount, stateCount: existingStamp.stateCount, commitCount: existingStamp.commitCount, unknownStateCount: existingStamp.unknownStateCount, wasReused: true };
+            if (existingStamp.mode === undefined) {
+                if (isStampBuiltFromInputs(existingStamp, inputs)) {
+                    if (isReplayGapsSidecarPresent(repoFolder)) {
+                        result = { file, repoFolder, eventCount: existingStamp.eventCount, stateCount: existingStamp.stateCount, commitCount: existingStamp.commitCount, unknownStateCount: existingStamp.unknownStateCount, wasReused: true };
+                    }
                 }
             }
         }
@@ -239,6 +253,47 @@ export function buildInverseReposForFiles(projectFolder: Path, projectFiles: Pro
     return results;
 }
 
+export function isInverseRepoOnDemand(repoFolder: Path): boolean {
+    const stamp = readInverseRepoStamp(repoFolder);
+    if (stamp === undefined) {
+        return false;
+    }
+    return stamp.mode === InverseRepoMode.OnDemand;
+}
+
+export function buildOnDemandInverseReposForFiles(projectFolder: Path, projectFiles: ProjectFile[], jsonlsFolders: Path[], storeFolder: Path, diskNowInstant: Date, reportProgress: ProgressSink): FileInverseRepoResult[] {
+    const logFilesHash = getLogFilesHash(jsonlsFolders);
+    const results: FileInverseRepoResult[] = [];
+    for (const [index, { file, transcriptFile }] of projectFiles.entries()) {
+        const repoFolder = getInverseRepoFolderForFile(storeFolder, projectFolder, file);
+        const inputs = buildStampInputs(file, transcriptFile, logFilesHash);
+        const existingStamp = readInverseRepoStamp(repoFolder);
+        const relativeFile = getRelativePathInProject(projectFolder, file);
+        const projectRelativeFile = relativeFile.split(sep).join("/");
+        let result: FileInverseRepoResult | undefined;
+        if (existingStamp !== undefined) {
+            if (existingStamp.mode === InverseRepoMode.OnDemand) {
+                if (isStampBuiltFromInputs(existingStamp, inputs)) {
+                    result = { file, repoFolder, eventCount: existingStamp.eventCount, stateCount: existingStamp.stateCount, commitCount: existingStamp.commitCount, unknownStateCount: existingStamp.unknownStateCount, wasReused: true };
+                }
+            }
+        }
+        if (result === undefined) {
+            rmSync(repoFolder.toString(), { recursive: true, force: true });
+            mkdirSync(repoFolder.toString(), { recursive: true });
+            const diskNowEvent = createEvent(FileEventType.DiskNow, getDiskModifiedInstant(file), undefined, { bytes: readDiskText(file) });
+            const diskNowState = createProvenState(diskNowEvent, StateMoment.AtEvent, diskNowEvent.bytes);
+            createInverseRepo(repoFolder, basename(file.toString()), { state: diskNowState, position: 0 }, diskNowInstant);
+            writeInverseRepoStamp(repoFolder, { inputs, eventCount: 0, stateCount: 1, commitCount: 1, unknownStateCount: 0, mode: InverseRepoMode.OnDemand });
+            result = { file, repoFolder, eventCount: 0, stateCount: 1, commitCount: 1, unknownStateCount: 0, wasReused: false };
+        }
+        results.push(result);
+        const label = `${relativeFile}  events ${result.eventCount}  commits ${result.commitCount}  unknown ${result.unknownStateCount}`;
+        reportProgress({ kind: DocumentResponseKind.progress, label, current: index + 1, total: projectFiles.length, file: projectRelativeFile, fileStepsDone: result.commitCount, fileStepsTotal: result.commitCount });
+    }
+    return results;
+}
+
 function readRequiredFolderFlag(argumentList: string[], flag: string): { folder: Path; rest: string[] } {
     const { value, rest } = extractValueFlag(argumentList, flag);
     if (value === undefined) {
@@ -257,7 +312,11 @@ export function readInverseReposSettingsFromArguments(argumentList: string[]): I
 
 const isCliRun = process.argv[1] === fileURLToPath(import.meta.url);
 if (isCliRun) {
-    const settings = readInverseReposSettingsFromArguments(process.argv.slice(2));
+    const stepFlag = extractValueFlag(process.argv.slice(2), "--step");
+    const isFromNow = stepFlag.rest.includes("--from-now");
+    const argumentsWithoutStepFlags = stepFlag.rest.filter((argument) => argument !== "--from-now");
+    // const settings = readInverseReposSettingsFromArguments(process.argv.slice(2));
+    const settings = readInverseReposSettingsFromArguments(argumentsWithoutStepFlags);
     const startMilliseconds = Date.now();
     // const files = listCurrentFileState(settings.projectFolder).map((fileState) => new Path(join(settings.projectFolder.toString(), fileState.relativePath.toString())));
     // const projectFiles = files.map((file) => ({ file, transcriptFile: file }));
@@ -267,6 +326,35 @@ if (isCliRun) {
     const repoFolder = getRepoFolderOfProject(settings.projectFolder);
     // The terminal bars sink is created after this call, so the progress callback does nothing.
     const { projectFiles, transcriptsToParse } = listLayeredSearchProjectFiles(settings.projectFolder, repoFolder, [settings.jsonlsFolder], false, () => {});
+    if (stepFlag.value !== undefined) {
+        const stepProjectFile = projectFiles.find((projectFile) => getRelativePathInProject(settings.projectFolder, projectFile.file).split(sep).join("/") === stepFlag.value);
+        if (stepProjectFile === undefined) {
+            throw new Error(`--step ${stepFlag.value}: no project file has this project-relative path`);
+        }
+        const events = createProjectEventsLoader([stepProjectFile], transcriptsToParse, [settings.fileHistoryFolder])(0);
+        const inverseRepoFolder = getInverseRepoFolderForFile(settings.storeFolder, settings.projectFolder, stepProjectFile.file);
+        const fileName = basename(stepProjectFile.file.toString());
+        if (isFromNow) {
+            rmSync(inverseRepoFolder.toString(), { recursive: true, force: true });
+        }
+        buildOnDemandInverseReposForFiles(settings.projectFolder, [stepProjectFile], transcriptsToParse, settings.storeFolder, new Date(), () => {});
+        const storedCommits = listInverseCommits(inverseRepoFolder, fileName, true);
+        const step = createFileStep(events, storedCommits);
+        const tipCommit = storedCommits[storedCommits.length - 1]!;
+        if (storedCommits.length > 1) {
+            console.log(JSON.stringify({ resume: true, position: tipCommit.position, commit: tipCommit.commitHash.toString() }));
+        }
+        process.on("exit", (exitCode) => {
+            if (exitCode !== 0) {
+                const crashedEvent = events[step.nextEventIndex];
+                const crashedSource = crashedEvent?.source;
+                const crashedSourceText = crashedSource === undefined ? null : `${crashedSource.filePath}:${crashedSource.lineNumber}`;
+                console.log(JSON.stringify({ crashedAt: { nextEventIndex: step.nextEventIndex, eventType: crashedEvent?.type ?? null, source: crashedSourceText } }));
+            }
+        });
+        await runStepCommands(createInterface({ input: process.stdin }), { repoFolder: inverseRepoFolder, fileName, relativeFile: stepFlag.value, events, step });
+        process.exit(0);
+    }
     const files = projectFiles.map((projectFile) => projectFile.file);
     const { createTerminalBarsSink } = await import("./engineV3_inverse_repos_terminal_bars.ts");
     const fileNames = files.map((file) => relative(settings.projectFolder.toString(), file.toString()));
