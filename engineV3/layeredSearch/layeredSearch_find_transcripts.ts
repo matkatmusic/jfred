@@ -4,12 +4,12 @@ import { spawn } from "node:child_process";
 // import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { Path } from "../src/structures/domain.ts";
+import { Path } from "../../src/structures/domain.ts";
 // import { RipgrepSearchMode } from "./layeredSearch_command.ts";
 import { assertRipgrepFinished, printProgress } from "./layeredSearch_ripgrep_helpers.ts";
 // import { assertRipgrepFinished, printProgress, splitNullSeparatedText } from "./layeredSearch_ripgrep_helpers.ts";
 
-const PATTERNS_FILE = join(import.meta.dirname, "..", ".cache", "layeredSearch", "patterns.txt");
+const PATTERNS_FILE = join(import.meta.dirname, "..", "..", ".cache", "layeredSearch", "patterns.txt");
 
 // The per-path version (one rg per path) is off: the one-search version below finds the same logs about 36 times faster.
 // function listTranscriptsMentioningEachPathPerPath(files: string[], jsonlsFolders: Path[]): Set<string> {

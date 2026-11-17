@@ -1,7 +1,7 @@
 // Small ripgrep helpers shared by the steps of the layered search.
 
 import { spawnSync } from "node:child_process";
-import { Path } from "../src/structures/domain.ts";
+import { Path } from "../../src/structures/domain.ts";
 
 export function printProgress(text: string): void {
     process.stderr.write(`\r${text}`);

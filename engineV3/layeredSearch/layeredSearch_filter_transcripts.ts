@@ -1,6 +1,6 @@
 // Step B of the layered search: keep the logs whose working folder is in the project or in a worktree of the repo.
 
-import { Path } from "../src/structures/domain.ts";
+import { Path } from "../../src/structures/domain.ts";
 import { isPathInsideAnyFolder, isPathInsideFolder } from "./layeredSearch_path_checks.ts";
 import { readFirstStringFieldOfAllTranscripts } from "./layeredSearch_ripgrep_helpers.ts";
 

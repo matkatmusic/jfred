@@ -2,8 +2,8 @@
 
 import { execFileSync } from "node:child_process";
 import { join, relative, sep } from "node:path";
-import { listCurrentFileState } from "../src/layer1_disk_walk.ts";
-import { Path } from "../src/structures/domain.ts";
+import { listCurrentFileState } from "../../src/layer1_disk_walk.ts";
+import { Path } from "../../src/structures/domain.ts";
 
 export function listProjectFilePaths(projectFolder: Path): string[] {
     return listCurrentFileState(projectFolder).map((fileState) => fileState.relativePath.toString());

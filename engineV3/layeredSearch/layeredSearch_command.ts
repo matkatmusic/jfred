@@ -1,11 +1,11 @@
 // The command-line parameters of the layered search.
 
 import { join } from "node:path";
-import { extractValueFlag } from "../src/reconstruction_cli_flags.ts";
-import { Path } from "../src/structures/domain.ts";
+import { extractValueFlag } from "../../src/reconstruction_cli_flags.ts";
+import { Path } from "../../src/structures/domain.ts";
 
 const USAGE = "usage: node layeredSearch.ts --repo <path> --jsonls <folder> [--jsonls <folder> ...] --project <path> [--out <file>] [--include-outside-project]";
-const DEFAULT_OUTPUT_FILE = join(import.meta.dirname, "..", ".cache", "layeredSearch", "files.json");
+const DEFAULT_OUTPUT_FILE = join(import.meta.dirname, "..", "..", ".cache", "layeredSearch", "files.json");
 
 // export enum RipgrepSearchMode { PerPath = "per-path", AllPaths = "all-paths" }
 

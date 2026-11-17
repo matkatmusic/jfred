@@ -1,11 +1,11 @@
 // Step C of the layered search: add the files that the kept logs mention, when they are in the project, a worktree, or the session scratchpad.
 
 import { join, relative, resolve, sep } from "node:path";
-import { loadTranscript } from "../src/parse/loadTranscript.ts";
-import { listEventPaths } from "../src/reconstruction_bound.ts";
-import { extractFileEvents } from "../src/reconstruction_extract.ts";
-import { Path } from "../src/structures/domain.ts";
-import type { TranscriptRecord } from "../src/structures/envelope.ts";
+import { loadTranscript } from "../../src/parse/loadTranscript.ts";
+import { listEventPaths } from "../../src/reconstruction_bound.ts";
+import { extractFileEvents } from "../../src/reconstruction_extract.ts";
+import { Path } from "../../src/structures/domain.ts";
+import type { TranscriptRecord } from "../../src/structures/envelope.ts";
 import { LayeredSearchCommand } from "./layeredSearch_command.ts";
 import { isPathInSessionScratchpad, isPathInsideFolder } from "./layeredSearch_path_checks.ts";
 import { printProgress } from "./layeredSearch_ripgrep_helpers.ts";

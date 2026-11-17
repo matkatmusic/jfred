@@ -3,7 +3,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Path } from "../src/structures/domain.ts";
+import { Path } from "../../src/structures/domain.ts";
 import { readLayeredSearchCommandFromArguments } from "./layeredSearch_command.ts";
 import { listGitTouchedFilePaths, listProjectFilePaths, mergeFilePathsWithoutDuplicates } from "./layeredSearch_file_lists.ts";
 import { filterTranscriptsByCwd } from "./layeredSearch_filter_transcripts.ts";

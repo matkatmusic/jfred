@@ -2,7 +2,7 @@
 
 import { execFileSync } from "node:child_process";
 import { isAbsolute, relative, sep } from "node:path";
-import { Path } from "../src/structures/domain.ts";
+import { Path } from "../../src/structures/domain.ts";
 
 export function isPathInsideFolder(path: Path, folder: Path): boolean {
     const relativePath = relative(folder.toString(), path.toString());
