@@ -1,13 +1,14 @@
-// Layered search, step 1: list the files of the project folder and write the list to a JSON file.
+// Layered search, steps 1 and 2: list the files of the project folder and the files git touched, and write the list to a JSON file.
 
+import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { listCurrentFileState } from "../src/layer1_disk_walk.ts";
 import { extractValueFlag } from "../src/reconstruction_cli_flags.ts";
 import { Path } from "../src/structures/domain.ts";
 
-const USAGE = "usage: node layeredSearch.ts --repo <path> --jsonls <folder> --project <path> [--out <file>]";
+const USAGE = "usage: node layeredSearch.ts --repo <path> --jsonls <folder> --project <path> [--out <file>] [--include-outside-project]";
 const DEFAULT_OUTPUT_FILE = join(import.meta.dirname, "..", ".cache", "layeredSearch", "files.json");
 
 type LayeredSearchCommand = {
@@ -15,6 +16,7 @@ type LayeredSearchCommand = {
     jsonlsFolder: Path;
     projectFolder: Path;
     outputFile: Path;
+    isOutsideProjectIncluded: boolean;
 };
 
 function readRequiredValueFlag(argumentList: string[], flag: string): { value: string; rest: string[] } {
@@ -35,11 +37,40 @@ function readLayeredSearchCommandFromArguments(argumentList: string[]): LayeredS
         jsonlsFolder: new Path(jsonlsFlag.value),
         projectFolder: new Path(projectFlag.value),
         outputFile: new Path(outFlag.value ?? DEFAULT_OUTPUT_FILE),
+        isOutsideProjectIncluded: argumentList.includes("--include-outside-project"),
     };
 }
 
 function listProjectFilePaths(projectFolder: Path): string[] {
     return listCurrentFileState(projectFolder).map((fileState) => fileState.relativePath.toString());
+}
+
+function listGitTouchedFilePaths(repoFolder: Path, projectFolder: Path, isOutsideProjectIncluded: boolean): string[] {
+    const output = execFileSync("git", ["log", "--all", "--no-renames", "--name-only", "--pretty=format:", "-z"], {
+        cwd: repoFolder.toString(),
+        encoding: "utf8",
+        maxBuffer: 1024 * 1024 * 1024,
+    });
+    const paths: string[] = [];
+    for (const repoRelativePath of output.split("\0")) {
+        if (repoRelativePath !== "") {
+            const projectRelativePath = relative(projectFolder.toString(), join(repoFolder.toString(), repoRelativePath));
+            const isInsideProject = projectRelativePath.split(sep)[0] !== "..";
+            if (isInsideProject) {
+                paths.push(projectRelativePath);
+            }
+            else {
+                if (isOutsideProjectIncluded) {
+                    paths.push(projectRelativePath);
+                }
+            }
+        }
+    }
+    return paths;
+}
+
+function mergeFilePathsWithoutDuplicates(firstPaths: string[], secondPaths: string[]): string[] {
+    return [...new Set([...firstPaths, ...secondPaths])].sort();
 }
 
 function writeJsonFile(outputFile: Path, content: object): void {
@@ -50,7 +81,9 @@ function writeJsonFile(outputFile: Path, content: object): void {
 export function main(argumentList: string[]): void {
     const command = readLayeredSearchCommandFromArguments(argumentList);
     const startTime = new Date();
-    const files = listProjectFilePaths(command.projectFolder);
+    const diskFiles = listProjectFilePaths(command.projectFolder);
+    const gitFiles = listGitTouchedFilePaths(command.repoFolder, command.projectFolder, command.isOutsideProjectIncluded);
+    const files = mergeFilePathsWithoutDuplicates(diskFiles, gitFiles);
     const endTime = new Date();
     const elapsedMilliseconds = endTime.getTime() - startTime.getTime();
     writeJsonFile(command.outputFile, {
