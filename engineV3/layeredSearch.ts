@@ -1,99 +1,62 @@
-// Layered search, steps 1 and 2: list the files of the project folder and the files git touched, and write the list to a JSON file.
+// Layered search: list the files of the project and of git, find the logs that mention them (A), keep the logs from the project (B), add the files those logs mention (C), and write the list to a JSON file.
 
-import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join, relative, sep } from "node:path";
+import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { listCurrentFileState } from "../src/layer1_disk_walk.ts";
-import { extractValueFlag } from "../src/reconstruction_cli_flags.ts";
 import { Path } from "../src/structures/domain.ts";
-
-const USAGE = "usage: node layeredSearch.ts --repo <path> --jsonls <folder> --project <path> [--out <file>] [--include-outside-project]";
-const DEFAULT_OUTPUT_FILE = join(import.meta.dirname, "..", ".cache", "layeredSearch", "files.json");
-
-type LayeredSearchCommand = {
-    repoFolder: Path;
-    jsonlsFolder: Path;
-    projectFolder: Path;
-    outputFile: Path;
-    isOutsideProjectIncluded: boolean;
-};
-
-function readRequiredValueFlag(argumentList: string[], flag: string): { value: string; rest: string[] } {
-    const { value, rest } = extractValueFlag(argumentList, flag);
-    if (value === undefined) {
-        throw new Error(USAGE);
-    }
-    return { value, rest };
-}
-
-function readLayeredSearchCommandFromArguments(argumentList: string[]): LayeredSearchCommand {
-    const repoFlag = readRequiredValueFlag(argumentList, "--repo");
-    const jsonlsFlag = readRequiredValueFlag(repoFlag.rest, "--jsonls");
-    const projectFlag = readRequiredValueFlag(jsonlsFlag.rest, "--project");
-    const outFlag = extractValueFlag(projectFlag.rest, "--out");
-    return {
-        repoFolder: new Path(repoFlag.value),
-        jsonlsFolder: new Path(jsonlsFlag.value),
-        projectFolder: new Path(projectFlag.value),
-        outputFile: new Path(outFlag.value ?? DEFAULT_OUTPUT_FILE),
-        isOutsideProjectIncluded: argumentList.includes("--include-outside-project"),
-    };
-}
-
-function listProjectFilePaths(projectFolder: Path): string[] {
-    return listCurrentFileState(projectFolder).map((fileState) => fileState.relativePath.toString());
-}
-
-function listGitTouchedFilePaths(repoFolder: Path, projectFolder: Path, isOutsideProjectIncluded: boolean): string[] {
-    const output = execFileSync("git", ["log", "--all", "--no-renames", "--name-only", "--pretty=format:", "-z"], {
-        cwd: repoFolder.toString(),
-        encoding: "utf8",
-        maxBuffer: 1024 * 1024 * 1024,
-    });
-    const paths: string[] = [];
-    for (const repoRelativePath of output.split("\0")) {
-        if (repoRelativePath !== "") {
-            const projectRelativePath = relative(projectFolder.toString(), join(repoFolder.toString(), repoRelativePath));
-            const isInsideProject = projectRelativePath.split(sep)[0] !== "..";
-            if (isInsideProject) {
-                paths.push(projectRelativePath);
-            }
-            else {
-                if (isOutsideProjectIncluded) {
-                    paths.push(projectRelativePath);
-                }
-            }
-        }
-    }
-    return paths;
-}
-
-function mergeFilePathsWithoutDuplicates(firstPaths: string[], secondPaths: string[]): string[] {
-    return [...new Set([...firstPaths, ...secondPaths])].sort();
-}
+import { readLayeredSearchCommandFromArguments } from "./layeredSearch_command.ts";
+import { listGitTouchedFilePaths, listProjectFilePaths, mergeFilePathsWithoutDuplicates } from "./layeredSearch_file_lists.ts";
+import { filterTranscriptsByCwd } from "./layeredSearch_filter_transcripts.ts";
+import { findCandidateTranscripts } from "./layeredSearch_find_transcripts.ts";
+import { addFilesMentionedInTranscripts } from "./layeredSearch_mentioned_files.ts";
+import { listRepoWorktreeFolders } from "./layeredSearch_path_checks.ts";
 
 function writeJsonFile(outputFile: Path, content: object): void {
     mkdirSync(dirname(outputFile.toString()), { recursive: true });
     writeFileSync(outputFile.toString(), JSON.stringify(content, null, 2) + "\n");
 }
 
-export function main(argumentList: string[]): void {
+// Comment out a step block (from the last one up) to see how long the steps before it take.
+export async function main(argumentList: string[]): Promise<void> {
     const command = readLayeredSearchCommandFromArguments(argumentList);
     const startTime = new Date();
+    const stepMilliseconds: Record<string, number> = {};
+    const worktreeFolders = listRepoWorktreeFolders(command.repoFolder);
     const diskFiles = listProjectFilePaths(command.projectFolder);
     const gitFiles = listGitTouchedFilePaths(command.repoFolder, command.projectFolder, command.isOutsideProjectIncluded);
-    const files = mergeFilePathsWithoutDuplicates(diskFiles, gitFiles);
+    let files = mergeFilePathsWithoutDuplicates(diskFiles, gitFiles);
+    let candidateTranscripts: Path[] = [];
+    let transcriptsToParse: Path[] = [];
+
+    const stepAStart = Date.now();
+    candidateTranscripts = await findCandidateTranscripts(files, command.jsonlsFolder, command.ripgrepSearchMode);
+    stepMilliseconds.stepA = Date.now() - stepAStart;
+    console.log(`step A: ${candidateTranscripts.length} logs mention a path, ${stepMilliseconds.stepA} ms`);
+
+    const stepBStart = Date.now();
+    transcriptsToParse = filterTranscriptsByCwd(candidateTranscripts, command.projectFolder, worktreeFolders);
+    stepMilliseconds.stepB = Date.now() - stepBStart;
+    console.log(`step B: ${transcriptsToParse.length} logs kept, ${stepMilliseconds.stepB} ms`);
+
+    const stepCStart = Date.now();
+    files = addFilesMentionedInTranscripts(files, transcriptsToParse, command, worktreeFolders);
+    stepMilliseconds.stepC = Date.now() - stepCStart;
+    console.log(`step C: ${files.length} files in the list, ${stepMilliseconds.stepC} ms`);
+
     const endTime = new Date();
     const elapsedMilliseconds = endTime.getTime() - startTime.getTime();
     writeJsonFile(command.outputFile, {
         repoFolder: command.repoFolder.toString(),
         jsonlsFolder: command.jsonlsFolder.toString(),
         projectFolder: command.projectFolder.toString(),
+        ripgrepSearchMode: command.ripgrepSearchMode,
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
         elapsedMilliseconds,
+        stepMilliseconds,
         fileCount: files.length,
+        candidateTranscripts,
+        transcriptsToParse,
         files,
     });
     console.log(`startTime: ${startTime.toISOString()}`);
@@ -105,5 +68,5 @@ export function main(argumentList: string[]): void {
 
 const isCliRun = process.argv[1] === fileURLToPath(import.meta.url);
 if (isCliRun) {
-    main(process.argv.slice(2));
+    await main(process.argv.slice(2));
 }
