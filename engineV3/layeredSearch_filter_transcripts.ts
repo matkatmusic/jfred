@@ -2,14 +2,16 @@
 
 import { Path } from "../src/structures/domain.ts";
 import { isPathInsideAnyFolder, isPathInsideFolder } from "./layeredSearch_path_checks.ts";
-import { printProgress, readFirstTranscriptStringField } from "./layeredSearch_ripgrep_helpers.ts";
+import { readFirstStringFieldOfAllTranscripts } from "./layeredSearch_ripgrep_helpers.ts";
 
-export function filterTranscriptsByCwd(candidateTranscripts: Path[], projectFolder: Path, worktreeFolders: Path[]): Path[] {
+export function filterTranscriptsByCwd(candidateTranscripts: Path[], jsonlsFolder: Path, projectFolder: Path, worktreeFolders: Path[]): Path[] {
+    const startMilliseconds = Date.now();
+    const cwdsByTranscript = readFirstStringFieldOfAllTranscripts(jsonlsFolder, "cwd");
+    process.stderr.write(`B: read the cwd of ${cwdsByTranscript.size} logs in one search, ${Date.now() - startMilliseconds} ms\n`);
     const keptTranscripts: Path[] = [];
     let droppedForNoCwdCount = 0;
-    const startMilliseconds = Date.now();
-    for (const [index, transcript] of candidateTranscripts.entries()) {
-        const cwdText = readFirstTranscriptStringField(transcript, "cwd");
+    for (const transcript of candidateTranscripts) {
+        const cwdText = cwdsByTranscript.get(transcript.toString());
         if (cwdText === undefined) {
             droppedForNoCwdCount += 1;
         }
@@ -23,9 +25,7 @@ export function filterTranscriptsByCwd(candidateTranscripts: Path[], projectFold
                 keptTranscripts.push(transcript);
             }
         }
-        printProgress(`B: ${index + 1}/${candidateTranscripts.length} logs checked, ${keptTranscripts.length} kept, ${droppedForNoCwdCount} dropped (no cwd), ${Date.now() - startMilliseconds} ms`);
     }
-    process.stderr.write("\n");
     console.log(`step B: ${droppedForNoCwdCount} logs dropped because they have no cwd`);
     return keptTranscripts;
 }

@@ -34,7 +34,7 @@ export async function main(argumentList: string[]): Promise<void> {
     console.log(`step A: ${candidateTranscripts.length} logs mention a path, ${stepMilliseconds.stepA} ms`);
 
     const stepBStart = Date.now();
-    transcriptsToParse = filterTranscriptsByCwd(candidateTranscripts, command.projectFolder, worktreeFolders);
+    transcriptsToParse = filterTranscriptsByCwd(candidateTranscripts, command.jsonlsFolder, command.projectFolder, worktreeFolders);
     stepMilliseconds.stepB = Date.now() - stepBStart;
     console.log(`step B: ${transcriptsToParse.length} logs kept, ${stepMilliseconds.stepB} ms`);
 
