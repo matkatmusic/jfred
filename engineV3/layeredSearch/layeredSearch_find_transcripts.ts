@@ -3,8 +3,8 @@
 // import { spawn } from "node:child_process";
 import { spawnSync } from "node:child_process";
 // import { spawn, spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+// import { mkdirSync, writeFileSync } from "node:fs";
+// import { dirname, join } from "node:path";
 import type { ProgressSink } from "../../src/parse/loadTranscript.ts";
 import { Path } from "../../src/structures/domain.ts";
 import { DocumentResponseKind } from "../../src/structures/vocabulary_views.ts";
@@ -14,7 +14,7 @@ import { listTranscriptFiles } from "../../src/viewer_api_layer1_sources.ts";
 import { assertRipgrepFinished, splitNullSeparatedText } from "./layeredSearch_ripgrep_helpers.ts";
 // import { assertRipgrepFinished, printProgress, splitNullSeparatedText } from "./layeredSearch_ripgrep_helpers.ts";
 
-const PATTERNS_FILE = join(import.meta.dirname, "..", "..", ".cache", "layeredSearch", "patterns.txt");
+// const PATTERNS_FILE = join(import.meta.dirname, "..", "..", ".cache", "layeredSearch", "patterns.txt");
 const LOG_FILES_PER_SEARCH = 500;
 
 // The per-path version (one rg per path) is off: the one-search version below finds the same logs about 36 times faster.
@@ -74,15 +74,16 @@ function createPathFromText(text: string): Path {
 // }
 
 export function findCandidateTranscripts(files: string[], jsonlsFolders: Path[], reportProgress: ProgressSink): Path[] {
-    mkdirSync(dirname(PATTERNS_FILE), { recursive: true });
-    writeFileSync(PATTERNS_FILE, files.join("\n") + "\n");
+    // mkdirSync(dirname(PATTERNS_FILE), { recursive: true });
+    // writeFileSync(PATTERNS_FILE, files.join("\n") + "\n");
     const logFiles = listTranscriptFiles(jsonlsFolders.map(String));
     const chunkCount = Math.ceil(logFiles.length / LOG_FILES_PER_SEARCH);
     const transcripts = new Set<string>();
     for (let chunkNumber = 1; chunkNumber <= chunkCount; chunkNumber++) {
         const chunkStart = (chunkNumber - 1) * LOG_FILES_PER_SEARCH;
         const chunkLogFiles = logFiles.slice(chunkStart, chunkStart + LOG_FILES_PER_SEARCH);
-        const result = spawnSync("rg", ["-l", "--null", "-F", "-f", PATTERNS_FILE, "--", ...chunkLogFiles.map(String)], { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
+        // const result = spawnSync("rg", ["-l", "--null", "-F", "-f", PATTERNS_FILE, "--", ...chunkLogFiles.map(String)], { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
+        const result = spawnSync("rg", ["-l", "--null", "-F", "-f", "-", "--", ...chunkLogFiles.map(String)], { encoding: "utf8", input: files.join("\n") + "\n", maxBuffer: 256 * 1024 * 1024 });
         assertRipgrepFinished(result.status, result.stderr);
         for (const transcript of splitNullSeparatedText(result.stdout)) {
             transcripts.add(transcript);

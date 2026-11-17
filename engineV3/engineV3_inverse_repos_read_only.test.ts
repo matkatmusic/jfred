@@ -56,7 +56,9 @@ function makeFixture(t: TestContext): Fixture {
         ...makeEditRows("toolu_01ExampleEditA", join(projectFolder, "a.txt"), "one", "two", "one\n", 20),
         ...makeEditRows("toolu_01ExampleEditB", join(projectFolder, "sub", "b.txt"), "red", "blue", "red\n", 30),
     ];
-    writeFileSync(join(jsonlsFolder, "11111111-2222-3333-4444-555555555555.jsonl"), records.map((record) => JSON.stringify(record)).join("\n") + "\n");
+    // writeFileSync(join(jsonlsFolder, "11111111-2222-3333-4444-555555555555.jsonl"), records.map((record) => JSON.stringify(record)).join("\n") + "\n");
+    // The layered search reads cwd and sessionId from the records and throws when they are missing.
+    writeFileSync(join(jsonlsFolder, "11111111-2222-3333-4444-555555555555.jsonl"), records.map((record) => JSON.stringify({ ...record, cwd: projectFolder, sessionId: "11111111-2222-3333-4444-555555555555" })).join("\n") + "\n");
     return { rootFolder, projectFolder, jsonlsFolder, snapshotFolder, storeFolder };
 }
 
