@@ -22,7 +22,8 @@ import { loadJSONLLinesNamingFiles } from "./engineV3_jsonl_lines_naming_files.t
 import { FileEventType, createEvent, getAllEventsForFileFromLines, sortEventsNewestToOldest, type FileEvent } from "./engineV3_replay_reverse_events.ts";
 import { readDiskText } from "./engineV3_replay_reverse.ts";
 import { addLinesNamingWrittenScripts } from "./engineV3_jsonl_lines_naming_scripts.ts";
-import { assertStoreHasNoFullBuildRepos } from "./engineV3_step_store_guard.ts";
+// import { assertStoreHasNoFullBuildRepos } from "./engineV3_step_store_guard.ts";
+import { assertStoreHasNoFullBuildRepos, resetStoreFolder } from "./engineV3_step_store_guard.ts";
 import { buildReplayGapsSidecar, isReplayGapsSidecarPresent, writeReplayGapsSidecar } from "./engineV3_script_replay_gaps.ts";
 
 export type FileInverseRepoResult = { file: Path; repoFolder: Path; eventCount: number; stateCount: number; commitCount: number; unknownStateCount: number; wasReused: boolean };
@@ -32,7 +33,7 @@ type InverseRepoStampInputs = { diskBytesHash: string; diskModifiedMilliseconds:
 type InverseRepoStamp = { inputs: InverseRepoStampInputs; eventCount: number; stateCount: number; commitCount: number; unknownStateCount: number; mode?: InverseRepoMode };
 
 export const INVERSE_REPO_FORMAT_VERSION = 4;
-const STAMP_FILE_NAME = "jfred-stamp.json";
+export const STAMP_FILE_NAME = "jfred-stamp.json";
 const ABSENT_DISK_BYTES_HASH = "absent";
 
 export type InverseReposSettings = { projectFolder: Path; jsonlsFolder: Path; fileHistoryFolder: Path; storeFolder: Path };
@@ -40,7 +41,8 @@ export type InverseReposSettings = { projectFolder: Path; jsonlsFolder: Path; fi
 // const USAGE = "usage: node engineV3_inverse_repos_for_project.ts --project <folder> --jsonls <folder> --file-history <folder> --store <folder>";
 // const USAGE = "usage: node engineV3_inverse_repos_for_project.ts --project <folder> --jsonls <folder> --file-history <folder> --store <folder> [--step <project-relative file> [--from-now]]";
 // const USAGE = "usage: node engineV3_inverse_repos_for_project.ts --project <folder> --jsonls <folder> --file-history <folder> --store <folder> [--step <project-relative file> [--from-now]]  (in step mode the commands are f, b, r and q)";
-const USAGE = "usage: node engineV3_inverse_repos_for_project.ts --project <folder> --jsonls <folder> --file-history <folder> --store <folder> [--step <project-relative file> [--from-now]] [--step-all --results <file>]  (in step mode the commands are f, b, r and q)";
+// const USAGE = "usage: node engineV3_inverse_repos_for_project.ts --project <folder> --jsonls <folder> --file-history <folder> --store <folder> [--step <project-relative file> [--from-now]] [--step-all --results <file>]  (in step mode the commands are f, b, r and q)";
+const USAGE = "usage: node engineV3_inverse_repos_for_project.ts --project <folder> --jsonls <folder> --file-history <folder> --store <folder> [--resetStore] [--step <project-relative file> [--from-now]] [--step-all --results <file>]  (in step mode the commands are f, b, r and q)";
 
 export const OUTSIDE_PROJECT_PREFIX = ".outside-project/";
 
@@ -60,6 +62,11 @@ export function getAbsolutePathFromProjectRelativePath(projectFolder: Path, rela
         return new Path("/" + relativePath.slice(OUTSIDE_PROJECT_PREFIX.length));
     }
     return new Path(join(projectFolder.toString(), relativePath));
+}
+
+// The names the progress events use for the files, so the bar rows are found by the same names.
+export function listBarRowNamesOfProjectFiles(projectFolder: Path, files: Path[]): string[] {
+    return files.map((file) => getRelativePathInProject(projectFolder, file).split(sep).join("/"));
 }
 
 export function getInverseRepoFolderForFile(storeFolder: Path, projectFolder: Path, file: Path): Path {
@@ -351,9 +358,14 @@ if (isCliRun) {
         }
     }
     // const argumentsWithoutStepFlags = stepFlag.rest.filter((argument) => argument !== "--from-now");
-    const argumentsWithoutStepFlags = resultsFlag.rest.filter((argument) => argument !== "--from-now" && argument !== "--step-all");
+    const isResetStore = resultsFlag.rest.includes("--resetStore");
+    // const argumentsWithoutStepFlags = resultsFlag.rest.filter((argument) => argument !== "--from-now" && argument !== "--step-all");
+    const argumentsWithoutStepFlags = resultsFlag.rest.filter((argument) => argument !== "--from-now" && argument !== "--step-all" && argument !== "--resetStore");
     // const settings = readInverseReposSettingsFromArguments(process.argv.slice(2));
     const settings = readInverseReposSettingsFromArguments(argumentsWithoutStepFlags);
+    if (isResetStore) {
+        resetStoreFolder(settings.storeFolder);
+    }
     const startMilliseconds = Date.now();
     // const files = listCurrentFileState(settings.projectFolder).map((fileState) => new Path(join(settings.projectFolder.toString(), fileState.relativePath.toString())));
     // const projectFiles = files.map((file) => ({ file, transcriptFile: file }));
@@ -405,7 +417,8 @@ if (isCliRun) {
     }
     const files = projectFiles.map((projectFile) => projectFile.file);
     const { createTerminalBarsSink } = await import("./engineV3_inverse_repos_terminal_bars.ts");
-    const fileNames = files.map((file) => relative(settings.projectFolder.toString(), file.toString()));
+    // const fileNames = files.map((file) => relative(settings.projectFolder.toString(), file.toString()));
+    const fileNames = listBarRowNamesOfProjectFiles(settings.projectFolder, files);
     // const reportProgress = (event) => { console.log(`${event.current}/${event.total}  ${event.label}`); };
     const reportProgress = createTerminalBarsSink(process.stdout, fileNames);
     // const results = buildInverseReposForFiles(settings.projectFolder, projectFiles, [settings.jsonlsFolder], [settings.fileHistoryFolder], settings.storeFolder, new Date(), reportProgress);

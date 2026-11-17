@@ -4,8 +4,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { appendFileSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { buildOnDemandInverseReposForFiles, listProjectFilesWithStaleInverseRepos, type ProjectFile } from "../engineV3/engineV3_inverse_repos_for_project.ts";
-import { makeEditRows, writeProject, type Project } from "./engineV3_step_test_projects.ts";
+import { buildInverseReposForFiles, buildOnDemandInverseReposForFiles, listBarRowNamesOfProjectFiles, listProjectFilesWithStaleInverseRepos, type ProjectFile } from "../engineV3/engineV3_inverse_repos_for_project.ts";
+import { createTerminalBarsSink } from "../engineV3/engineV3_inverse_repos_terminal_bars.ts";
+import { makeEditRows, writeProject, writeProjectFiles, type Project } from "./engineV3_step_test_projects.ts";
 
 const DISK_NOW_INSTANT = new Date(Date.UTC(2026, 5, 1, 12, 0, 0));
 
@@ -70,4 +71,21 @@ test("test_a_file_without_a_repo_folder_is_not_stale_and_no_folder_is_made", (t)
     assert.deepEqual(listStaleFiles(project), []);
     // the store folder listing is equal to the listing before the call.
     assert.deepEqual(readdirSync(project.storeFolder.toString(), { recursive: true }), listingBefore);
+});
+
+test("test_the_bar_rows_of_the_full_build_exist_for_a_file_outside_the_project_folder", (t) => {
+    // Scenario: the full build draws its bars for a file outside the project folder without a throw.
+    // Steps:
+    // a project has one file inside the project folder and one file outside it, both with edits in the logs.
+    const project = writeProjectFiles(t, new Map([["a.txt", "two\n"], ["../outside.md", "two\n"]]), (projectFolder, filePathByFileName) => [
+        ...makeEditRows(projectFolder, "toolu_a", filePathByFileName.get("a.txt")!, "one", "two", null, 10),
+        ...makeEditRows(projectFolder, "toolu_b", filePathByFileName.get("../outside.md")!, "one", "two", null, 20),
+    ]);
+    const projectFiles: ProjectFile[] = [...project.fileByName.values()].map((file) => ({ file, transcriptFile: file }));
+    // the bars are drawn on a terminal stream, with the row names of the new function.
+    const terminalStream = { isTTY: true, write: () => true };
+    const barRowNames = listBarRowNamesOfProjectFiles(project.projectFolder, projectFiles.map((projectFile) => projectFile.file));
+    const reportProgress = createTerminalBarsSink(terminalStream, barRowNames);
+    // the full build does not throw.
+    assert.doesNotThrow(() => buildInverseReposForFiles(project.projectFolder, projectFiles, [project.jsonlsFolder], [project.snapshotFolder], project.storeFolder, DISK_NOW_INSTANT, reportProgress));
 });
