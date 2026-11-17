@@ -88,7 +88,8 @@ export function buildInverseReposWire(
     const results = buildInverseReposForFiles(projectFolder, projectFiles, transcriptsToParse, snapshotFolders, storeFolder, new Date(), reportProgress);
     const files: InverseRepoFileWire[] = [];
     for (const [index, result] of results.entries()) {
-        const commits = listInverseCommits(result.repoFolder, basename(result.file.toString())).map(buildInverseCommitWire);
+        // const commits = listInverseCommits(result.repoFolder, basename(result.file.toString())).map(buildInverseCommitWire);
+        const commits = listInverseCommits(result.repoFolder, basename(result.file.toString()), false).map(buildInverseCommitWire);
         // files.push({ file: relative(projectFolder.toString(), result.file.toString()), commits });
         files.push({ file: getRelativePathInProject(projectFolder, result.file), commits });
     }

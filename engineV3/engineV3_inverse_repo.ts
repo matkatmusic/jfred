@@ -279,13 +279,16 @@ export function buildInverseRepoByEventKind(repoFolder: Path, fileName: string, 
 }
 
 // First commit first, which is the newest moment first.
-export function listInverseCommits(repoFolder: Path, fileName: string): InverseCommit[] {
+// export function listInverseCommits(repoFolder: Path, fileName: string): InverseCommit[] {
+export function listInverseCommits(repoFolder: Path, fileName: string, isTextRead: boolean = true): InverseCommit[] {
   const inverseCommits: InverseCommit[] = [];
   for (const storedCommit of readStoredCommits(repoFolder)) {
     const parsed = parseCommitMessage(storedCommit.message);
     let text: string | undefined;
-    if (!parsed.isFileAbsent) {
-      text = executeGit(repoFolder, ["cat-file", "blob", `${storedCommit.commitHash.toString()}:${fileName}`]).toString("utf8");
+    if (isTextRead) {
+      if (!parsed.isFileAbsent) {
+        text = executeGit(repoFolder, ["cat-file", "blob", `${storedCommit.commitHash.toString()}:${fileName}`]).toString("utf8");
+      }
     }
     inverseCommits.push({ commitHash: storedCommit.commitHash, treeHash: storedCommit.treeHash, ...parsed, text });
   }

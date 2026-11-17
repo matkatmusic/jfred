@@ -117,6 +117,23 @@ test("test_disk_now_instant_does_not_change_the_author_date_of_the_root_commit",
     assert.equal(runGit(inverseFolder, ["log", "-1", "--format=%at", "refs/heads/inverse"]), String(DISK_NOW_INSTANT.getTime() / 1000));
 });
 
+test("test_listInverseCommits_without_text_reads_no_blob_text_and_lists_the_same_commits", (t) => {
+    // Scenario: with isTextRead false the list has the same commits but no commit has a text.
+    // The repo has the disk-now commit and two older commits.
+    const inverseFolder = makeInverseFolder(t);
+    createInverseRepo(inverseFolder, FILE_NAME, makeDiskNowState("now text\n"), DISK_NOW_INSTANT);
+    insertStatesIntoInverseRepo(inverseFolder, FILE_NAME, [makeOlderState(1, "older text\n"), makeOlderState(2, "oldest text\n")]);
+    // The list with the text read has a text on every commit.
+    const commitsWithText = listInverseCommits(inverseFolder, FILE_NAME);
+    assert.deepEqual(commitsWithText.map((commit) => commit.text), ["now text\n", "older text\n", "oldest text\n"]);
+    // The list without the text read has the same commit hashes and positions.
+    const commitsWithoutText = listInverseCommits(inverseFolder, FILE_NAME, false);
+    assert.deepEqual(commitsWithoutText.map((commit) => commit.commitHash.toString()), commitsWithText.map((commit) => commit.commitHash.toString()));
+    assert.deepEqual(commitsWithoutText.map((commit) => commit.position), commitsWithText.map((commit) => commit.position));
+    // No commit of that list has a text.
+    assert.deepEqual(commitsWithoutText.map((commit) => commit.text), [undefined, undefined, undefined]);
+});
+
 test("test_listInverseCommits_gives_each_commit_the_tree_hash_of_git", (t) => {
     // Scenario: every listed commit carries the tree hash that git reports for it.
     // The repo has the disk-now commit and two older commits.
