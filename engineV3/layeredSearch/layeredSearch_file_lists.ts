@@ -1,7 +1,7 @@
 // The first file list of the layered search: the files on disk in the project, and the files any git commit touched.
 
 import { execFileSync } from "node:child_process";
-import { join, relative, sep } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 import { listCurrentFileState } from "../../src/layer1_disk_walk.ts";
 import { Path } from "../../src/structures/domain.ts";
 
@@ -31,6 +31,15 @@ export function listGitTouchedFilePaths(repoFolder: Path, projectFolder: Path, i
         }
     }
     return paths;
+}
+
+// Two relative paths can name the same file (src/a.ts and ../jot/src/a.ts): the Set drops that duplicate once both are absolute.
+export function convertToAbsoluteFilePaths(relativePaths: string[], projectFolder: Path): string[] {
+    const absolutePaths = new Set<string>();
+    for (const relativePath of relativePaths) {
+        absolutePaths.add(resolve(projectFolder.toString(), relativePath));
+    }
+    return [...absolutePaths].sort();
 }
 
 export function mergeFilePathsWithoutDuplicates(firstPaths: string[], secondPaths: string[]): string[] {
