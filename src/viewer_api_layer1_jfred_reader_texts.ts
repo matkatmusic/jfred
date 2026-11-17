@@ -1,10 +1,11 @@
 // S4a: read every project file at a Commit Mode mark from the inverse repos: it has a text, it is absent, or it is unknown.
 
-import { basename, relative, sep } from "node:path";
+// import { basename, relative, sep } from "node:path";
+import { basename, sep } from "node:path";
 
 import { listInverseCommits, type InverseCommit } from "../engineV3/engineV3_inverse_repo.ts";
 import { listProjectFileStatesAtInstant, selectInverseCommitAtInstant } from "../engineV3/engineV3_inverse_repo_read.ts";
-import { getInverseRepoFolderForFile, type ProjectFile } from "../engineV3/engineV3_inverse_repos_for_project.ts";
+import { getInverseRepoFolderForFile, getRelativePathInProject, type ProjectFile } from "../engineV3/engineV3_inverse_repos_for_project.ts";
 import { listUnfilledScriptGapsAtInstant } from "../engineV3/engineV3_script_replay_gaps.ts";
 import { Path } from "./structures/domain.ts";
 
@@ -21,7 +22,8 @@ enum MarkState {
 const NOT_PROVEN_HEADER = "Not proven: a recorded script was not replayed for these files. The bytes are the nearest older known bytes.";
 
 function getRelativePathWithSlashes(projectFolder: Path, file: Path): string {
-  return relative(projectFolder.toString(), file.toString()).split(sep).join("/");
+  // return relative(projectFolder.toString(), file.toString()).split(sep).join("/");
+  return getRelativePathInProject(projectFolder, file).split(sep).join("/");
 }
 
 export function readProjectFilesAtMark(projectFolder: Path, storeFolder: Path, projectFiles: ProjectFile[], markInstant: Date): ReaderFilesAtMark {

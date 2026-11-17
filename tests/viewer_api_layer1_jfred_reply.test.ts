@@ -61,6 +61,12 @@ function buildInputBody(baseShortHash: string, allowScripts?: unknown, markAt: s
 
 const LATER_AT = "2026-07-01T21:00:00.000Z";
 
+// The layered search needs a repo with a HEAD commit.
+function initGitRepo(folder: string): void {
+    execFileSync("git", ["init", "-q"], { cwd: folder });
+    execFileSync("git", ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-q", "--allow-empty", "-m", "init"], { cwd: folder });
+}
+
 interface MarkFixture {
     repoDir: string;
     baseShortHash: string;
@@ -73,6 +79,7 @@ interface MarkFixture {
 function createMarkFixture(t: TestContext, writes: [string, string][], diskText: string, scriptRecordAt?: string): MarkFixture {
     const { repoDir, commitHashes } = createJfredTempRepo();
     const projectFolder = createTempDir();
+    initGitRepo(projectFolder);
     writeFileSync(join(projectFolder, "a.txt"), diskText);
     const tree = createSourceTree("-jfred-reply-mark");
     const records: object[] = [];
@@ -225,6 +232,7 @@ test("test_commit_reads_snapshot_folders_from_the_snapshots_query_key", (t) => {
     // Scenario: a backup of a.txt is taken at 17:00 and an Edit runs at 18:00; the mark is 17:30, so only the backup blob in the snapshots folder holds the text.
     const { repoDir, commitHashes } = createJfredTempRepo();
     const projectFolder = createTempDir();
+    initGitRepo(projectFolder);
     t.after(() => rmSync(getInverseReposStoreFolder(new Path(projectFolder)).toString(), { recursive: true, force: true }));
     const transcriptFolder = writeBackupEditSource(projectFolder, SESSION_A, "a.txt", EDIT_LINE_NUMBER_FOR_A);
     const snapshotsFolder = join(transcriptFolder, "..", "..", "file-history");

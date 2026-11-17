@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
 import { Readable } from "node:stream";
@@ -18,7 +18,8 @@ import { createJfredTempRepo } from "./jfred-write-test-helpers.ts";
 
 const PORT = 7432;
 const THIRD_COMMIT_AT = "2026-07-01T16:00:00Z";
-const WRITE_AT = "2026-07-01T17:00:00.000Z";
+const EARLY_COMMIT_AT = "2026-07-01T10:00:00Z";
+const WRITE_AT ="2026-07-01T17:00:00.000Z";
 const SNAPSHOT_AT = "2026-07-01T18:00:00.000Z";
 const MARK_AT = "2026-07-01T20:00:00.000Z";
 const BLOB_NAME = "abc123@v1";
@@ -32,20 +33,35 @@ function postCommit(query: Record<string, string>, body: object): Promise<void> 
     });
 }
 
+// The layered search needs a project repo with a HEAD commit, and it finds logs by the file names the repo history touched: a.txt is added, then removed.
+function initGitRepo(folder: string): void {
+    const commitEnvironment = { ...process.env, GIT_AUTHOR_DATE: EARLY_COMMIT_AT, GIT_COMMITTER_DATE: EARLY_COMMIT_AT };
+    const identityArguments = ["-c", "user.name=test", "-c", "user.email=test@example.com"];
+    execFileSync("git", ["init", "-q"], { cwd: folder });
+    writeFileSync(join(folder, "a.txt"), "early\n");
+    execFileSync("git", ["add", "a.txt"], { cwd: folder });
+    execFileSync("git", [...identityArguments, "commit", "-q", "-m", "add a.txt"], { cwd: folder, env: commitEnvironment });
+    execFileSync("git", ["rm", "-q", "a.txt"], { cwd: folder });
+    execFileSync("git", [...identityArguments, "commit", "-q", "-m", "remove a.txt"], { cwd: folder, env: commitEnvironment });
+}
+
 // The mark comes after one Write; `prepare` shapes the file's older copies and may return extra transcript records.
 async function commitFirstWrite(prepare: (repoDir: string, projectDir: string) => object[], logFileName: string = "a.jsonl", sendSnapshotsFolder: boolean = false): Promise<string> {
     enableJfredWrites();
     const { repoDir, commitHashes } = createJfredTempRepo();
     const tree = createSourceTree("-jfred-newline");
-    const extraRecords = prepare(repoDir, tree.treeRoot);
-    const envelope = { sessionId: SESSION_A, cwd: tree.treeRoot, timestamp: WRITE_AT, toolId: "toolu_w0", parentUuid: null };
-    const write = buildWriteRecordPair(envelope, join(tree.treeRoot, "a.txt"), "first text\n");
+    // git reports the real path of the project folder, so the fixture uses it too.
+    const projectFolder = realpathSync(tree.treeRoot);
+    initGitRepo(projectFolder);
+    const extraRecords = prepare(repoDir, projectFolder);
+    const envelope = { sessionId: SESSION_A, cwd: projectFolder, timestamp: WRITE_AT, toolId: "toolu_w0", parentUuid: null };
+    const write = buildWriteRecordPair(envelope, join(projectFolder, "a.txt"), "first text\n");
     writeTranscriptFixture(tree.projectDir, logFileName, [...write.records, ...extraRecords]);
     clearBuiltDocumentCache();
     const body = { baseShortHash: commitHashes[1]!.slice(0, 8), markInstant: MARK_AT, message: `${JFRED_SUBJECT_PREFIX}${MARK_AT}`, allowScripts: false };
-    const query: Record<string, string> = { dir: tree.treeRoot, repo: repoDir, jsonl: tree.projectDir };
+    const query: Record<string, string> = { dir: projectFolder, repo: repoDir, jsonl: tree.projectDir };
     if (sendSnapshotsFolder) {
-        query.snapshots = join(tree.treeRoot, "file-history");
+        query.snapshots = join(projectFolder, "file-history");
     }
     await postCommit(query, body);
     return execFileSync("git", ["show", "jfred:a.txt"], { cwd: repoDir, encoding: "utf8" });

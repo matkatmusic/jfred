@@ -3,7 +3,8 @@
 import { type IncomingMessage, type ServerResponse } from "node:http";
 import { relative, sep } from "node:path";
 import { StateConfidence } from "../engineV3/engineV3_file_known_states.ts";
-import { listProjectFilesOnDiskAndInLogs } from "../engineV3/engineV3_inverse_repos_project_files.ts";
+// import { listProjectFilesOnDiskAndInLogs } from "../engineV3/engineV3_inverse_repos_project_files.ts";
+import { getRepoFolderOfProject, listLayeredSearchProjectFiles } from "../engineV3/layeredSearch/layeredSearch_project_files.ts";
 import { DockerReadiness, ScriptReplayChangeKind, checkDockerReadiness } from "../engineV3/engineV3_script_replay_container.ts";
 import { ScriptTaskOutcomeKind, replayScriptTasksForProject, type ScriptTaskFileOutcome, type ScriptTaskOutcome } from "../engineV3/engineV3_script_replay_run.ts";
 import { ScriptReplayTaskReason, listScriptReplayTasks, type ScriptReplayTask } from "../engineV3/engineV3_script_replay_tasks.ts";
@@ -101,7 +102,9 @@ function reportSidecarProgress(projectFolder: Path, projectFiles: { file: Path }
 }
 
 export function buildScriptReplayNeedsReply(projectFolder: Path, jsonlsFolders: Path[], request: WireScriptReplayNeedsRequest, reportProgress: ProgressSink, readiness: DockerReadiness = checkDockerReadiness()): WireScriptReplayNeeds {
-    const projectFiles = listProjectFilesOnDiskAndInLogs(projectFolder, jsonlsFolders);
+    // const projectFiles = listProjectFilesOnDiskAndInLogs(projectFolder, jsonlsFolders);
+    const repoFolder = getRepoFolderOfProject(projectFolder);
+    const { projectFiles } = listLayeredSearchProjectFiles(projectFolder, repoFolder, jsonlsFolders, false, reportProgress);
     reportSidecarProgress(projectFolder, projectFiles, reportProgress);
     const storeFolder = getInverseReposStoreFolder(projectFolder);
     const tasks = listScriptReplayTasks(storeFolder, projectFolder, projectFiles, projectFolder, new Date(request.toInstant), jsonlsFolders);
@@ -159,7 +162,9 @@ export function mapScriptTaskOutcomeToWire(outcome: ScriptTaskOutcome): WireScri
 
 export function createScriptReplayRun(projectFolder: Path, jsonlsFolders: Path[], snapshotFolders: Path[]): ScriptReplayRun {
     return (toInstant, reportProgress, signal) => {
-        const projectFiles = listProjectFilesOnDiskAndInLogs(projectFolder, jsonlsFolders);
+        // const projectFiles = listProjectFilesOnDiskAndInLogs(projectFolder, jsonlsFolders);
+        const repoFolder = getRepoFolderOfProject(projectFolder);
+        const { projectFiles } = listLayeredSearchProjectFiles(projectFolder, repoFolder, jsonlsFolders, false, reportProgress);
         const storeFolder = getInverseReposStoreFolder(projectFolder);
         const settings = { projectFolder, recordedProjectFolder: projectFolder, projectFiles, jsonlsFolders, snapshotFolders, storeFolder };
         return replayScriptTasksForProject(settings, toInstant, reportProgress, signal);

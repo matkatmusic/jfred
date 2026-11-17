@@ -3,7 +3,8 @@
 import { JfredCommitOutcome, type WireJfredCommitReplyOf, type WireJfredCommitRequest } from "../webapp/layer1-components/commits-column/layer1-wire-jfred.ts";
 // import { listBeaconCandidates, type BeaconCandidate } from "./layer1_beacon_candidates.ts";
 import { buildInverseReposForFiles } from "../engineV3/engineV3_inverse_repos_for_project.ts";
-import { listProjectFilesOnDiskAndInLogs } from "../engineV3/engineV3_inverse_repos_project_files.ts";
+// import { listProjectFilesOnDiskAndInLogs } from "../engineV3/engineV3_inverse_repos_project_files.ts";
+import { getRepoFolderOfProject, listLayeredSearchProjectFiles } from "../engineV3/layeredSearch/layeredSearch_project_files.ts";
 import { LAYER1_PROGRESS_LABEL_BUILDING_INVERSE_REPOS } from "./layer1_inverse_repos_wire.ts";
 import type { ProgressSink } from "./parse/loadTranscript.ts";
 // import type { PathOverrides } from "./reconstruction_overrides.ts";
@@ -113,11 +114,14 @@ export function buildCommitReply(input: CommitInput, onProgress: ProgressSink): 
   const snapshotFolders = input.query.getAll("snapshots").map((folder) => new Path(folder));
   const storeFolder = getInverseReposStoreFolder(input.dir);
   const fileListStartedAt = Date.now();
-  const projectFiles = listProjectFilesOnDiskAndInLogs(input.dir, jsonlsFolders);
+  // const projectFiles = listProjectFilesOnDiskAndInLogs(input.dir, jsonlsFolders);
+  const repoFolder = getRepoFolderOfProject(input.dir);
+  const { projectFiles, transcriptsToParse } = listLayeredSearchProjectFiles(input.dir, repoFolder, jsonlsFolders, false, onProgress);
   console.log(`commit timing: file list ${Date.now() - fileListStartedAt} ms`);
   onProgress({ kind: DocumentResponseKind.progress, label: LAYER1_PROGRESS_LABEL_BUILDING_INVERSE_REPOS, current: 0, total: projectFiles.length, steps: [LAYER1_PROGRESS_LABEL_BUILDING_INVERSE_REPOS] });
   const repoBuildStartedAt = Date.now();
-  buildInverseReposForFiles(input.dir, projectFiles, jsonlsFolders, snapshotFolders, storeFolder, new Date(), onProgress);
+  // buildInverseReposForFiles(input.dir, projectFiles, jsonlsFolders, snapshotFolders, storeFolder, new Date(), onProgress);
+  buildInverseReposForFiles(input.dir, projectFiles, transcriptsToParse, snapshotFolders, storeFolder, new Date(), onProgress);
   console.log(`commit timing: repo build ${Date.now() - repoBuildStartedAt} ms`);
   reportStage(onProgress, "reading the files at the mark");
   const readStartedAt = Date.now();

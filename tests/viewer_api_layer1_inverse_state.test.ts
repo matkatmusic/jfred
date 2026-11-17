@@ -118,12 +118,13 @@ test("test_inverse_state_with_an_invalid_time_throws", (t) => {
     assert.throws(() => sendLayer1InverseStateResponse(response, buildQuery(projectFolder, { at: "not a time" })), /at is not a valid time/);
 });
 
-test("test_inverse_state_with_a_path_outside_the_project_throws", (t) => {
-    const projectFolder = makeProjectWithRepo(t);
-    const { response } = buildResponseStub();
-    const query = buildQuery(projectFolder, { file: "../escape.txt", at: makeInstant(150).toISOString() });
-    assert.throws(() => sendLayer1InverseStateResponse(response, query), /outside the project folder/);
-});
+// Obsolete: files outside the project folder are no longer excluded, so getRelativePathInProject no longer throws.
+// test("test_inverse_state_with_a_path_outside_the_project_throws", (t) => {
+//     const projectFolder = makeProjectWithRepo(t);
+//     const { response } = buildResponseStub();
+//     const query = buildQuery(projectFolder, { file: "../escape.txt", at: makeInstant(150).toISOString() });
+//     assert.throws(() => sendLayer1InverseStateResponse(response, query), /outside the project folder/);
+// });
 
 test("test_inverse_state_of_a_file_without_a_repo_names_the_file", (t) => {
     const projectFolder = makeProjectWithRepo(t);

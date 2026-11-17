@@ -20,6 +20,17 @@ test("test_list_transcript_files_skips_workflow_journal", () => {
     assert.deepEqual(names, ["agent-a1.jsonl", "agent-a2.jsonl"]);
 });
 
+test("test_listTranscriptFiles_returns_a_file_entry_as_is", () => {
+    // Setup: a temp folder with one .jsonl file.
+    const folder = createTempDir();
+    const filePath = join(folder, "a.jsonl");
+    writeFileSync(filePath, "{}\n");
+    // Action: call listTranscriptFiles with the FILE path as the only entry.
+    const result = listTranscriptFiles([filePath]);
+    // Check: the result holds exactly that one Path, equal to the file path.
+    assert.deepEqual(result.map((path) => path.toString()), [filePath]);
+});
+
 test("test_list_transcript_files_skips_prompt_history", () => {
     const folder = createTempDir();
     writeFileSync(join(folder, "a.jsonl"), "{}\n");

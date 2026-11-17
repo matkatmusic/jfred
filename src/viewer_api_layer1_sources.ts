@@ -78,6 +78,10 @@ export function listTranscriptFiles(folders: readonly string[]): Path[] {
     if (!folderExists) {
       continue;
     }
+    if (statSync(folder).isFile()) {
+      byPath.set(folder, new Path(folder));
+      continue;
+    }
     for (const jsonlPath of listSourceFilesUnder(new Path(folder), SourceKind.jsonl)) {
       byPath.set(jsonlPath.toString(), jsonlPath);
     }

@@ -32,10 +32,11 @@ export type InverseReposSettings = { projectFolder: Path; jsonlsFolder: Path; fi
 
 const USAGE = "usage: node engineV3_inverse_repos_for_project.ts --project <folder> --jsonls <folder> --file-history <folder> --store <folder>";
 
-function getRelativePathInProject(projectFolder: Path, file: Path): string {
+export function getRelativePathInProject(projectFolder: Path, file: Path): string {
     const relativePath = relative(projectFolder.toString(), file.toString());
     if (relativePath.split(sep)[0] === "..") {
-        throw new Error(`getRelativePathInProject: ${file.toString()} is outside the project folder ${projectFolder.toString()}`);
+        // throw new Error(`getRelativePathInProject: ${file.toString()} is outside the project folder ${projectFolder.toString()}`);
+        return ".outside-project/" + file.toString().replace("/", "");
     }
     return relativePath;
 }
@@ -249,14 +250,19 @@ if (isCliRun) {
     const startMilliseconds = Date.now();
     // const files = listCurrentFileState(settings.projectFolder).map((fileState) => new Path(join(settings.projectFolder.toString(), fileState.relativePath.toString())));
     // const projectFiles = files.map((file) => ({ file, transcriptFile: file }));
-    const { listProjectFilesOnDiskAndInLogs } = await import("./engineV3_inverse_repos_project_files.ts");
-    const projectFiles = listProjectFilesOnDiskAndInLogs(settings.projectFolder, [settings.jsonlsFolder]);
+    // const { listProjectFilesOnDiskAndInLogs } = await import("./engineV3_inverse_repos_project_files.ts");
+    // const projectFiles = listProjectFilesOnDiskAndInLogs(settings.projectFolder, [settings.jsonlsFolder]);
+    const { listLayeredSearchProjectFiles, getRepoFolderOfProject } = await import("./layeredSearch/layeredSearch_project_files.ts");
+    const repoFolder = getRepoFolderOfProject(settings.projectFolder);
+    // The terminal bars sink is created after this call, so the progress callback does nothing.
+    const { projectFiles, transcriptsToParse } = listLayeredSearchProjectFiles(settings.projectFolder, repoFolder, [settings.jsonlsFolder], false, () => {});
     const files = projectFiles.map((projectFile) => projectFile.file);
     const { createTerminalBarsSink } = await import("./engineV3_inverse_repos_terminal_bars.ts");
     const fileNames = files.map((file) => relative(settings.projectFolder.toString(), file.toString()));
     // const reportProgress = (event) => { console.log(`${event.current}/${event.total}  ${event.label}`); };
     const reportProgress = createTerminalBarsSink(process.stdout, fileNames);
-    const results = buildInverseReposForFiles(settings.projectFolder, projectFiles, [settings.jsonlsFolder], [settings.fileHistoryFolder], settings.storeFolder, new Date(), reportProgress);
+    // const results = buildInverseReposForFiles(settings.projectFolder, projectFiles, [settings.jsonlsFolder], [settings.fileHistoryFolder], settings.storeFolder, new Date(), reportProgress);
+    const results = buildInverseReposForFiles(settings.projectFolder, projectFiles, transcriptsToParse, [settings.fileHistoryFolder], settings.storeFolder, new Date(), reportProgress);
     const commitTotal = results.reduce((sum, result) => sum + result.commitCount, 0);
     const seconds = ((Date.now() - startMilliseconds) / 1000).toFixed(1);
     console.log(`done: ${results.length} files, ${commitTotal} commits, ${seconds}s`);

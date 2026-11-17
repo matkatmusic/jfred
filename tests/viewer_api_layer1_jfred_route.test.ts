@@ -43,6 +43,11 @@ function readGit(repoDir: string, ...args: string[]): string {
     return execFileSync("git", args, { cwd: repoDir, encoding: "utf8" });
 }
 
+function initGitRepo(folder: string): void {
+    execFileSync("git", ["init", "-q"], { cwd: folder });
+    execFileSync("git", ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-q", "--allow-empty", "-m", "init"], { cwd: folder });
+}
+
 // A write without content writes the parent commit's a.txt, so the text at the mark equals the parent.
 function createFixture(writes: [string, string?][]) {
     const { repoDir, commitHashes } = createJfredTempRepo();
@@ -50,6 +55,7 @@ function createFixture(writes: [string, string?][]) {
     const tree = createSourceTree("-jfred-route");
     // The project folder is outside the log folder, as for a real user.
     const projectFolder = mkdtempSync(join(tmpdir(), "jfred-route-project-"));
+    initGitRepo(projectFolder);
     const records: object[] = [];
     for (const [index, [timestamp, content]] of writes.entries()) {
         const envelope = { sessionId: SESSION_A, cwd: projectFolder, timestamp, toolId: `toolu_w${index}`, parentUuid: null };
@@ -216,7 +222,7 @@ describe("with writes on", () => {
         chmodSync(join(fixture.transcriptFolder, "a.jsonl"), 0);
         const lastLine = readLines(await postCommit(fixture)).at(-1)!;
         assert.equal(lastLine.kind, DocumentResponseKind.error);
-        assert.match(String(lastLine.label), /EACCES/);
+        assert.match(String(lastLine.label), /Permission denied/);
     });
 
     test("test_commit_route_ends_with_an_error_line_for_a_stale_parent", async () => {

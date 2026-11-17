@@ -7,11 +7,15 @@ import { extractFileEvents } from "../../src/reconstruction_extract.ts";
 import { Path } from "../../src/structures/domain.ts";
 import type { TranscriptRecord } from "../../src/structures/envelope.ts";
 import { LayeredSearchCommand } from "./layeredSearch_command.ts";
-import { isPathInSessionScratchpad, isPathInsideFolder } from "./layeredSearch_path_checks.ts";
+import { isPathInSessionScratchpad, isPathInsideAnyFolder, isPathInsideFolder } from "./layeredSearch_path_checks.ts";
 import { printProgress } from "./layeredSearch_ripgrep_helpers.ts";
 
 // Every entry is a full path. A file in a merged worktree gets its place in the main repo; a file in an unmerged worktree keeps its worktree path.
-function convertMentionedPathToListEntry(fullPath: Path, command: LayeredSearchCommand, worktreeFolders: Path[], mergedWorktreeFolders: Path[], sessionId: string): string | undefined {
+type MentionedFilesCommand = Pick<LayeredSearchCommand, "repoFolder" | "projectFolder" | "isOutsideProjectIncluded">;
+
+// function convertMentionedPathToListEntry(fullPath: Path, command: LayeredSearchCommand, worktreeFolders: Path[], mergedWorktreeFolders: Path[], sessionId: string): string | undefined {
+// function convertMentionedPathToListEntry(fullPath: Path, command: MentionedFilesCommand, worktreeFolders: Path[], mergedWorktreeFolders: Path[], sessionId: string): string | undefined {
+function convertMentionedPathToListEntry(fullPath: Path, command: MentionedFilesCommand, worktreeFolders: Path[], mergedWorktreeFolders: Path[], sessionId: string, isLogFromProject: boolean): string | undefined {
     if (isPathInsideFolder(fullPath, command.projectFolder)) {
         return fullPath.toString();
     }
@@ -32,8 +36,10 @@ function convertMentionedPathToListEntry(fullPath: Path, command: LayeredSearchC
             return undefined;
         }
     }
-    if (isPathInSessionScratchpad(fullPath, sessionId)) {
-        return fullPath.toString();
+    if (isLogFromProject) {
+        if (isPathInSessionScratchpad(fullPath, sessionId)) {
+            return fullPath.toString();
+        }
     }
     return undefined;
 }
@@ -59,16 +65,23 @@ function readFirstCwdAndSessionIdFromRecords(records: TranscriptRecord[], transc
     return { cwd, sessionId };
 }
 
-export function addFilesMentionedInTranscripts(files: string[], transcriptsToParse: Path[], command: LayeredSearchCommand, worktreeFolders: Path[], mergedWorktreeFolders: Path[]): string[] {
+// export function addFilesMentionedInTranscripts(files: string[], transcriptsToParse: Path[], command: LayeredSearchCommand, worktreeFolders: Path[], mergedWorktreeFolders: Path[]): string[] {
+export function addFilesMentionedInTranscripts(files: string[], transcriptsToParse: Path[], command: MentionedFilesCommand, worktreeFolders: Path[], mergedWorktreeFolders: Path[]): string[] {
     const allFiles = new Set(files);
     const startMilliseconds = Date.now();
     for (const [index, transcript] of transcriptsToParse.entries()) {
         const records = loadTranscript(transcript.toString(), undefined, true).records;
         const { cwd, sessionId } = readFirstCwdAndSessionIdFromRecords(records, transcript);
+        const cwdPath = new Path(cwd);
+        let isLogFromProject = isPathInsideFolder(cwdPath, command.projectFolder);
+        if (!isLogFromProject) {
+            isLogFromProject = isPathInsideAnyFolder(cwdPath, worktreeFolders);
+        }
         for (const event of extractFileEvents(records)) {
             for (const eventPath of listEventPaths(event)) {
                 const fullPath = new Path(resolve(cwd, eventPath.toString()));
-                const listEntry = convertMentionedPathToListEntry(fullPath, command, worktreeFolders, mergedWorktreeFolders, sessionId);
+                // const listEntry = convertMentionedPathToListEntry(fullPath, command, worktreeFolders, mergedWorktreeFolders, sessionId);
+                const listEntry = convertMentionedPathToListEntry(fullPath, command, worktreeFolders, mergedWorktreeFolders, sessionId, isLogFromProject);
                 if (listEntry !== undefined) {
                     allFiles.add(listEntry);
                 }

@@ -1,6 +1,7 @@
 // The first file list of the layered search: the files on disk in the project, and the files any git commit touched.
 
 import { execFileSync } from "node:child_process";
+import { statSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 import { listCurrentFileState } from "../../src/layer1_disk_walk.ts";
 import { Path } from "../../src/structures/domain.ts";
@@ -40,6 +41,23 @@ export function convertToAbsoluteFilePaths(relativePaths: string[], projectFolde
         absolutePaths.add(resolve(projectFolder.toString(), relativePath));
     }
     return [...absolutePaths].sort();
+}
+
+// A gitlink (submodule) entry in git history and a delete event of the project folder name folders, which are not files to reconstruct.
+export function removeFolderPathsFromFilePaths(absolutePaths: string[]): string[] {
+    const filePaths: string[] = [];
+    for (const absolutePath of absolutePaths) {
+        const stats = statSync(absolutePath, { throwIfNoEntry: false });
+        if (stats === undefined) {
+            filePaths.push(absolutePath);
+        }
+        else {
+            if (!stats.isDirectory()) {
+                filePaths.push(absolutePath);
+            }
+        }
+    }
+    return filePaths;
 }
 
 export function mergeFilePathsWithoutDuplicates(firstPaths: string[], secondPaths: string[]): string[] {

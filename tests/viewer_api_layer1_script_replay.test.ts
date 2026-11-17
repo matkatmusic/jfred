@@ -1,6 +1,7 @@
 // S2a: the Docker readiness reply and its route.
 
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
@@ -82,7 +83,7 @@ function makeCallInstant(second: number): Date {
 
 function makeCallRecord(toolName: string, toolUseId: string, input: object, second: number, cwd: string): object {
     const content = [{ type: "tool_use", id: toolUseId, name: toolName, input, caller: { type: "direct" } }];
-    return { type: "assistant", uuid: `call-${toolUseId}`, timestamp: makeCallInstant(second).toISOString(), cwd, message: { role: "assistant", content } };
+    return { type: "assistant", uuid: `call-${toolUseId}`, timestamp: makeCallInstant(second).toISOString(), cwd, sessionId: "s1", message: { role: "assistant", content } };
 }
 
 function makeResultRecord(toolUseId: string, toolUseResult: object, second: number): object {
@@ -97,6 +98,11 @@ function makeWriteCreateRows(toolUseId: string, filePath: string, content: strin
 
 function makeBashRecord(toolUseId: string, command: string, second: number, cwd: string): object {
     return makeCallRecord("Bash", toolUseId, { command }, second, cwd);
+}
+
+function initGitRepo(folder: string): void {
+    execFileSync("git", ["init", "-q"], { cwd: folder });
+    execFileSync("git", ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-q", "--allow-empty", "-m", "init"], { cwd: folder });
 }
 
 type Scene = { projectFolder: Path; jsonlsFolder: Path; historyFolder: Path; storeFolder: Path; projectFiles: ProjectFile[] };
@@ -114,6 +120,7 @@ function makeScene(t: TestContext, diskTextByFileName: Record<string, string>, m
         rmSync(storeFolder.toString(), { recursive: true, force: true });
     });
     mkdirSync(projectFolder.toString());
+    initGitRepo(projectFolder.toString());
     mkdirSync(jsonlsFolder.toString());
     mkdirSync(historyFolder.toString());
     const projectFiles: ProjectFile[] = [];
