@@ -32,13 +32,24 @@ export type InverseReposSettings = { projectFolder: Path; jsonlsFolder: Path; fi
 
 const USAGE = "usage: node engineV3_inverse_repos_for_project.ts --project <folder> --jsonls <folder> --file-history <folder> --store <folder>";
 
+export const OUTSIDE_PROJECT_PREFIX = ".outside-project/";
+
 export function getRelativePathInProject(projectFolder: Path, file: Path): string {
     const relativePath = relative(projectFolder.toString(), file.toString());
     if (relativePath.split(sep)[0] === "..") {
         // throw new Error(`getRelativePathInProject: ${file.toString()} is outside the project folder ${projectFolder.toString()}`);
-        return ".outside-project/" + file.toString().replace("/", "");
+        // return ".outside-project/" + file.toString().replace("/", "");
+        return OUTSIDE_PROJECT_PREFIX + file.toString().replace("/", "");
     }
     return relativePath;
+}
+
+// The reverse of getRelativePathInProject.
+export function getAbsolutePathFromProjectRelativePath(projectFolder: Path, relativePath: string): Path {
+    if (relativePath.startsWith(OUTSIDE_PROJECT_PREFIX)) {
+        return new Path("/" + relativePath.slice(OUTSIDE_PROJECT_PREFIX.length));
+    }
+    return new Path(join(projectFolder.toString(), relativePath));
 }
 
 export function getInverseRepoFolderForFile(storeFolder: Path, projectFolder: Path, file: Path): Path {

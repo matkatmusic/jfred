@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { type ServerResponse } from "node:http";
 import { join, resolve, sep } from "node:path";
+import { getAbsolutePathFromProjectRelativePath, OUTSIDE_PROJECT_PREFIX } from "../engineV3/engineV3_inverse_repos_for_project.ts";
 import { Path } from "./structures/domain.ts";
 import { isEditFileRequest, readEditFileContent } from "./viewer_api_layer1_edit_file.ts";
 import { isSnapshotFileRequest, readSnapshotFileContent } from "./viewer_api_layer1_snapshot.ts";
@@ -43,6 +44,9 @@ export function readCommittedFileBytes(repoDir: Path, filePath: Path, hash: stri
 
 // Working-tree bytes under `dir`; a URL path that escapes the folder is refused, separator-suffixed so siblings fail too.
 export function readWorkingTreeFileBytes(projectFolder: Path, filePath: Path): Buffer {
+  if (filePath.toString().startsWith(OUTSIDE_PROJECT_PREFIX)) {
+    return readFileSync(getAbsolutePathFromProjectRelativePath(projectFolder, filePath.toString()).toString());
+  }
   const folder = resolve(projectFolder.toString());
   const resolved = resolve(join(folder, filePath.toString()));
   const isInsideFolder = resolved.startsWith(folder + sep);
