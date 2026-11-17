@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { extractFileEvents } from "../src/reconstruction_extract.ts";
-import { parseRedirect, parseStdoutRedirect } from "../src/reconstruction_bash_events.ts";
+// import { parseRedirect, parseStdoutRedirect } from "../src/reconstruction_bash_events.ts";
+import { parseRedirect, parseRmTargets, parseStdoutRedirect } from "../src/reconstruction_bash_events.ts";
 import { BlockType, EventKind, RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import type { AppendEvent, OverwriteEvent } from "../src/reconstruction_events.ts";
 import type { TranscriptRecord } from "../src/structures/envelope.ts";
@@ -118,4 +119,54 @@ test("test_parseStdoutRedirect_finds_stdout_file_past_stderr_redirects", () => {
     assert.equal(parseStdoutRedirect("python3 x.py | tail -40"), undefined);
     assert.equal(parseStdoutRedirect("python3 x.py 2>&1 | tail -10"), undefined);
     assert.equal(parseStdoutRedirect("python3 x.py > /dev/null"), undefined);
+});
+
+// The text of each rm target path that parseRmTargets finds in `command`.
+function listRmTargetTexts(command: string): string[] {
+    return parseRmTargets(command).map((target) => target.toString());
+}
+
+test("test_parseRmTargets_gives_both_paths_of_a_plain_rm", () => {
+    // Two plain paths after rm are both targets.
+    assert.deepEqual(listRmTargetTexts("rm a.py b.py"), ["a.py", "b.py"]);
+});
+
+test("test_parseRmTargets_ends_the_list_at_a_double_ampersand", () => {
+    // Words after && belong to the next command, not to rm.
+    assert.deepEqual(listRmTargetTexts("rm /tmp/migrate-nnn-to-timestamp.py && ls /tmp/migrate-nnn-to-timestamp.py 2>&1; echo done"), ["/tmp/migrate-nnn-to-timestamp.py"]);
+});
+
+test("test_parseRmTargets_skips_flags_and_ends_the_list_at_a_double_ampersand", () => {
+    // The -rf flag is skipped and the words after && are not targets.
+    assert.deepEqual(listRmTargetTexts("rm -rf /tmp/plate-live.bWFRfk/.plate && git -C /tmp/plate-live.bWFRfk checkout -- .gitignore 2>/dev/null"), ["/tmp/plate-live.bWFRfk/.plate"]);
+});
+
+test("test_parseRmTargets_ends_the_list_at_a_redirect_word", () => {
+    // The 2>/dev/null word ends the list, so echo and done are not targets.
+    assert.deepEqual(listRmTargetTexts("rm /tmp/plate_commit_3files.py /tmp/plate_manual_commit.py 2>/dev/null; echo done"), ["/tmp/plate_commit_3files.py", "/tmp/plate_manual_commit.py"]);
+});
+
+test("test_parseRmTargets_ends_the_list_at_a_stderr_to_stdout_redirect_word", () => {
+    // The 2>&1 word ends the list, so echo and done are not targets.
+    assert.deepEqual(listRmTargetTexts("rm a.py 2>&1; echo done"), ["a.py"]);
+});
+
+test("test_parseRmTargets_keeps_the_path_that_ends_with_a_semicolon_and_stops_there", () => {
+    // The path before the semicolon is a target, and echo and done are not.
+    assert.deepEqual(listRmTargetTexts("rm a.py; echo done"), ["a.py"]);
+});
+
+test("test_parseRmTargets_ends_the_list_at_a_pipe", () => {
+    // Words after the pipe belong to the next command, not to rm.
+    assert.deepEqual(listRmTargetTexts("rm a.py | grep x"), ["a.py"]);
+});
+
+test("test_parseRmTargets_skips_the_flag_of_rm_minus_rf", () => {
+    // The -rf flag is not a target, only build is.
+    assert.deepEqual(listRmTargetTexts("rm -rf build"), ["build"]);
+});
+
+test("test_parseRmTargets_ends_the_list_at_a_double_pipe", () => {
+    // Words after || belong to the next command, not to rm.
+    assert.deepEqual(listRmTargetTexts("rm a.py || echo failed"), ["a.py"]);
 });

@@ -217,6 +217,28 @@ export function insertStatesIntoInverseRepo(repoFolder: Path, fileName: string, 
     takenPositions.add(newState.position);
     steps.push({ position: newState.position, newState, storedCommit: undefined });
   }
+  const highestStoredPosition = parseCommitMessage(storedCommits[storedCommits.length - 1]!.message).position;
+  let lowestNewPosition = Infinity;
+  for (const newState of newStates) {
+    if (newState.position < lowestNewPosition) {
+      lowestNewPosition = newState.position;
+    }
+  }
+  // An append keeps every stored commit as it is, so no commit is rewritten.
+  if (lowestNewPosition > highestStoredPosition) {
+    const newStatesInPositionOrder = [...newStates].sort((leftState, rightState) => leftState.position - rightState.position);
+    let appendedTipCommit = storedCommits[storedCommits.length - 1]!.commitHash;
+    for (const newState of newStatesInPositionOrder) {
+      const instant = newState.state.event.instant;
+      if (instant === undefined) {
+        throw new Error(`insertStatesIntoInverseRepo: the ${newState.state.event.type} state at position ${newState.position} has no instant`);
+      }
+      appendedTipCommit = writeStateCommit(repoFolder, fileName, newState, appendedTipCommit, instant);
+      onNewStateCommitted?.();
+    }
+    runJfredGit(repoFolder, ["update-ref", FINAL_BRANCH, appendedTipCommit.toString()]);
+    return;
+  }
   steps.sort((leftStep, rightStep) => leftStep.position - rightStep.position);
   let parent = storedCommits[0]!.commitHash;
   for (const step of steps) {

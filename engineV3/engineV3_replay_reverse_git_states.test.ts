@@ -74,3 +74,17 @@ test("test_collectGitKnownStates_finds_the_history_of_a_file_whose_folder_was_de
     assert.equal(states[0]!.content, "committed\n");
     assert.equal(states[0]!.commitHash!.toString(), commitHash);
 });
+
+test("test_collectGitKnownStates_returns_an_empty_list_for_a_path_that_is_a_submodule_entry", (t) => {
+    // Scenario: the repo committed a submodule entry at plate-test.
+    const repoFolder = makeTempFolder(t);
+    runGit(repoFolder, ["init", "-q"]);
+    // add the submodule entry (mode 160000) to the index
+    runGit(repoFolder, ["update-index", "--add", "--cacheinfo", "160000,04e3932a58d9200aff789aac8ebeacd698c79ac2,plate-test"]);
+    // commit the submodule entry
+    runGit(repoFolder, ["commit", "-q", "-m", "add the submodule entry"]);
+    // collect the git states of the submodule path
+    const states = collectGitKnownStates(new Path(join(repoFolder, "plate-test")));
+    // a submodule entry holds no text, so it gives no git state
+    assert.deepEqual(states, []);
+});

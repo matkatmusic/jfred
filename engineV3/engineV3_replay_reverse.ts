@@ -500,6 +500,8 @@ export function collectBackupKnownStates(file: Path, jsonlLines: JSONLLine[], fi
   return knownStates;
 }
 
+const GITLINK_MODE = "160000";
+
 // Asks git from the nearest existing folder, and a file outside a git work tree has no states; --diff-filter=d leaves out the commits that deleted the file.
 export function collectGitKnownStates(file: Path): KnownFileState[] {
   let folder = new Path(dirname(file.toString()));
@@ -510,13 +512,36 @@ export function collectGitKnownStates(file: Path): KnownFileState[] {
     return [];
   }
   const fileName = relative(folder.toString(), file.toString());
-  const logText = executeGit(folder, ["log", "--diff-filter=d", "--format=%H %ct", "--", `./${fileName}`]).toString("utf8");
-  const knownStates: KnownFileState[] = [];
+  // const logText = executeGit(folder, ["log", "--diff-filter=d", "--format=%H %ct", "--", `./${fileName}`]).toString("utf8");
+  // const knownStates: KnownFileState[] = [];
+  // for (const logRow of logText.split("\n")) {
+  //   if (logRow !== "") {
+  //     const [commitHash, committerSeconds] = logRow.split(" ") as [string, string];
+  //     const content = executeGit(folder, ["show", `${commitHash}:./${fileName}`]).toString("utf8");
+  //     knownStates.push({ timestamp: new Date(Number(committerSeconds) * 1000), content, commitHash: new Uuid(commitHash), source: undefined });
+  //   }
+  // }
+  // return knownStates;
+  const logText = executeGit(folder, ["log", "--diff-filter=d", "--raw", "--format=%H %ct", "--", `./${fileName}`]).toString("utf8");
+  const logEntries: { commitHash: string; committerSeconds: string; isGitlinkEntry: boolean }[] = [];
   for (const logRow of logText.split("\n")) {
     if (logRow !== "") {
-      const [commitHash, committerSeconds] = logRow.split(" ") as [string, string];
-      const content = executeGit(folder, ["show", `${commitHash}:./${fileName}`]).toString("utf8");
-      knownStates.push({ timestamp: new Date(Number(committerSeconds) * 1000), content, commitHash: new Uuid(commitHash), source: undefined });
+      if (logRow.startsWith(":")) {
+        const newMode = logRow.split(" ")[1];
+        if (newMode === GITLINK_MODE) {
+          logEntries[logEntries.length - 1]!.isGitlinkEntry = true;
+        }
+      } else {
+        const [commitHash, committerSeconds] = logRow.split(" ") as [string, string];
+        logEntries.push({ commitHash, committerSeconds, isGitlinkEntry: false });
+      }
+    }
+  }
+  const knownStates: KnownFileState[] = [];
+  for (const logEntry of logEntries) {
+    if (!logEntry.isGitlinkEntry) {
+      const content = executeGit(folder, ["show", `${logEntry.commitHash}:./${fileName}`]).toString("utf8");
+      knownStates.push({ timestamp: new Date(Number(logEntry.committerSeconds) * 1000), content, commitHash: new Uuid(logEntry.commitHash), source: undefined });
     }
   }
   return knownStates;

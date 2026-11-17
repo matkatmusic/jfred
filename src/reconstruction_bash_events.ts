@@ -20,7 +20,8 @@ import {
 } from "./regex_expressions.ts";
 
 // Parse the target path out of an `rm <path>` Bash command (s1 has no flags).
-// ponytail: splits on whitespace — no quoted-path support, add if a scenario needs it
+// ponytail: splits on whitespace and ends the list at the first shell control word — no quoted-path support, add if a scenario needs it
+const RM_ENDING_WORDS = ["&&", "||", "|", ";"];
 export function parseRmTargets(command: string): Path[] {
   const match = command.trim().match(bashRemoveCommand);
   if (!match) {
@@ -29,7 +30,23 @@ export function parseRmTargets(command: string): Path[] {
   const rawTargets = match[1]!.trim();
   const targetStrings = rawTargets.split(whitespaceRun);
   const targets: Path[] = [];
+  // for (const targetString of targetStrings) {
+  //   targets.push(new Path(targetString));
+  // }
   for (const targetString of targetStrings) {
+    if (RM_ENDING_WORDS.includes(targetString)) {
+      break;
+    }
+    if (targetString.includes(">")) {
+      break;
+    }
+    if (targetString.startsWith("-")) {
+      continue;
+    }
+    if (targetString.endsWith(";")) {
+      targets.push(new Path(targetString.slice(0, -1)));
+      break;
+    }
     targets.push(new Path(targetString));
   }
   return targets;

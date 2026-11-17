@@ -1,7 +1,8 @@
 import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+// import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 // import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -755,4 +756,63 @@ test("test_insert_with_a_second_new_state_without_an_instant_throws_and_keeps_th
     assert.throws(() => insertStatesIntoInverseRepo(inverseFolder, FILE_NAME, [stateWithInstant, stateWithoutInstant]), /has no instant/);
     // The tip is the same as before.
     assert.equal(getTip(inverseFolder), tipBefore);
+});
+
+function makeGitCallCounter(t: TestContext): { readCallCount: () => number } {
+    const realGitPath = execFileSync("which", ["git"], { encoding: "utf8" }).trim();
+    const scriptFolder = makeTempFolder(t);
+    const logFile = join(makeTempFolder(t), "git-calls.log");
+    const scriptFile = join(scriptFolder, "git");
+    writeFileSync(scriptFile, `#!/bin/sh\necho "$1" >> "${logFile}"\nexec ${realGitPath} "$@"\n`);
+    chmodSync(scriptFile, 0o755);
+    const oldPath = process.env.PATH;
+    process.env.PATH = `${scriptFolder}:${oldPath}`;
+    t.after(() => {
+        process.env.PATH = oldPath;
+    });
+    const readCallCount = (): number => {
+        if (!existsSync(logFile)) {
+            return 0;
+        }
+        return readFileSync(logFile, "utf8").split("\n").filter((line) => line !== "").length;
+    };
+    return { readCallCount };
+}
+
+function makeInverseRepoWithStoredCommits(t: TestContext, storedCommitCount: number): Path {
+    const inverseFolder = makeInverseFolder(t);
+    createInverseRepo(inverseFolder, FILE_NAME, makeDiskNowState("zero\n"), DISK_NOW_INSTANT);
+    for (let position = 1; position < storedCommitCount; position++) {
+        insertStatesIntoInverseRepo(inverseFolder, FILE_NAME, [makeOlderState(position, `text ${position}\n`)]);
+    }
+    return inverseFolder;
+}
+
+test("test_appending_one_state_starts_the_same_number_of_git_processes_with_3_stored_commits_as_with_12", (t) => {
+    // Scenario: an append starts the same number of git processes however many commits are stored.
+    // Repo A stores 3 commits and repo B stores 12 commits.
+    const inverseFolderA = makeInverseRepoWithStoredCommits(t, 3);
+    const inverseFolderB = makeInverseRepoWithStoredCommits(t, 12);
+    // For repo A: count the git processes of one append at position 3.
+    const counterA = makeGitCallCounter(t);
+    insertStatesIntoInverseRepo(inverseFolderA, FILE_NAME, [makeOlderState(3, "appended\n")]);
+    const callCountOfRepoA = counterA.readCallCount();
+    // For repo B: count the git processes of one append at position 12.
+    const counterB = makeGitCallCounter(t);
+    insertStatesIntoInverseRepo(inverseFolderB, FILE_NAME, [makeOlderState(12, "appended\n")]);
+    const callCountOfRepoB = counterB.readCallCount();
+    // Both appends start the same number of git processes.
+    assert.equal(callCountOfRepoB, callCountOfRepoA, `git processes: repo A (3 stored) = ${callCountOfRepoA}, repo B (12 stored) = ${callCountOfRepoB}`);
+});
+
+test("test_appending_states_one_call_each_gives_the_pinned_tip_hash_of_the_rewrite_path", (t) => {
+    // Scenario: three appends, one call each, end in a tip hash pinned from the old rewrite path.
+    // The repo is created and the positions 1, 2 and 3 are inserted in three calls.
+    const inverseFolder = makeInverseFolder(t);
+    createInverseRepo(inverseFolder, FILE_NAME, makeDiskNowState("zero\n"), DISK_NOW_INSTANT);
+    insertStatesIntoInverseRepo(inverseFolder, FILE_NAME, [makeOlderState(1, "one\n")]);
+    insertStatesIntoInverseRepo(inverseFolder, FILE_NAME, [makeOlderState(2, "two\n")]);
+    insertStatesIntoInverseRepo(inverseFolder, FILE_NAME, [makeOlderState(3, "three\n")]);
+    // The tip hash is the pinned one.
+    assert.equal(getTip(inverseFolder), "1283e8fdaa10dca4b866f594e983dd0f5cfe3e3b");
 });
