@@ -2,6 +2,7 @@ import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+// import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -536,4 +537,222 @@ test("test_a_commit_message_without_the_new_keys_throws", (t) => {
     const halfHash = runGit(inverseFolder, ["-c", "user.name=t", "-c", "user.email=t@t", "commit-tree", treeHash, "-m", JSON.stringify({ ...oldFields, removedByScript: false })]);
     runGit(inverseFolder, ["update-ref", "refs/heads/inverse", halfHash]);
     assert.throws(() => listInverseCommits(inverseFolder, FILE_NAME), /parseCommitMessage: the commit message has no movedAwayToFile/);
+});
+
+/* Commented out: task 1027 (fast-import writer) was dropped by the user, so these git-start-count tests cannot pass.
+function startLoggingGitStarts(t: TestContext): string {
+    const shimFolder = makeTempFolder(t);
+    const logFile = join(shimFolder, "git-starts.log");
+    const realGitFile = execFileSync("which", ["git"], { encoding: "utf8" }).trim();
+    const shimFile = join(shimFolder, "git");
+    const shimText = `#!/bin/sh\nif [ "$1" = "-c" ]; then echo "$3" >> "${logFile}"; else echo "$1" >> "${logFile}"; fi\nexec "${realGitFile}" "$@"\n`;
+    writeFileSync(shimFile, shimText);
+    chmodSync(shimFile, 0o755);
+    const originalPath = process.env.PATH;
+    process.env.PATH = `${shimFolder}:${originalPath}`;
+    t.after(() => {
+        process.env.PATH = originalPath;
+    });
+    return logFile;
+}
+
+function listLoggedGitStarts(logFile: string): string[] {
+    return readFileSync(logFile, "utf8").split("\n").filter((line) => line !== "");
+}
+
+test("test_createInverseRepo_starts_git_only_for_init_and_fast_import", (t) => {
+    // Scenario: creating a repo costs two git starts: init and one fast-import for the root commit.
+    // Git starts are logged from now on.
+    const logFile = startLoggingGitStarts(t);
+    // The repo is created from a disk-now state.
+    const inverseFolder = makeInverseFolder(t);
+    createInverseRepo(inverseFolder, FILE_NAME, makeDiskNowState("now text\n"), DISK_NOW_INSTANT);
+    // Git was started twice: init, then fast-import.
+    assert.deepEqual(listLoggedGitStarts(logFile), ["init", "fast-import"]);
+});
+
+test("test_insertStatesIntoInverseRepo_starts_git_only_for_log_and_fast_import_for_twenty_states", (t) => {
+    // Scenario: an insert costs two git starts however many states it adds.
+    // The repo is created before the logging starts.
+    const inverseFolder = makeInverseFolder(t);
+    createInverseRepo(inverseFolder, FILE_NAME, makeDiskNowState("now\n"), DISK_NOW_INSTANT);
+    const logFile = startLoggingGitStarts(t);
+    // Twenty older states are inserted in one call.
+    const newStates: OrderedKnownState[] = [];
+    for (let position = 1; position <= 20; position++) {
+        newStates.push(makeOlderState(position, `text ${position}\n`));
+    }
+    insertStatesIntoInverseRepo(inverseFolder, FILE_NAME, newStates);
+    // Git was started twice: log (read stored commits), then fast-import.
+    assert.deepEqual(listLoggedGitStarts(logFile), ["log", "fast-import"]);
+});
+
+test("test_insert_between_stored_commits_starts_git_only_for_log_and_fast_import", (t) => {
+    // Scenario: re-creating the stored commits after a new position costs no extra git start.
+    // The repo holds positions 0, 1 and 3 before the logging starts.
+    const inverseFolder = makeInverseFolder(t);
+    createInverseRepo(inverseFolder, FILE_NAME, makeDiskNowState("now\n"), DISK_NOW_INSTANT);
+    insertStatesIntoInverseRepo(inverseFolder, FILE_NAME, [makeOlderState(1, "one\n"), makeOlderState(3, "three\n")]);
+    const logFile = startLoggingGitStarts(t);
+    // Position 2 is inserted.
+    insertStatesIntoInverseRepo(inverseFolder, FILE_NAME, [makeOlderState(2, "two\n")]);
+    // Git was started twice: log, then fast-import.
+    assert.deepEqual(listLoggedGitStarts(logFile), ["log", "fast-import"]);
+});
+
+test("test_buildInverseRepoByEventKind_starts_git_only_four_times_for_states_in_four_groups", (t) => {
+    // Scenario: the groups are written by one insert, so a build costs init, fast-import, log, fast-import.
+    // The states fall in four groups: GitCommit, proven EditRow, ReadWhole, derived EditRow.
+    const states = [
+        makeState(FileEventType.DiskNow, undefined, "now\n"),
+        makeState(FileEventType.EditRow, 10, "edit derived\n", { confidence: StateConfidence.Derived }),
+        makeState(FileEventType.ReadWhole, 20, "read\n"),
+        makeState(FileEventType.EditRow, 30, "edit proven\n"),
+        makeState(FileEventType.GitCommit, 40, "git\n"),
+    ];
+    // Git starts are logged from now on.
+    const logFile = startLoggingGitStarts(t);
+    const inverseFolder = makeInverseFolder(t);
+    buildInverseRepoByEventKind(inverseFolder, FILE_NAME, states, DISK_NOW_INSTANT);
+    // Git was started four times.
+    assert.deepEqual(listLoggedGitStarts(logFile), ["init", "fast-import", "log", "fast-import"]);
+});
+*/
+
+function replayCommitsWithPlainGit(sourceFolder: Path, targetFolder: Path, fileName: string): void {
+    runGit(targetFolder, ["init", "--bare", "--initial-branch=inverse"]);
+    let parentHash: string | undefined;
+    for (const sourceCommit of listInverseCommits(sourceFolder, fileName)) {
+        const sourceHash = sourceCommit.commitHash.toString();
+        const authorSeconds = runGit(sourceFolder, ["log", "-1", "--format=%at", sourceHash]);
+        const message = runGit(sourceFolder, ["log", "-1", "--format=%B", sourceHash]);
+        let treeHash = execFileSync("git", ["mktree"], { cwd: targetFolder.toString(), input: "", encoding: "utf8" }).trim();
+        if (sourceCommit.text !== undefined) {
+            const blobHash = execFileSync("git", ["hash-object", "-w", "--stdin"], { cwd: targetFolder.toString(), input: sourceCommit.text, encoding: "utf8" }).trim();
+            treeHash = execFileSync("git", ["mktree"], { cwd: targetFolder.toString(), input: `100644 blob ${blobHash}\t${fileName}\n`, encoding: "utf8" }).trim();
+        }
+        const args = ["-c", "commit.gpgsign=false", "commit-tree", treeHash];
+        if (parentHash !== undefined) {
+            args.push("-p", parentHash);
+        }
+        args.push("-m", message);
+        const dateText = `${authorSeconds} +0000`;
+        const env = { ...process.env, GIT_AUTHOR_NAME: "jfred inverse repo", GIT_AUTHOR_EMAIL: "inverse-repo@jfred.invalid", GIT_AUTHOR_DATE: dateText, GIT_COMMITTER_NAME: "jfred inverse repo", GIT_COMMITTER_EMAIL: "inverse-repo@jfred.invalid", GIT_COMMITTER_DATE: dateText };
+        parentHash = execFileSync("git", args, { cwd: targetFolder.toString(), env, encoding: "utf8" }).trim();
+    }
+    runGit(targetFolder, ["update-ref", "refs/heads/inverse", parentHash!]);
+}
+
+function listRefsAndCommitHashes(folder: Path): string[] {
+    return [runGit(folder, ["for-each-ref"]), runGit(folder, ["rev-list", "--all", "--reverse"])];
+}
+
+test("test_built_repo_has_the_same_refs_and_commit_hashes_as_a_plain_git_replay", (t) => {
+    // Scenario: the new writer and the old git commands give the same refs and commit hashes.
+    // The states hold a git commit with CRLF, an absent file, a non-ASCII text, an empty text and a text without a final newline.
+    const states = [
+        makeState(FileEventType.DiskNow, undefined, "now\n"),
+        makeState(FileEventType.GitCommit, 10, "git\r\n"),
+        makeState(FileEventType.WriteRow, 20, undefined, { moment: StateMoment.BeforeEvent }),
+        makeState(FileEventType.BackupSnapshot, 30, "café 日本 \u{1f600}\n"),
+        makeState(FileEventType.ReadWhole, 40, ""),
+        makeState(FileEventType.EditRow, 50, "edit", { confidence: StateConfidence.Derived }),
+    ];
+    // The repo is built with the writer under test.
+    const builtFolder = makeInverseFolder(t);
+    buildInverseRepoByEventKind(builtFolder, FILE_NAME, states, DISK_NOW_INSTANT);
+    // The same commits are made again with the old plain git commands.
+    const replayedFolder = makeInverseFolder(t);
+    replayCommitsWithPlainGit(builtFolder, replayedFolder, FILE_NAME);
+    // The refs and the commit hashes are the same.
+    assert.deepEqual(listRefsAndCommitHashes(builtFolder), listRefsAndCommitHashes(replayedFolder));
+});
+
+test("test_repo_after_an_insert_between_stored_commits_has_the_same_hashes_as_a_plain_git_replay", (t) => {
+    // Scenario: re-created stored commits get the same hashes as the old commit-tree calls.
+    // The repo holds positions 0, 1 and 3, then position 2 is inserted.
+    const builtFolder = makeInverseFolder(t);
+    createInverseRepo(builtFolder, FILE_NAME, makeDiskNowState("now\n"), DISK_NOW_INSTANT);
+    insertStatesIntoInverseRepo(builtFolder, FILE_NAME, [makeOlderState(1, "one\n"), makeOlderState(3, undefined)]);
+    insertStatesIntoInverseRepo(builtFolder, FILE_NAME, [makeOlderState(2, "two\n")]);
+    // The same commits are made again with the old plain git commands.
+    const replayedFolder = makeInverseFolder(t);
+    replayCommitsWithPlainGit(builtFolder, replayedFolder, FILE_NAME);
+    // The refs and the commit hashes are the same.
+    assert.deepEqual(listRefsAndCommitHashes(builtFolder), listRefsAndCommitHashes(replayedFolder));
+});
+
+test("test_file_name_with_a_quote_a_backslash_and_a_space_gives_the_same_hashes_as_a_plain_git_replay", (t) => {
+    // Scenario: the path in the stream is quoted so odd file names keep the old tree hash.
+    const oddFileName = "we\"ird name\\x.txt";
+    // A repo is built with a root and one older state.
+    const builtFolder = makeInverseFolder(t);
+    createInverseRepo(builtFolder, oddFileName, makeDiskNowState("now\n"), DISK_NOW_INSTANT);
+    insertStatesIntoInverseRepo(builtFolder, oddFileName, [makeOlderState(1, "one\n")]);
+    // The same commits are made again with the old plain git commands.
+    const replayedFolder = makeInverseFolder(t);
+    replayCommitsWithPlainGit(builtFolder, replayedFolder, oddFileName);
+    // The refs and the commit hashes are the same.
+    assert.deepEqual(listRefsAndCommitHashes(builtFolder), listRefsAndCommitHashes(replayedFolder));
+});
+
+test("test_onNewStateCommitted_is_called_once_for_the_root_and_once_for_each_inserted_state", (t) => {
+    // Scenario: the progress counter reaches the commit count.
+    let callCount = 0;
+    const inverseFolder = makeInverseFolder(t);
+    createInverseRepo(inverseFolder, FILE_NAME, makeDiskNowState("now\n"), DISK_NOW_INSTANT, () => { callCount += 1; });
+    insertStatesIntoInverseRepo(inverseFolder, FILE_NAME, [makeOlderState(1, "one\n"), makeOlderState(2, "two\n"), makeOlderState(3, "three\n")], () => { callCount += 1; });
+    // One call for the root and three for the inserted states.
+    assert.equal(callCount, 4);
+});
+
+/* Commented out: task 1027 (fast-import writer) was dropped; the old writer stores a name that starts with a quote under the wrong name.
+test("test_file_name_that_starts_with_a_quote_reads_back_its_text", (t) => {
+    // Scenario: a name that starts with a double quote is stored under that exact name.
+    const quotedFileName = "\"q\".txt";
+    // A repo is built with a root and one older state.
+    const inverseFolder = makeInverseFolder(t);
+    createInverseRepo(inverseFolder, quotedFileName, makeDiskNowState("now\n"), DISK_NOW_INSTANT);
+    insertStatesIntoInverseRepo(inverseFolder, quotedFileName, [makeOlderState(1, "one\n")]);
+    // Both texts are read back.
+    const texts = listInverseCommits(inverseFolder, quotedFileName).map((commit) => commit.text);
+    assert.deepEqual(texts, ["now\n", "one\n"]);
+});
+*/
+
+test("test_tip_hash_of_the_states_of_the_line_271_test_is_the_literal_hash_of_the_old_writer", (t) => {
+    // Scenario: the tip hash equals the hash that the old writer gave for the same states.
+    // The states are copied from the test at test file line 271.
+    const source = { filePath: "/tmp/session.jsonl:with-colon", lineNumber: 42 };
+    const states: FileKnownState[] = [
+        makeState(FileEventType.DiskNow, undefined, "now\n"),
+        makeState(FileEventType.EditRow, 10, "edit derived\n", { confidence: StateConfidence.Derived }),
+        makeState(FileEventType.GitCommit, 20, "git\r\n", { event: { ...makeState(FileEventType.GitCommit, 20, "git\r\n").event, commitHash: new Uuid("1234567890abcdef1234567890abcdef12345678") } }),
+        makeState(FileEventType.WriteRow, 30, "write\n", { event: { ...makeState(FileEventType.WriteRow, 30, "write\n").event, source } }),
+        makeState(FileEventType.WriteRow, 30, undefined, { moment: StateMoment.BeforeEvent }),
+        makeState(FileEventType.BackupSnapshot, 40, "backup café\n"),
+        makeState(FileEventType.ScriptMayWrite, 50, undefined, { confidence: StateConfidence.Unknown, isFileAbsent: false }),
+        makeState(FileEventType.ReadWhole, 60, "read\n"),
+        makeState(FileEventType.ReadPartial, 70, "partial\n", { confidence: StateConfidence.Confirmed }),
+        makeState(FileEventType.EditRow, 80, "edit proven\n"),
+    ];
+    // The repo is built with the writer under test.
+    const inverseFolder = makeInverseFolder(t);
+    buildInverseRepoByEventKind(inverseFolder, FILE_NAME, states, DISK_NOW_INSTANT);
+    // The tip is the hash printed by the old writer.
+    assert.equal(getTip(inverseFolder), "3fbe874739c9f4a28bbe21e4de86d610469cb609");
+});
+
+test("test_insert_with_a_second_new_state_without_an_instant_throws_and_keeps_the_tip", (t) => {
+    // Scenario: a missing instant stops the insert before anything is written.
+    const inverseFolder = makeInverseFolder(t);
+    createInverseRepo(inverseFolder, FILE_NAME, makeDiskNowState("now\n"), DISK_NOW_INSTANT);
+    const tipBefore = getTip(inverseFolder);
+    // The first new state has an instant. The second new state has none.
+    const stateWithInstant = makeOlderState(1, "one\n");
+    const stateWithoutInstant = { state: makeState(FileEventType.GitCommit, undefined, "two\n"), position: 2 };
+    // The insert throws.
+    assert.throws(() => insertStatesIntoInverseRepo(inverseFolder, FILE_NAME, [stateWithInstant, stateWithoutInstant]), /has no instant/);
+    // The tip is the same as before.
+    assert.equal(getTip(inverseFolder), tipBefore);
 });
