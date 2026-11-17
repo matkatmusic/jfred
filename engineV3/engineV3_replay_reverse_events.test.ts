@@ -413,6 +413,51 @@ test("test_getAllEventsForFileFrom_marks_the_destination_of_a_cp_run_as_a_move_o
     assert.deepEqual(events.map((event) => event.moveOrCopySourceFile), [new Path(sourceFile)]);
 });
 
+test("test_a_bash_run_of_ls_and_rm_joined_by_a_double_ampersand_removes_the_file", (t) => {
+    // Scenario: a Bash call in the project folder runs `ls && rm a.py`.
+    const scene = makeScene(t, "A");
+    writeRecords(scene, makeBashRows("b1", "ls && rm a.py", 5, scene.folder));
+    // the ScriptMayWrite event of <cwd>/a.py is marked as removed by the script
+    const events = listScriptMayWriteEventsForFile(scene, new Path(join(scene.folder, "a.py")));
+    assert.deepEqual(events.map((event) => event.removedByScript), [true]);
+});
+
+test("test_a_bash_run_of_two_mv_commands_joined_by_a_double_ampersand_moves_the_second_file_away", (t) => {
+    // Scenario: a Bash call in the project folder runs `mv a.py b.py && mv c.py d.py`.
+    const scene = makeScene(t, "A");
+    writeRecords(scene, makeBashRows("b1", "mv a.py b.py && mv c.py d.py", 5, scene.folder));
+    // the ScriptMayWrite event of <cwd>/c.py holds <cwd>/d.py as the file it moved away to
+    const events = listScriptMayWriteEventsForFile(scene, new Path(join(scene.folder, "c.py")));
+    assert.deepEqual(events.map((event) => event.movedAwayToFile), [new Path(join(scene.folder, "d.py"))]);
+});
+
+test("test_a_bash_run_of_two_mv_commands_joined_by_a_double_ampersand_gives_the_source_of_the_second_move", (t) => {
+    // Scenario: a Bash call in the project folder runs `mv a.py b.py && mv c.py d.py`.
+    const scene = makeScene(t, "A");
+    writeRecords(scene, makeBashRows("b1", "mv a.py b.py && mv c.py d.py", 5, scene.folder));
+    // the ScriptMayWrite event of <cwd>/d.py holds <cwd>/c.py as its move or copy source
+    const events = listScriptMayWriteEventsForFile(scene, new Path(join(scene.folder, "d.py")));
+    assert.deepEqual(events.map((event) => event.moveOrCopySourceFile), [new Path(join(scene.folder, "c.py"))]);
+});
+
+test("test_a_bash_run_of_cp_then_rm_joined_by_a_semicolon_gives_the_copy_source", (t) => {
+    // Scenario: a Bash call in the project folder runs `cp a.py b.py; rm a.py`.
+    const scene = makeScene(t, "A");
+    writeRecords(scene, makeBashRows("b1", "cp a.py b.py; rm a.py", 5, scene.folder));
+    // the ScriptMayWrite event of <cwd>/b.py holds <cwd>/a.py as its move or copy source
+    const events = listScriptMayWriteEventsForFile(scene, new Path(join(scene.folder, "b.py")));
+    assert.deepEqual(events.map((event) => event.moveOrCopySourceFile), [new Path(join(scene.folder, "a.py"))]);
+});
+
+test("test_a_run_that_is_not_bash_is_not_cut", (t) => {
+    // Scenario: a ctx_execute Python run in the project folder has the text `ls && rm a.py` as its code.
+    const scene = makeScene(t, "A");
+    writeRecords(scene, [makeCallRecord("mcp__plugin_context-mode_context-mode__ctx_execute", "b1", { language: "python", code: "ls && rm a.py" }, 5, scene.folder)]);
+    // the text is not cut at the double ampersand, so the event of <cwd>/a.py is not marked as removed
+    const events = listScriptMayWriteEventsForFile(scene, new Path(join(scene.folder, "a.py")));
+    assert.deepEqual(events.map((event) => event.removedByScript), [false]);
+});
+
 test("test_getAllEventsForFileFrom_marks_the_destination_of_a_relative_git_mv_run_as_a_move_or_copy_destination", (t) => {
     // Scenario: a Bash call in the project folder runs `git mv a.py b.py`.
     const scene = makeScene(t, "A");

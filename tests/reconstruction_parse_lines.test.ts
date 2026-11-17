@@ -96,3 +96,34 @@ test("test_splitTranscriptLines_ignores_a_known_prose_line", () => {
     assert.ok(!kept.some((entry) => entry.lineNumber === 76));
 });
 
+// The raw JSONL text of an assistant record that holds one Bash tool_use.
+function buildBashToolUseLine(command: string): string {
+    return JSON.stringify({
+        type: "assistant",
+        uuid: "record-1",
+        timestamp: "2026-01-01T00:00:00Z",
+        message: { content: [{ type: "tool_use", id: "toolu_1", name: "Bash", input: { command } }] },
+    });
+}
+
+test("test_a_bash_line_with_a_file_op_after_a_double_ampersand_is_kept", () => {
+    // Step: build a Bash line whose second piece is an rm.
+    const rawLine = buildBashToolUseLine("ls && rm a.py");
+    // Step: the verdict says the line is a file op.
+    assert.equal(getLineVerdict(rawLine), Verdict.bashFileOp);
+});
+
+test("test_a_bash_line_with_no_file_op_in_any_piece_is_ignored", () => {
+    // Step: build a Bash line whose pieces are ls and echo.
+    const rawLine = buildBashToolUseLine("ls && echo done");
+    // Step: the verdict says ignore.
+    assert.equal(getLineVerdict(rawLine), Verdict.ignore);
+});
+
+test("test_a_bash_line_that_is_one_rm_is_kept", () => {
+    // Step: build a Bash line that is one rm.
+    const rawLine = buildBashToolUseLine("rm a.py");
+    // Step: the verdict says the line is a file op.
+    assert.equal(getLineVerdict(rawLine), Verdict.bashFileOp);
+});
+

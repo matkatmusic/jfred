@@ -131,15 +131,17 @@ test("test_parseRmTargets_gives_both_paths_of_a_plain_rm", () => {
     assert.deepEqual(listRmTargetTexts("rm a.py b.py"), ["a.py", "b.py"]);
 });
 
-test("test_parseRmTargets_ends_the_list_at_a_double_ampersand", () => {
-    // Words after && belong to the next command, not to rm.
-    assert.deepEqual(listRmTargetTexts("rm /tmp/migrate-nnn-to-timestamp.py && ls /tmp/migrate-nnn-to-timestamp.py 2>&1; echo done"), ["/tmp/migrate-nnn-to-timestamp.py"]);
-});
+// Moved to tests/reconstruction_bash_split.test.ts: the joiner cut is done by splitCommandLineAtJoiners.
+// test("test_parseRmTargets_ends_the_list_at_a_double_ampersand", () => {
+//     // Words after && belong to the next command, not to rm.
+//     assert.deepEqual(listRmTargetTexts("rm /tmp/migrate-nnn-to-timestamp.py && ls /tmp/migrate-nnn-to-timestamp.py 2>&1; echo done"), ["/tmp/migrate-nnn-to-timestamp.py"]);
+// });
 
-test("test_parseRmTargets_skips_flags_and_ends_the_list_at_a_double_ampersand", () => {
-    // The -rf flag is skipped and the words after && are not targets.
-    assert.deepEqual(listRmTargetTexts("rm -rf /tmp/plate-live.bWFRfk/.plate && git -C /tmp/plate-live.bWFRfk checkout -- .gitignore 2>/dev/null"), ["/tmp/plate-live.bWFRfk/.plate"]);
-});
+// Moved to tests/reconstruction_bash_split.test.ts: the joiner cut is done by splitCommandLineAtJoiners.
+// test("test_parseRmTargets_skips_flags_and_ends_the_list_at_a_double_ampersand", () => {
+//     // The -rf flag is skipped and the words after && are not targets.
+//     assert.deepEqual(listRmTargetTexts("rm -rf /tmp/plate-live.bWFRfk/.plate && git -C /tmp/plate-live.bWFRfk checkout -- .gitignore 2>/dev/null"), ["/tmp/plate-live.bWFRfk/.plate"]);
+// });
 
 test("test_parseRmTargets_ends_the_list_at_a_redirect_word", () => {
     // The 2>/dev/null word ends the list, so echo and done are not targets.
@@ -151,22 +153,107 @@ test("test_parseRmTargets_ends_the_list_at_a_stderr_to_stdout_redirect_word", ()
     assert.deepEqual(listRmTargetTexts("rm a.py 2>&1; echo done"), ["a.py"]);
 });
 
-test("test_parseRmTargets_keeps_the_path_that_ends_with_a_semicolon_and_stops_there", () => {
-    // The path before the semicolon is a target, and echo and done are not.
-    assert.deepEqual(listRmTargetTexts("rm a.py; echo done"), ["a.py"]);
-});
+// Moved to tests/reconstruction_bash_split.test.ts: the joiner cut is done by splitCommandLineAtJoiners.
+// test("test_parseRmTargets_keeps_the_path_that_ends_with_a_semicolon_and_stops_there", () => {
+//     // The path before the semicolon is a target, and echo and done are not.
+//     assert.deepEqual(listRmTargetTexts("rm a.py; echo done"), ["a.py"]);
+// });
 
-test("test_parseRmTargets_ends_the_list_at_a_pipe", () => {
-    // Words after the pipe belong to the next command, not to rm.
-    assert.deepEqual(listRmTargetTexts("rm a.py | grep x"), ["a.py"]);
-});
+// Moved to tests/reconstruction_bash_split.test.ts: the joiner cut is done by splitCommandLineAtJoiners.
+// test("test_parseRmTargets_ends_the_list_at_a_pipe", () => {
+//     // Words after the pipe belong to the next command, not to rm.
+//     assert.deepEqual(listRmTargetTexts("rm a.py | grep x"), ["a.py"]);
+// });
 
 test("test_parseRmTargets_skips_the_flag_of_rm_minus_rf", () => {
     // The -rf flag is not a target, only build is.
     assert.deepEqual(listRmTargetTexts("rm -rf build"), ["build"]);
 });
 
-test("test_parseRmTargets_ends_the_list_at_a_double_pipe", () => {
-    // Words after || belong to the next command, not to rm.
-    assert.deepEqual(listRmTargetTexts("rm a.py || echo failed"), ["a.py"]);
+// Moved to tests/reconstruction_bash_split.test.ts: the joiner cut is done by splitCommandLineAtJoiners.
+// test("test_parseRmTargets_ends_the_list_at_a_double_pipe", () => {
+//     // Words after || belong to the next command, not to rm.
+//     assert.deepEqual(listRmTargetTexts("rm a.py || echo failed"), ["a.py"]);
+// });
+
+// One assistant record running `command`, with record cwd /work.
+function buildBashRecordWithCwd(id: string, command: string): TranscriptRecord {
+    return {
+        type: RecordType.assistant,
+        timestamp: new Date("2026-01-01T00:00:10Z"),
+        cwd: new Path("/work"),
+        message: { content: [buildBashBlock(id, command)] },
+    } as unknown as TranscriptRecord;
+}
+
+test("test_extract_gives_a_delete_for_each_of_two_rm_commands_joined_by_a_double_ampersand", () => {
+    // Extract the events of `rm a.py && rm b.py`.
+    const events = extractFileEvents([buildBashRecord("toolu_rm2", "rm a.py && rm b.py", "2026-01-01T00:00:10Z")]);
+    // Two delete events come out, a.py first and b.py second.
+    assert.deepEqual(events.map((event) => event.kind), [EventKind.delete, EventKind.delete]);
+    assert.deepEqual(events.map((event) => (event as { target: Path }).target.toString()), ["a.py", "b.py"]);
+});
+
+test("test_extract_gives_the_rm_after_a_first_command_that_is_not_rm", () => {
+    // Extract the events of `ls && rm a.py`.
+    const events = extractFileEvents([buildBashRecord("toolu_lsrm", "ls && rm a.py", "2026-01-01T00:00:10Z")]);
+    // One delete event comes out, for a.py.
+    assert.equal(events.length, 1);
+    assert.equal(events[0]!.kind, EventKind.delete);
+    assert.equal((events[0] as { target: Path }).target.toString(), "a.py");
+});
+
+test("test_extract_gives_two_renames_for_two_mv_commands_joined_by_a_double_ampersand", () => {
+    // Extract the events of `mv a b && mv c d` with cwd /work.
+    const events = extractFileEvents([buildBashRecordWithCwd("toolu_mv2", "mv a b && mv c d")]);
+    // Two rename events come out, a to b first and c to d second, with cwd-resolved paths.
+    assert.deepEqual(events.map((event) => event.kind), [EventKind.rename, EventKind.rename]);
+    const renames = events as unknown as { from: Path; to: Path }[];
+    assert.deepEqual(renames.map((rename) => rename.from.toString()), ["/work/a", "/work/c"]);
+    assert.deepEqual(renames.map((rename) => rename.to.toString()), ["/work/b", "/work/d"]);
+});
+
+test("test_extract_gives_a_copy_then_a_delete_for_cp_and_rm_joined_by_a_semicolon", () => {
+    // Extract the events of `cp a b; rm a`.
+    const events = extractFileEvents([buildBashRecord("toolu_cprm", "cp a b; rm a", "2026-01-01T00:00:10Z")]);
+    // A copy event comes first, then a delete event.
+    assert.deepEqual(events.map((event) => event.kind), [EventKind.copy, EventKind.delete]);
+    // The copy goes from a to b, and the delete targets a.
+    const copy = events[0] as unknown as { from: Path; to: Path };
+    assert.equal(copy.from.toString(), "a");
+    assert.equal(copy.to.toString(), "b");
+    assert.equal((events[1] as { target: Path }).target.toString(), "a");
+});
+
+test("test_extract_gives_the_overwrite_of_a_redirect_followed_by_another_command", () => {
+    // Extract the events of `echo x > f && ls`.
+    const events = extractFileEvents([buildBashRecord("toolu_redls", "echo x > f && ls", "2026-01-01T00:00:10Z")]);
+    // One overwrite event comes out, for f.
+    assert.equal(events.length, 1);
+    assert.equal(events[0]!.kind, EventKind.overwrite);
+    assert.equal((events[0] as OverwriteEvent).target.toString(), "f");
+});
+
+test("test_extract_gives_a_delete_for_each_of_two_rm_commands_on_two_lines", () => {
+    // Extract the events of two rm commands on two lines.
+    const events = extractFileEvents([buildBashRecord("toolu_rmlines", "rm a\nrm b", "2026-01-01T00:00:10Z")]);
+    // Two delete events come out, a first and b second.
+    assert.deepEqual(events.map((event) => event.kind), [EventKind.delete, EventKind.delete]);
+    assert.deepEqual(events.map((event) => (event as { target: Path }).target.toString()), ["a", "b"]);
+});
+
+test("test_extract_keeps_a_joiner_inside_double_quotes_in_one_command", () => {
+    // Extract the events of an echo whose quoted text holds &&.
+    const events = extractFileEvents([buildBashRecord("toolu_quote", 'echo "a && b" > out.txt', "2026-01-01T00:00:10Z")]);
+    // Exactly one overwrite event comes out, for out.txt.
+    assert.equal(events.length, 1);
+    assert.equal(events[0]!.kind, EventKind.overwrite);
+    assert.equal((events[0] as OverwriteEvent).target.toString(), "out.txt");
+});
+
+test("test_extract_gives_no_event_for_an_rm_inside_a_heredoc_body", () => {
+    // Extract the events of a heredoc whose body holds `rm z`.
+    const events = extractFileEvents([buildBashRecord("toolu_heredoc", "cat > f.txt <<'EOF'\nrm z\nEOF", "2026-01-01T00:00:10Z")]);
+    // No delete event comes out.
+    assert.equal(events.some((event) => event.kind === EventKind.delete), false);
 });

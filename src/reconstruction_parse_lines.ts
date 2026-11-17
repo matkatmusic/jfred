@@ -14,15 +14,33 @@ import {
   parseRedirect,
   parseRmTargets,
 } from "./reconstruction_bash_events.ts";
+import { splitCommandLineAtJoiners } from "./reconstruction_bash_split.ts";
 
 // True when a bash command is a file op (rm, mv, cp, redirect) that gives an event.
+// function isBashCommandFileOp(command: string): boolean {
+//   return (
+//     parseRmTargets(command).length > 0 ||
+//         parseMvPaths(command) !== undefined ||
+//         parseCpPaths(command) !== undefined ||
+//         parseRedirect(command) !== undefined
+//   );
+// }
 function isBashCommandFileOp(command: string): boolean {
-  return (
-    parseRmTargets(command).length > 0 ||
-        parseMvPaths(command) !== undefined ||
-        parseCpPaths(command) !== undefined ||
-        parseRedirect(command) !== undefined
-  );
+  for (const piece of splitCommandLineAtJoiners(command)) {
+    if (parseRmTargets(piece).length > 0) {
+      return true;
+    }
+    if (parseMvPaths(piece) !== undefined) {
+      return true;
+    }
+    if (parseCpPaths(piece) !== undefined) {
+      return true;
+    }
+    if (parseRedirect(piece) !== undefined) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // The verdict of one tool_use block: Write and Edit by name, Bash by its command. Other tools give undefined.

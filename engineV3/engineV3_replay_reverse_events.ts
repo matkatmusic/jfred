@@ -11,7 +11,9 @@ import { splitLines } from "../src/reconstruction_replay_edit.ts";
 import { getBeaconSnippet, getUserEditEvent, type BeaconSnippet } from "../src/reconstruction_user_edit.ts";
 import { Path } from "../src/structures/domain.ts";
 import { normalizeAgainstCwd } from "../src/structures/path-resolve.ts";
-import type { ScriptRun } from "../src/reconstruction_script_execution.ts";
+// import type { ScriptRun } from "../src/reconstruction_script_execution.ts";
+import { ScriptExecutorKind, type ScriptRun } from "../src/reconstruction_script_execution.ts";
+import { splitCommandLineAtJoiners } from "../src/reconstruction_bash_split.ts";
 import { LayeredNodeKind } from "../src/structures/vocabulary_views.ts";
 import { RecordType, ToolName } from "../src/structures/vocabulary.ts";
 import type { CommitHash, JSONLLine } from "./engineV3.ts";
@@ -111,13 +113,24 @@ function isFileNamedByPathInScript(scriptRun: ScriptRun, transcriptFile: Path): 
 
 function getSourceOfMoveOrCopyOnto(scriptRun: ScriptRun, transcriptFile: Path): Path | undefined {
   const pairs: { from: Path; to: Path }[] = [];
-  const move = parseMvPaths(scriptRun.code);
-  if (move !== undefined) {
-    pairs.push({ from: move.from, to: move.to });
-  }
-  const copy = parseCpPaths(scriptRun.code);
-  if (copy !== undefined) {
-    pairs.push({ from: copy.from, to: copy.to });
+  // const move = parseMvPaths(scriptRun.code);
+  // if (move !== undefined) {
+  //   pairs.push({ from: move.from, to: move.to });
+  // }
+  // const copy = parseCpPaths(scriptRun.code);
+  // if (copy !== undefined) {
+  //   pairs.push({ from: copy.from, to: copy.to });
+  // }
+  const commandPieces = scriptRun.executorKind === ScriptExecutorKind.bash ? splitCommandLineAtJoiners(scriptRun.code) : [scriptRun.code];
+  for (const commandPiece of commandPieces) {
+    const move = parseMvPaths(commandPiece);
+    if (move !== undefined) {
+      pairs.push({ from: move.from, to: move.to });
+    }
+    const copy = parseCpPaths(commandPiece);
+    if (copy !== undefined) {
+      pairs.push({ from: copy.from, to: copy.to });
+    }
   }
   for (const moveCall of scriptRun.code.matchAll(codeLiteralMoveCall)) {
     pairs.push({ from: new Path(moveCall[1]!), to: new Path(moveCall[2]!) });
@@ -140,15 +153,29 @@ function getSourceOfMoveOrCopyOnto(scriptRun: ScriptRun, transcriptFile: Path): 
 function getRemovalOrMoveAwayOfFile(scriptRun: ScriptRun, transcriptFile: Path): { removedByScript: boolean; movedAwayToFile: Path | undefined } {
   let removedByScript = false;
   let movedAwayToFile: Path | undefined;
-  for (const target of parseRmTargets(scriptRun.code)) {
-    if (new Path(normalizeAgainstCwd(scriptRun.cwd, target)).equals(transcriptFile)) {
-      removedByScript = true;
+  const commandPieces = scriptRun.executorKind === ScriptExecutorKind.bash ? splitCommandLineAtJoiners(scriptRun.code) : [scriptRun.code];
+  // for (const target of parseRmTargets(scriptRun.code)) {
+  //   if (new Path(normalizeAgainstCwd(scriptRun.cwd, target)).equals(transcriptFile)) {
+  //     removedByScript = true;
+  //   }
+  // }
+  // const move = parseMvPaths(scriptRun.code);
+  // if (move !== undefined) {
+  //   if (new Path(normalizeAgainstCwd(scriptRun.cwd, move.from)).equals(transcriptFile)) {
+  //     movedAwayToFile = new Path(normalizeAgainstCwd(scriptRun.cwd, move.to));
+  //   }
+  // }
+  for (const commandPiece of commandPieces) {
+    for (const target of parseRmTargets(commandPiece)) {
+      if (new Path(normalizeAgainstCwd(scriptRun.cwd, target)).equals(transcriptFile)) {
+        removedByScript = true;
+      }
     }
-  }
-  const move = parseMvPaths(scriptRun.code);
-  if (move !== undefined) {
-    if (new Path(normalizeAgainstCwd(scriptRun.cwd, move.from)).equals(transcriptFile)) {
-      movedAwayToFile = new Path(normalizeAgainstCwd(scriptRun.cwd, move.to));
+    const move = parseMvPaths(commandPiece);
+    if (move !== undefined) {
+      if (new Path(normalizeAgainstCwd(scriptRun.cwd, move.from)).equals(transcriptFile)) {
+        movedAwayToFile = new Path(normalizeAgainstCwd(scriptRun.cwd, move.to));
+      }
     }
   }
   return { removedByScript, movedAwayToFile };

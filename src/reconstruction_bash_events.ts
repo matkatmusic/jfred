@@ -9,6 +9,7 @@ import type {
   FileEvent,
   RenameInfo,
 } from "./reconstruction_events.ts";
+import { splitCommandLineAtJoiners } from "./reconstruction_bash_split.ts";
 import {
   bashAppendRedirect,
   bashCopyCommand,
@@ -20,8 +21,8 @@ import {
 } from "./regex_expressions.ts";
 
 // Parse the target path out of an `rm <path>` Bash command (s1 has no flags).
-// ponytail: splits on whitespace and ends the list at the first shell control word — no quoted-path support, add if a scenario needs it
-const RM_ENDING_WORDS = ["&&", "||", "|", ";"];
+// ponytail: splits on whitespace, no quoted-path support (add if a scenario needs it); the joiner cut happens in splitCommandLineAtJoiners
+// const RM_ENDING_WORDS = ["&&", "||", "|", ";"];
 export function parseRmTargets(command: string): Path[] {
   const match = command.trim().match(bashRemoveCommand);
   if (!match) {
@@ -34,19 +35,19 @@ export function parseRmTargets(command: string): Path[] {
   //   targets.push(new Path(targetString));
   // }
   for (const targetString of targetStrings) {
-    if (RM_ENDING_WORDS.includes(targetString)) {
-      break;
-    }
+    // if (RM_ENDING_WORDS.includes(targetString)) {
+    //   break;
+    // }
     if (targetString.includes(">")) {
       break;
     }
     if (targetString.startsWith("-")) {
       continue;
     }
-    if (targetString.endsWith(";")) {
-      targets.push(new Path(targetString.slice(0, -1)));
-      break;
-    }
+    // if (targetString.endsWith(";")) {
+    //   targets.push(new Path(targetString.slice(0, -1)));
+    //   break;
+    // }
     targets.push(new Path(targetString));
   }
   return targets;
@@ -118,46 +119,93 @@ export function parseStdoutRedirect(command: string): ParsedRedirect | undefined
 }
 
 // Convert a Bash tool_use into file events; resolves relative paths against cwd.
+// export function extractBashEvents(
+//   block: ToolUseBlock,
+//   timestamp: Date,
+//   cwd: Path | undefined,
+// ): FileEvent[] {
+//   const input = block.input as { command: string };
+//   const removed = parseRmTargets(input.command);
+//   if (removed.length > 0) {
+//     const deleteEvents: FileEvent[] = [];
+//     for (const target of removed) {
+//       deleteEvents.push({ kind: EventKind.delete, changeId: block.id, target, timestamp });
+//     }
+//     return deleteEvents;
+//   }
+//   const moved = parseMvPaths(input.command);
+//   if (moved) {
+//     return [{
+//       kind: EventKind.rename,
+//       changeId: block.id,
+//       from: new Path(normalizeAgainstCwd(cwd, moved.from)),
+//       to: new Path(normalizeAgainstCwd(cwd, moved.to)),
+//       timestamp,
+//     }];
+//   }
+//   const copied = parseCpPaths(input.command);
+//   if (copied) {
+//     return [{
+//       kind: EventKind.copy,
+//       changeId: block.id,
+//       from: copied.from,
+//       to: copied.to,
+//       seedLines: [],
+//       timestamp,
+//     }];
+//   }
+//   const redirected = parseRedirect(input.command);
+//   if (redirected) {
+//     const kind = redirected.appends ? EventKind.append : EventKind.overwrite;
+//     return [{ kind, changeId: block.id, target: redirected.target, content: "", timestamp }];
+//   }
+//   return [];
+// }
 export function extractBashEvents(
   block: ToolUseBlock,
   timestamp: Date,
   cwd: Path | undefined,
 ): FileEvent[] {
   const input = block.input as { command: string };
-  const removed = parseRmTargets(input.command);
-  if (removed.length > 0) {
-    const deleteEvents: FileEvent[] = [];
-    for (const target of removed) {
-      deleteEvents.push({ kind: EventKind.delete, changeId: block.id, target, timestamp });
+  const events: FileEvent[] = [];
+  for (const piece of splitCommandLineAtJoiners(input.command)) {
+    const removed = parseRmTargets(piece);
+    if (removed.length > 0) {
+      for (const target of removed) {
+        events.push({ kind: EventKind.delete, changeId: block.id, target, timestamp });
+      }
+      continue;
     }
-    return deleteEvents;
+    const moved = parseMvPaths(piece);
+    if (moved) {
+      events.push({
+        kind: EventKind.rename,
+        changeId: block.id,
+        from: new Path(normalizeAgainstCwd(cwd, moved.from)),
+        to: new Path(normalizeAgainstCwd(cwd, moved.to)),
+        timestamp,
+      });
+      continue;
+    }
+    const copied = parseCpPaths(piece);
+    if (copied) {
+      events.push({
+        kind: EventKind.copy,
+        changeId: block.id,
+        from: copied.from,
+        to: copied.to,
+        seedLines: [],
+        timestamp,
+      });
+      continue;
+    }
+    const redirected = parseRedirect(piece);
+    if (redirected) {
+      const kind = redirected.appends ? EventKind.append : EventKind.overwrite;
+      events.push({ kind, changeId: block.id, target: redirected.target, content: "", timestamp });
+      continue;
+    }
   }
-  const moved = parseMvPaths(input.command);
-  if (moved) {
-    return [{
-      kind: EventKind.rename,
-      changeId: block.id,
-      from: new Path(normalizeAgainstCwd(cwd, moved.from)),
-      to: new Path(normalizeAgainstCwd(cwd, moved.to)),
-      timestamp,
-    }];
-  }
-  const copied = parseCpPaths(input.command);
-  if (copied) {
-    return [{
-      kind: EventKind.copy,
-      changeId: block.id,
-      from: copied.from,
-      to: copied.to,
-      seedLines: [],
-      timestamp,
-    }];
-  }
-  const redirected = parseRedirect(input.command);
-  if (redirected) {
-    const kind = redirected.appends ? EventKind.append : EventKind.overwrite;
-    return [{ kind, changeId: block.id, target: redirected.target, content: "", timestamp }];
-  }
-  return [];
+  return events;
 }
 
