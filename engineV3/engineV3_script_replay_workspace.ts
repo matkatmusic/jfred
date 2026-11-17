@@ -85,6 +85,10 @@ export class ReplayWorkspace {
         this.commitsByFile.delete(file.toString());
     }
 
+    setCommits(file: Path, commits: InverseCommit[]): void {
+        this.commitsByFile.set(file.toString(), commits);
+    }
+
     private listCommits(file: Path): InverseCommit[] {
         const cachedCommits = this.commitsByFile.get(file.toString());
         if (cachedCommits !== undefined) {

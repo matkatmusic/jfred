@@ -154,6 +154,14 @@ test("test_the_line_f_and_the_line_forward_both_mean_step_forward", () => {
     assert.equal(parseStepCommand("forward"), StepCommand.Forward);
 });
 
+test("test_parseStepCommand_maps_r_and_replay_to_the_replay_command", () => {
+    // Scenario: the short line and the long line name the replay command.
+    // The line "r" parses to the replay command.
+    assert.equal(parseStepCommand("r"), StepCommand.Replay);
+    // The line "replay" parses to the replay command.
+    assert.equal(parseStepCommand("replay"), StepCommand.Replay);
+});
+
 test("test_a_line_that_is_not_a_command_throws", () => {
     // Scenario: a person types a word that is not in the table of commands.
     // Parsing that line throws.

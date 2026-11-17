@@ -107,6 +107,21 @@ export function createFileStep(eventsNewestToOldest: FileEvent[], writtenCommits
         }
         enqueueNextPass(step);
     }
+    const tipState = step.walk.knownStates[step.lastWrittenPosition]!;
+    if (tipState.confidence === StateConfidence.Derived) {
+        if (tipState.text !== tipCommit.text) {
+            while (step.walk.pendingStates.length > 0) {
+                if (step.nextEventIndex === eventsNewestToOldest.length) {
+                    break;
+                }
+                enqueueNextPass(step);
+            }
+            if (step.nextEventIndex === eventsNewestToOldest.length) {
+                finishFileWalk(step.walk);
+                step.isFinished = true;
+            }
+        }
+    }
     for (const writtenCommit of writtenCommits) {
         validateWrittenCommitAgainstReplay(step, writtenCommit);
     }
@@ -127,6 +142,9 @@ function isStateTextSameAsLastWritten(step: FileStep, state: FileKnownState): bo
 }
 
 function judgeQueuedState(step: FileStep, queuedState: QueuedState): StepStop | undefined {
+    if (queuedState.position <= step.lastWrittenPosition) {
+        return undefined;
+    }
     const state = step.walk.knownStates[queuedState.position]!;
     if (state.confidence === StateConfidence.Unknown) {
         if (step.lastUnknownStopPassIndex === queuedState.passIndex) {

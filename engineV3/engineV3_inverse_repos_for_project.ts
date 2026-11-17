@@ -15,12 +15,14 @@ import { StateConfidence, StateMoment, createProvenState, getTextJustBeforeInsta
 import { buildInverseRepoByEventKind, createInverseRepo, listInverseCommits } from "./engineV3_inverse_repo.ts";
 import { createFileStep } from "./engineV3_file_step.ts";
 import { runStepCommands } from "./engineV3_step_cli.ts";
+import { walkAllFilesInStepMode } from "./engineV3_step_all.ts";
 import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
 import type { JSONLLine } from "./engineV3.ts";
 import { loadJSONLLinesNamingFiles } from "./engineV3_jsonl_lines_naming_files.ts";
 import { FileEventType, createEvent, getAllEventsForFileFromLines, sortEventsNewestToOldest, type FileEvent } from "./engineV3_replay_reverse_events.ts";
 import { readDiskText } from "./engineV3_replay_reverse.ts";
 import { addLinesNamingWrittenScripts } from "./engineV3_jsonl_lines_naming_scripts.ts";
+import { assertStoreHasNoFullBuildRepos } from "./engineV3_step_store_guard.ts";
 import { buildReplayGapsSidecar, isReplayGapsSidecarPresent, writeReplayGapsSidecar } from "./engineV3_script_replay_gaps.ts";
 
 export type FileInverseRepoResult = { file: Path; repoFolder: Path; eventCount: number; stateCount: number; commitCount: number; unknownStateCount: number; wasReused: boolean };
@@ -36,7 +38,9 @@ const ABSENT_DISK_BYTES_HASH = "absent";
 export type InverseReposSettings = { projectFolder: Path; jsonlsFolder: Path; fileHistoryFolder: Path; storeFolder: Path };
 
 // const USAGE = "usage: node engineV3_inverse_repos_for_project.ts --project <folder> --jsonls <folder> --file-history <folder> --store <folder>";
-const USAGE = "usage: node engineV3_inverse_repos_for_project.ts --project <folder> --jsonls <folder> --file-history <folder> --store <folder> [--step <project-relative file> [--from-now]]";
+// const USAGE = "usage: node engineV3_inverse_repos_for_project.ts --project <folder> --jsonls <folder> --file-history <folder> --store <folder> [--step <project-relative file> [--from-now]]";
+// const USAGE = "usage: node engineV3_inverse_repos_for_project.ts --project <folder> --jsonls <folder> --file-history <folder> --store <folder> [--step <project-relative file> [--from-now]]  (in step mode the commands are f, b, r and q)";
+const USAGE = "usage: node engineV3_inverse_repos_for_project.ts --project <folder> --jsonls <folder> --file-history <folder> --store <folder> [--step <project-relative file> [--from-now]] [--step-all --results <file>]  (in step mode the commands are f, b, r and q)";
 
 export const OUTSIDE_PROJECT_PREFIX = ".outside-project/";
 
@@ -75,7 +79,7 @@ function findProjectFileIndexByTranscriptFile(projectFiles: ProjectFile[], trans
 }
 
 // A file born by a move or a copy takes the text its source file had just before that event, so the source states come first.
-function listStatesOfProjectFile(fileIndex: number, projectFiles: ProjectFile[], getEvents: (fileIndex: number) => FileEvent[], statesByFile: (FileKnownState[] | undefined)[], fileIndexesBeingComputed: Set<number>): FileKnownState[] {
+export function listStatesOfProjectFile(fileIndex: number, projectFiles: ProjectFile[], getEvents: (fileIndex: number) => FileEvent[], statesByFile: (FileKnownState[] | undefined)[], fileIndexesBeingComputed: Set<number>): FileKnownState[] {
     const computedStates = statesByFile[fileIndex];
     if (computedStates !== undefined) {
         return computedStates;
@@ -253,6 +257,25 @@ export function buildInverseReposForFiles(projectFolder: Path, projectFiles: Pro
     return results;
 }
 
+export function listProjectFilesWithStaleInverseRepos(storeFolder: Path, projectFolder: Path, projectFiles: ProjectFile[], jsonlsFolders: Path[]): ProjectFile[] {
+    const logFilesHash = getLogFilesHash(jsonlsFolders);
+    const staleProjectFiles: ProjectFile[] = [];
+    for (const projectFile of projectFiles) {
+        const repoFolder = getInverseRepoFolderForFile(storeFolder, projectFolder, projectFile.file);
+        if (existsSync(repoFolder.toString())) {
+            const stamp = readInverseRepoStamp(repoFolder);
+            if (stamp === undefined) {
+                staleProjectFiles.push(projectFile);
+            } else {
+                if (!isStampBuiltFromInputs(stamp, buildStampInputs(projectFile.file, projectFile.transcriptFile, logFilesHash))) {
+                    staleProjectFiles.push(projectFile);
+                }
+            }
+        }
+    }
+    return staleProjectFiles;
+}
+
 export function isInverseRepoOnDemand(repoFolder: Path): boolean {
     const stamp = readInverseRepoStamp(repoFolder);
     if (stamp === undefined) {
@@ -314,7 +337,21 @@ const isCliRun = process.argv[1] === fileURLToPath(import.meta.url);
 if (isCliRun) {
     const stepFlag = extractValueFlag(process.argv.slice(2), "--step");
     const isFromNow = stepFlag.rest.includes("--from-now");
-    const argumentsWithoutStepFlags = stepFlag.rest.filter((argument) => argument !== "--from-now");
+    const isStepAll = stepFlag.rest.includes("--step-all");
+    const resultsFlag = extractValueFlag(stepFlag.rest, "--results");
+    if (isStepAll) {
+        if (stepFlag.value !== undefined) {
+            throw new Error(USAGE);
+        }
+        if (resultsFlag.value === undefined) {
+            throw new Error(USAGE);
+        }
+        if (isFromNow) {
+            throw new Error(USAGE);
+        }
+    }
+    // const argumentsWithoutStepFlags = stepFlag.rest.filter((argument) => argument !== "--from-now");
+    const argumentsWithoutStepFlags = resultsFlag.rest.filter((argument) => argument !== "--from-now" && argument !== "--step-all");
     // const settings = readInverseReposSettingsFromArguments(process.argv.slice(2));
     const settings = readInverseReposSettingsFromArguments(argumentsWithoutStepFlags);
     const startMilliseconds = Date.now();
@@ -326,17 +363,27 @@ if (isCliRun) {
     const repoFolder = getRepoFolderOfProject(settings.projectFolder);
     // The terminal bars sink is created after this call, so the progress callback does nothing.
     const { projectFiles, transcriptsToParse } = listLayeredSearchProjectFiles(settings.projectFolder, repoFolder, [settings.jsonlsFolder], false, () => {});
+    if (isStepAll) {
+        await walkAllFilesInStepMode({ projectFolder: settings.projectFolder, jsonlsFolder: settings.jsonlsFolder, fileHistoryFolder: settings.fileHistoryFolder, storeFolder: settings.storeFolder, projectFiles, transcriptsToParse, resultsFile: new Path(resultsFlag.value!) });
+        process.exit(0);
+    }
     if (stepFlag.value !== undefined) {
         const stepProjectFile = projectFiles.find((projectFile) => getRelativePathInProject(settings.projectFolder, projectFile.file).split(sep).join("/") === stepFlag.value);
         if (stepProjectFile === undefined) {
             throw new Error(`--step ${stepFlag.value}: no project file has this project-relative path`);
         }
-        const events = createProjectEventsLoader([stepProjectFile], transcriptsToParse, [settings.fileHistoryFolder])(0);
+        // const events = createProjectEventsLoader([stepProjectFile], transcriptsToParse, [settings.fileHistoryFolder])(0);
+        const getEvents = createProjectEventsLoader(projectFiles, transcriptsToParse, [settings.fileHistoryFolder]);
+        const stepFileIndex = projectFiles.indexOf(stepProjectFile);
+        const statesByFile: (FileKnownState[] | undefined)[] = projectFiles.map(() => undefined);
+        listStatesOfProjectFile(stepFileIndex, projectFiles, getEvents, statesByFile, new Set<number>());
+        const events = getEvents(stepFileIndex);
         const inverseRepoFolder = getInverseRepoFolderForFile(settings.storeFolder, settings.projectFolder, stepProjectFile.file);
         const fileName = basename(stepProjectFile.file.toString());
         if (isFromNow) {
             rmSync(inverseRepoFolder.toString(), { recursive: true, force: true });
         }
+        assertStoreHasNoFullBuildRepos(settings.storeFolder, settings.projectFolder, [stepProjectFile]);
         buildOnDemandInverseReposForFiles(settings.projectFolder, [stepProjectFile], transcriptsToParse, settings.storeFolder, new Date(), () => {});
         const storedCommits = listInverseCommits(inverseRepoFolder, fileName, true);
         const step = createFileStep(events, storedCommits);
@@ -352,7 +399,8 @@ if (isCliRun) {
                 console.log(JSON.stringify({ crashedAt: { nextEventIndex: step.nextEventIndex, eventType: crashedEvent?.type ?? null, source: crashedSourceText } }));
             }
         });
-        await runStepCommands(createInterface({ input: process.stdin }), { repoFolder: inverseRepoFolder, fileName, relativeFile: stepFlag.value, events, step });
+        // await runStepCommands(createInterface({ input: process.stdin }), { repoFolder: inverseRepoFolder, fileName, relativeFile: stepFlag.value, events, step });
+        await runStepCommands(createInterface({ input: process.stdin }), { repoFolder: inverseRepoFolder, fileName, relativeFile: stepFlag.value, events, step, replay: { projectFolder: settings.projectFolder, jsonlsFolder: settings.jsonlsFolder, transcriptsToParse, fileHistoryFolder: settings.fileHistoryFolder, storeFolder: settings.storeFolder, stepProjectFile, replayFiles: undefined, walkedOtherFiles: undefined } });
         process.exit(0);
     }
     const files = projectFiles.map((projectFile) => projectFile.file);

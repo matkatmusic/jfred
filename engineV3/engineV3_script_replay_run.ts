@@ -73,6 +73,7 @@ type ActiveGap = {
     runningText: string | undefined;
     textsByEvent: Map<FileEvent, { before: string | undefined; after: string | undefined }>;
     isFailed: boolean;
+    failureReason: string | undefined;
 };
 
 type ReplayStep = { activeGap: ActiveGap; event: FileEvent; instant: Date; isLastStep: boolean };
@@ -363,7 +364,7 @@ function isGapReplayable(gap: ReplayGap, commits: InverseCommit[], tasksByTaskId
 }
 
 function createActiveGap(fileIndex: number, gapOrder: number, gap: ReplayGap, startText: string | undefined): ActiveGap {
-    return { fileIndex, gapOrder, gap, events: listGapEventsOldestFirst(gap), runningText: startText, textsByEvent: new Map(), isFailed: false };
+    return { fileIndex, gapOrder, gap, events: listGapEventsOldestFirst(gap), runningText: startText, textsByEvent: new Map(), isFailed: false, failureReason: undefined };
 }
 
 function collectActiveGaps(context: ReplayContext, statesByFile: FileKnownState[][]): ActiveGap[] {
@@ -414,14 +415,13 @@ function listStepsInTimeOrder(activeGaps: ActiveGap[]): ReplayStep[] {
     return steps;
 }
 
-function markGapFailed(context: ReplayContext, activeGap: ActiveGap): void {
+function markGapFailed(context: ReplayContext, activeGap: ActiveGap, reason: string): void {
     activeGap.isFailed = true;
+    activeGap.failureReason = reason;
     context.workspace.clearInPassTexts(context.settings.projectFiles[activeGap.fileIndex]!.file);
 }
 
-function writeFinishedGap(context: ReplayContext, activeGap: ActiveGap): void {
-    const { settings, workspace } = context;
-    const file = settings.projectFiles[activeGap.fileIndex]!.file;
+function listReplayedTextByPosition(activeGap: ActiveGap): Map<number, string | undefined> {
     const textByPosition = new Map<number, string | undefined>();
     for (const droppedState of activeGap.gap.droppedStates) {
         const texts = activeGap.textsByEvent.get(droppedState.state.event)!;
@@ -431,6 +431,13 @@ function writeFinishedGap(context: ReplayContext, activeGap: ActiveGap): void {
             textByPosition.set(droppedState.position, texts.before);
         }
     }
+    return textByPosition;
+}
+
+function writeFinishedGap(context: ReplayContext, activeGap: ActiveGap): void {
+    const { settings, workspace } = context;
+    const file = settings.projectFiles[activeGap.fileIndex]!.file;
+    const textByPosition = listReplayedTextByPosition(activeGap);
     const repoFolder = getInverseRepoFolderForFile(settings.storeFolder, settings.projectFolder, file);
     const report = writeReplayedGapIntoInverseRepo(repoFolder, basename(file.toString()), activeGap.gap, textByPosition);
     workspace.refreshRepo(file);
@@ -458,13 +465,14 @@ async function applyStep(context: ReplayContext, step: ReplayStep): Promise<void
     }
     if (activeGap.gap.kind === ReplayGapKind.Born) {
         if (context.bornFileIndexes.has(activeGap.fileIndex)) {
-            markGapFailed(context, activeGap);
+            markGapFailed(context, activeGap, "another born gap already filled this file");
             return;
         }
     }
     const textBefore = activeGap.runningText;
     let textAfter = textBefore;
     let isStepFailed = false;
+    let stepFailureReason = "";
     switch (event.type) {
         case FileEventType.EditRow: {
             const editRow = getEditRowOfEvent(event);
@@ -472,6 +480,7 @@ async function applyStep(context: ReplayContext, step: ReplayStep): Promise<void
                 textAfter = applyEditToText(textBefore, editRow);
             } else {
                 isStepFailed = true;
+                stepFailureReason = "an Edit of the gap does not apply forward to the running text";
             }
             break;
         }
@@ -483,11 +492,13 @@ async function applyStep(context: ReplayContext, step: ReplayStep): Promise<void
                 if (changedFile !== undefined) {
                     if (changedFile.isNotText) {
                         isStepFailed = true;
+                        stepFailureReason = "the script made a file that is not text";
                     }
                     textAfter = changedFile.text ?? undefined;
                 }
             } else {
                 isStepFailed = true;
+                stepFailureReason = taskRun.outcome.reason ?? "the script did not run";
             }
             break;
         }
@@ -498,6 +509,7 @@ async function applyStep(context: ReplayContext, step: ReplayStep): Promise<void
         case FileEventType.UserEditNotice:
         case FileEventType.RowBytesUnknown:
             isStepFailed = true;
+            stepFailureReason = "the gap holds a user edit notice or unknown bytes";
             break;
         default:
             throw new Error(`applyStep: no rule for the event type ${event.type}`);
@@ -506,10 +518,11 @@ async function applyStep(context: ReplayContext, step: ReplayStep): Promise<void
         // A born gap is accepted only when this script made the file.
         if (textAfter === undefined) {
             isStepFailed = true;
+            stepFailureReason = "the script left the file absent";
         }
     }
     if (isStepFailed) {
-        markGapFailed(context, activeGap);
+        markGapFailed(context, activeGap, stepFailureReason);
         return;
     }
     activeGap.textsByEvent.set(event, { before: textBefore, after: textAfter });
@@ -562,6 +575,36 @@ export async function replayScriptTasksForProject(settings: ScriptReplaySettings
         await applyStep(context, step);
     }
     return listOutcomesInTaskOrder(context);
+}
+
+export type SingleGapReplayInput = { settings: ScriptReplaySettings; workspace: ReplayWorkspace; tasks: ScriptReplayTask[]; gap: ReplayGap; startText: string | undefined; fileIndex: number };
+export type SingleGapReplayResult = { textByPosition: Map<number, string | undefined> | undefined; failureReason: string | undefined; outcomes: ScriptTaskOutcome[] };
+
+export async function replaySingleGapInContainer(input: SingleGapReplayInput, reportProgress: ProgressSink, signal: AbortSignal): Promise<SingleGapReplayResult> {
+    const { settings, workspace, tasks, gap, startText, fileIndex } = input;
+    const context: ReplayContext = {
+        settings,
+        workspace,
+        signal,
+        reportProgress,
+        tasks,
+        tasksByTaskId: new Map(tasks.map((task) => [task.record.taskId, task])),
+        taskRunsByTaskId: new Map(),
+        relativePaths: settings.projectFiles.map((projectFile) => formatSlashPath(settings.projectFolder, projectFile.file)),
+        bornFileIndexes: new Set(),
+    };
+    const activeGap = createActiveGap(fileIndex, 0, gap, startText);
+    const file = settings.projectFiles[fileIndex]!.file;
+    workspace.recordTextAfterStep(file, new Date(getEventInstant(activeGap.events[0]!).getTime() - 1), startText);
+    for (const event of activeGap.events) {
+        signal.throwIfAborted();
+        await applyStep(context, { activeGap, event, instant: getEventInstant(event), isLastStep: false });
+    }
+    const outcomes = listOutcomesInTaskOrder(context);
+    if (activeGap.isFailed) {
+        return { textByPosition: undefined, failureReason: activeGap.failureReason, outcomes };
+    }
+    return { textByPosition: listReplayedTextByPosition(activeGap), failureReason: undefined, outcomes };
 }
 
 const USAGE = "usage: node engineV3_script_replay_run.ts --project <folder> --jsonls <folder> --file-history <folder> --store <folder> [--recorded-project <folder>] [--up-to <ISO instant>] [--list-only] | --clean --store <folder>";

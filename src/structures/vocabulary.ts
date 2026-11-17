@@ -129,6 +129,7 @@ export enum InverseStepEngine {
     Backward = "backward",
     Forward = "forward",
     BothFailed = "both-failed",
+    Replay = "replay",
 }
 
 export enum InverseStepOutcome {
@@ -139,6 +140,8 @@ export enum InverseStepOutcome {
     MovedBack = "moved-back",
     NoNewerChange = "no-newer-change",
     Paused = "paused",
+    Replayed = "replayed",
+    ReplayRefused = "replay-refused",
 }
 
 export enum InverseRepoMode {
@@ -149,4 +152,28 @@ export enum StepCommand {
     Forward = "forward",
     Backward = "backward",
     Quit = "quit",
+    Replay = "replay",
+}
+
+export enum StopGapKind {
+    Found = "found",
+    Refused = "refused",
+}
+
+export enum StepAllVerdict {
+    End = "end",
+    Crash = "crash",
+    BackwardFailure = "b-failure",
+}
+
+export enum StepAllReplayKind {
+    Proven = "proven",
+    Derived = "derived",
+    Refused = "refused",
+    Failed = "failed",
+}
+
+export enum StepAllRecordKind {
+    File = "file",
+    Summary = "summary",
 }
