@@ -56,6 +56,21 @@ export function formatStepLine(stepNumber: number, relativeFile: string, written
     });
 }
 
+export function formatBeginLine(stepNumber: number, session: StepCliSession): string {
+    const nextEvent = session.events[session.step.nextEventIndex];
+    let nextSource: string | null = null;
+    if (nextEvent?.source !== undefined) {
+        nextSource = `${nextEvent.source.filePath}:${nextEvent.source.lineNumber}`;
+    }
+    return JSON.stringify({
+        begin: stepNumber,
+        fromPosition: session.step.lastWrittenPosition,
+        nextEventIndex: session.step.nextEventIndex,
+        nextEventType: nextEvent?.type ?? null,
+        nextSource,
+    });
+}
+
 export type BackwardStepResult = { outcome: InverseStepOutcome; position: number; storedCommit: InverseCommit | undefined };
 
 export function moveBackwardInPositionHistory(positionHistory: number[], repoFolder: Path, fileName: string): BackwardStepResult {
@@ -81,18 +96,19 @@ export async function runStepCommands(commandLines: AsyncIterable<string>, sessi
         }
         stepNumber += 1;
         if (command === StepCommand.Forward) {
-            const nextEvent = session.events[session.step.nextEventIndex];
-            let nextSource: string | null = null;
-            if (nextEvent?.source !== undefined) {
-                nextSource = `${nextEvent.source.filePath}:${nextEvent.source.lineNumber}`;
-            }
-            console.log(JSON.stringify({
-                begin: stepNumber,
-                fromPosition: session.step.lastWrittenPosition,
-                nextEventIndex: session.step.nextEventIndex,
-                nextEventType: nextEvent?.type ?? null,
-                nextSource,
-            }));
+            // const nextEvent = session.events[session.step.nextEventIndex];
+            // let nextSource: string | null = null;
+            // if (nextEvent?.source !== undefined) {
+            //     nextSource = `${nextEvent.source.filePath}:${nextEvent.source.lineNumber}`;
+            // }
+            // console.log(JSON.stringify({
+            //     begin: stepNumber,
+            //     fromPosition: session.step.lastWrittenPosition,
+            //     nextEventIndex: session.step.nextEventIndex,
+            //     nextEventType: nextEvent?.type ?? null,
+            //     nextSource,
+            // }));
+            console.log(formatBeginLine(stepNumber, session));
             const written = stepFileAndWriteCommit(session.repoFolder, session.fileName, session.step, undefined);
             console.log(formatStepLine(stepNumber, session.relativeFile, written));
             lastResult = written.result;

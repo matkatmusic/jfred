@@ -18,6 +18,21 @@ export function extractValueFlag(
   return { value, rest };
 }
 
+// A folder name that holds a comma is not supported.
+export function extractCommaListFlag(argv: string[], flag: string): { values: string[]; rest: string[] } {
+    const { value, rest } = extractValueFlag(argv, flag);
+    if (value === undefined) {
+        return { values: [], rest };
+    }
+    const values = value.split(",");
+    for (const part of values) {
+        if (part === "") {
+            throw new Error(`${flag}: the comma list "${value}" has an empty part`);
+        }
+    }
+    return { values, rest };
+}
+
 // Both DAGs are the bare default: they turn on only when no selector or content-view flag was given.
 export function computeGraphFlags(
   rest: string[],

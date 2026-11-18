@@ -3,7 +3,8 @@
 import { basename, sep } from "node:path";
 import type { Path } from "../src/structures/domain.ts";
 import { DocumentResponseKind } from "../src/structures/vocabulary_views.ts";
-import { InverseStepOutcome, StepAllRecordKind, StepAllVerdict } from "../src/structures/vocabulary.ts";
+// import { InverseStepOutcome, StepAllRecordKind, StepAllVerdict } from "../src/structures/vocabulary.ts";
+import { InverseStepOutcome, OtherFilesPolicy, StepAllRecordKind, StepAllVerdict } from "../src/structures/vocabulary.ts";
 import type { FileKnownState } from "./engineV3_file_known_states.ts";
 import { createFileStep, type FileStep } from "./engineV3_file_step.ts";
 import { stepFileAndWriteCommit } from "./engineV3_file_step_write.ts";
@@ -19,9 +20,10 @@ import { createCrashRecord, createSummary, getSecondsSince, parseReplayOutput, w
 import { formatSourceText, runReplayCommand } from "./engineV3_step_replay_command.ts";
 import type { StepReplayContext } from "./engineV3_step_replay_context.ts";
 
-export type StepAllInput = { projectFolder: Path; jsonlsFolder: Path; fileHistoryFolder: Path; storeFolder: Path; projectFiles: ProjectFile[]; transcriptsToParse: Path[]; resultsFile: Path };
+// export type StepAllInput = { projectFolder: Path; jsonlsFolder: Path; fileHistoryFolder: Path; storeFolder: Path; projectFiles: ProjectFile[]; transcriptsToParse: Path[]; resultsFile: Path };
+export type StepAllInput = { projectFolder: Path; jsonlsFolders: Path[]; fileHistoryFolders: Path[]; storeFolder: Path; projectFiles: ProjectFile[]; transcriptsToParse: Path[]; resultsFile: Path };
 
-type StepAllRun = {
+export type StepAllRun = {
     input: StepAllInput;
     getEvents: (fileIndex: number) => FileEvent[];
     statesByFile: (FileKnownState[] | undefined)[];
@@ -30,16 +32,21 @@ type StepAllRun = {
 
 const PROGRESS_ROW_NAME = "files";
 
-function createReplayContext(run: StepAllRun, projectFile: ProjectFile): StepReplayContext {
+export function createReplayContext(run: StepAllRun, projectFile: ProjectFile): StepReplayContext {
     if (run.scannedReplayFiles === undefined) {
-        run.scannedReplayFiles = listProjectFilesOnDiskAndInLogs(run.input.projectFolder, [run.input.jsonlsFolder]);
+        // run.scannedReplayFiles = listProjectFilesOnDiskAndInLogs(run.input.projectFolder, [run.input.jsonlsFolder]);
+        run.scannedReplayFiles = listProjectFilesOnDiskAndInLogs(run.input.projectFolder, run.input.jsonlsFolders);
     }
     const replayFiles = [...run.scannedReplayFiles];
     if (!replayFiles.some((replayFile) => replayFile.file.equals(projectFile.file))) {
         replayFiles.push(projectFile);
     }
-    const { projectFolder, jsonlsFolder, transcriptsToParse, fileHistoryFolder, storeFolder } = run.input;
-    return { projectFolder, jsonlsFolder, transcriptsToParse, fileHistoryFolder, storeFolder, stepProjectFile: projectFile, replayFiles, walkedOtherFiles: undefined };
+    // const { projectFolder, jsonlsFolder, transcriptsToParse, fileHistoryFolder, storeFolder } = run.input;
+    const { projectFolder, jsonlsFolders, transcriptsToParse, fileHistoryFolders, storeFolder } = run.input;
+    // return { projectFolder, jsonlsFolder, transcriptsToParse, fileHistoryFolder, storeFolder, stepProjectFile: projectFile, replayFiles, walkedOtherFiles: undefined };
+    // return { projectFolder, jsonlsFolders, transcriptsToParse, fileHistoryFolders, storeFolder, stepProjectFile: projectFile, replayFiles, walkedOtherFiles: undefined };
+    // return { projectFolder, jsonlsFolders, transcriptsToParse, fileHistoryFolders, storeFolder, earliestBoundary: undefined, stepProjectFile: projectFile, replayFiles, walkedOtherFiles: undefined };
+    return { projectFolder, jsonlsFolders, transcriptsToParse, fileHistoryFolders, storeFolder, earliestBoundary: undefined, otherFilesPolicy: OtherFilesPolicy.WalkThem, abortSignal: new AbortController().signal, stepProjectFile: projectFile, replayFiles, walkedOtherFiles: undefined };
 }
 
 async function walkOneFile(run: StepAllRun, fileIndex: number): Promise<StepAllFileRecord> {
@@ -101,10 +108,12 @@ async function walkOneFile(run: StepAllRun, fileIndex: number): Promise<StepAllF
 
 export async function walkAllFilesInStepMode(input: StepAllInput): Promise<StepAllSummary> {
     const startMilliseconds = Date.now();
-    const { projectFolder, fileHistoryFolder, storeFolder, projectFiles, transcriptsToParse, resultsFile } = input;
+    // const { projectFolder, fileHistoryFolder, storeFolder, projectFiles, transcriptsToParse, resultsFile } = input;
+    const { projectFolder, fileHistoryFolders, storeFolder, projectFiles, transcriptsToParse, resultsFile } = input;
     assertStoreHasNoFullBuildRepos(storeFolder, projectFolder, projectFiles);
     buildOnDemandInverseReposForFiles(projectFolder, projectFiles, transcriptsToParse, storeFolder, new Date(), () => {});
-    const run: StepAllRun = { input, getEvents: createProjectEventsLoader(projectFiles, transcriptsToParse, [fileHistoryFolder]), statesByFile: projectFiles.map(() => undefined), scannedReplayFiles: undefined };
+    // const run: StepAllRun = { input, getEvents: createProjectEventsLoader(projectFiles, transcriptsToParse, [fileHistoryFolder]), statesByFile: projectFiles.map(() => undefined), scannedReplayFiles: undefined };
+    const run: StepAllRun = { input, getEvents: createProjectEventsLoader(projectFiles, transcriptsToParse, fileHistoryFolders), statesByFile: projectFiles.map(() => undefined), scannedReplayFiles: undefined };
     const reportProgress = createTerminalBarsSink(process.stderr, [PROGRESS_ROW_NAME]);
     const fileRecords: StepAllFileRecord[] = [];
     for (const fileIndex of projectFiles.keys()) {

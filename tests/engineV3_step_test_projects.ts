@@ -49,6 +49,17 @@ export function initGitRepo(folder: string): void {
     execFileSync("git", ["-c", "user.name=test", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", "init"], { cwd: folder });
 }
 
+// Commits the file with the given text at the given second and returns the full hash; the caller writes the disk text again afterwards.
+export function commitFileAtSecond(folder: string, relativePath: string, text: string, commitSecond: number): string {
+    writeFileSync(join(folder, relativePath), text);
+    const commitDate = `@${makeInstant(commitSecond).getTime() / 1000} +0000`;
+    const environment = { ...process.env, GIT_COMMITTER_DATE: commitDate, GIT_AUTHOR_DATE: commitDate };
+    const gitArguments = ["-c", "user.name=test", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false"];
+    execFileSync("git", [...gitArguments, "add", "--", relativePath], { cwd: folder, env: environment });
+    execFileSync("git", [...gitArguments, "commit", "-q", "-m", `commit at ${commitSecond}`], { cwd: folder, env: environment });
+    return execFileSync("git", ["rev-parse", "HEAD"], { cwd: folder, encoding: "utf8" }).trim();
+}
+
 function makeProjectFolders(t: TestContext): ProjectFolders {
     const rootFolder = mkdtempSync(join(realpathSync(tmpdir()), "engine-v3-step-cli-"));
     t.after(() => rmSync(rootFolder, { recursive: true, force: true }));

@@ -465,7 +465,7 @@ test("test_the_argument_parser_returns_the_four_folders", () => {
     // The four flags are given in any order.
     const settings = readInverseReposSettingsFromArguments(["--store", "/s", "--project", "/p", "--file-history", "/h", "--jsonls", "/j"]);
     // The settings hold each folder as a Path.
-    assert.deepEqual(settings, { projectFolder: new Path("/p"), jsonlsFolder: new Path("/j"), fileHistoryFolder: new Path("/h"), storeFolder: new Path("/s") });
+    assert.deepEqual(settings, { projectFolder: new Path("/p"), jsonlsFolders: [new Path("/j")], fileHistoryFolders: [new Path("/h")], storeFolder: new Path("/s") });
 });
 
 test("test_the_argument_parser_throws_when_a_folder_is_missing", () => {

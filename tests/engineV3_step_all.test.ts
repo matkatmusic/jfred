@@ -43,7 +43,7 @@ function readResultRecords(resultsFile: Path): PrintedRecord[] {
 
 async function walkProject(project: ProjectWithFiles, storeFolder: Path): Promise<{ summary: PrintedRecord; resultsFile: Path }> {
     const resultsFile = new Path(join(project.rootFolder, "results.jsonl"));
-    const summary = await walkAllFilesInStepMode({ projectFolder: project.projectFolder, jsonlsFolder: project.jsonlsFolder, fileHistoryFolder: project.snapshotFolder, storeFolder, projectFiles: listProjectFiles(project), transcriptsToParse: [project.jsonlsFolder], resultsFile });
+    const summary = await walkAllFilesInStepMode({ projectFolder: project.projectFolder, jsonlsFolders: [project.jsonlsFolder], fileHistoryFolders: [project.snapshotFolder], storeFolder, projectFiles: listProjectFiles(project), transcriptsToParse: [project.jsonlsFolder], resultsFile });
     return { summary: summary as unknown as PrintedRecord, resultsFile };
 }
 

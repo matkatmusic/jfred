@@ -10,6 +10,7 @@
     "test": "node --import tsx --test tests/*.test.ts engineV3/*.test.ts",
     "test:ci": "node --import tsx --test $(node --import tsx scripts/list_capture_free_tests.ts)",
     "typecheck": "tsc --noEmit",
+    "tui": "node --import tsx engineV3/tui/jfredTUI.ts",
     "sandbox:build": "docker build -t reveng-sandbox:1 sandbox-image",
     "build:webapp": "tsc -p tsconfig.webapp.json",
     "visual": "node --import tsx scripts/visual/run.ts",
@@ -27,8 +28,14 @@
     "visual:layer6-real": "node --import tsx scripts/visual/layer6-real.ts --jot",
     "visual:layer9-real": "node --import tsx scripts/visual/layer9-real.ts"
   },
+  "dependencies": {
+    "ink": "7.1.1",
+    "react": "19.2.9"
+  },
   "devDependencies": {
     "@types/node": "^22.20.0",
+    "@types/react": "19.2.18",
+    "ink-testing-library": "4.0.0",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "happy-dom": "^20.11.0",

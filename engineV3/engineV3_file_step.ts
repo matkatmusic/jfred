@@ -29,7 +29,7 @@ const MODIFYING_EVENT_TYPES: FileEventType[] = [
 ];
 // GitCommit and BackupSnapshot count as modifying because the full build writes them as commits. ReadWhole does not (R1 skips reads); a ReadWhole with a different text still writes a commit when its pass is judged.
 
-function isModifyingEventType(eventType: FileEventType): boolean {
+export function isModifyingEventType(eventType: FileEventType): boolean {
     return MODIFYING_EVENT_TYPES.includes(eventType);
 }
 

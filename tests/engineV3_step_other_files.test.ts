@@ -16,7 +16,9 @@ import { createInverseRepo, insertStatesIntoInverseRepo, listInverseCommits } fr
 import { selectInverseCommitAtInstant } from "../engineV3/engineV3_inverse_repo_read.ts";
 import { buildOnDemandInverseReposForFiles, createProjectEventsLoader, getInverseRepoFolderForFile, type ProjectFile } from "../engineV3/engineV3_inverse_repos_for_project.ts";
 import { walkOtherFilesToTheEnd, type WalkedOtherFile } from "../engineV3/engineV3_step_other_files.ts";
-import { makeBashRows, makeEditRows, makeInstant, makeWriteCreateRows, writeProjectFiles, type ProjectWithFiles } from "./engineV3_step_test_projects.ts";
+import { readEarliestBoundary, type EarliestBoundary } from "../engineV3/engineV3_earliest_boundary.ts";
+import { Uuid } from "../src/structures/domain.ts";
+import { commitFileAtSecond, makeBashRows, makeEditRows, makeInstant, makeWriteCreateRows, writeProjectFiles, type ProjectWithFiles } from "./engineV3_step_test_projects.ts";
 
 const REPLAYED_FILE_NAME = "a.txt";
 const STAMP_FILE_NAME = "jfred-stamp.json";
@@ -30,10 +32,11 @@ function findProjectFileByName(projectFiles: ProjectFile[], fileName: string): P
     return projectFiles.find((projectFile) => basename(projectFile.file.toString()) === fileName)!;
 }
 
-function walkProject(project: ProjectWithFiles, reportProgress: (event: ProgressEvent) => void = () => {}): WalkedOtherFile[] {
+function walkProject(project: ProjectWithFiles, reportProgress: (event: ProgressEvent) => void = () => {}, earliestBoundary: EarliestBoundary | undefined = undefined): WalkedOtherFile[] {
     const replayFiles = makeProjectFiles(project);
     mkdirSync(project.storeFolder.toString(), { recursive: true });
-    return walkOtherFilesToTheEnd({ projectFolder: project.projectFolder, replayFiles, replayedProjectFile: findProjectFileByName(replayFiles, REPLAYED_FILE_NAME), storeFolder: project.storeFolder, transcriptsToParse: [project.jsonlsFolder], fileHistoryFolder: project.snapshotFolder, reportProgress });
+    // return walkOtherFilesToTheEnd({ projectFolder: project.projectFolder, replayFiles, replayedProjectFile: findProjectFileByName(replayFiles, REPLAYED_FILE_NAME), storeFolder: project.storeFolder, transcriptsToParse: [project.jsonlsFolder], fileHistoryFolders: [project.snapshotFolder], reportProgress });
+    return walkOtherFilesToTheEnd({ projectFolder: project.projectFolder, replayFiles, replayedProjectFile: findProjectFileByName(replayFiles, REPLAYED_FILE_NAME), storeFolder: project.storeFolder, transcriptsToParse: [project.jsonlsFolder], fileHistoryFolders: [project.snapshotFolder], reportProgress, earliestBoundary });
 }
 
 function describeFolderTree(folder: string): string[] {
@@ -195,4 +198,22 @@ test("test_the_walk_creates_no_repo_folder_for_the_replayed_file_and_changes_no_
     assert.deepEqual(listInverseCommits(replayedRepoFolder, REPLAYED_FILE_NAME, true), commitsBefore);
     assert.deepEqual(describeFolderTree(replayedRepoFolder.toString()), treeBefore);
     assert.equal(existsSync(getInverseRepoFolderForFile(project.storeFolder, project.projectFolder, project.fileByName.get("b.txt")!).toString()), true);
+});
+
+test("test_walkOtherFilesToTheEnd_applies_the_boundary_to_the_other_files", (t) => {
+    // Scenario: b.txt is edited from "b0" to "b1" at second 10 and from "b1" to "b2" at second 20; the commit C at second 15 holds b.txt with "b1".
+    const diskTextByFileName = new Map<string, string>([[REPLAYED_FILE_NAME, "a\n"], ["b.txt", "b2\n"]]);
+    const project = writeProjectFiles(t, diskTextByFileName, (projectFolder, filePathByFileName) => [
+        ...makeEditRows(projectFolder, "toolu_b1", filePathByFileName.get("b.txt")!, "b0", "b1", null, 10),
+        ...makeEditRows(projectFolder, "toolu_b2", filePathByFileName.get("b.txt")!, "b1", "b2", null, 20),
+    ]);
+    const commitHash = commitFileAtSecond(project.projectFolder.toString(), "b.txt", "b1\n", 15);
+    writeFileSync(project.fileByName.get("b.txt")!.toString(), "b2\n");
+    const boundary = readEarliestBoundary(project.projectFolder, new Uuid(commitHash));
+    // The walker runs with the boundary.
+    const walkedFiles = walkProject(project, () => {}, boundary);
+    // The oldest commit of b.txt holds the text of C, and the older text "b0" is stored nowhere.
+    const otherCommits = walkedFiles[0]!.commits;
+    assert.equal(otherCommits[otherCommits.length - 1]!.text, "b1\n");
+    assert.equal(otherCommits.some((walkedCommit) => walkedCommit.text === "b0\n"), false);
 });

@@ -1,7 +1,8 @@
 // The r command of step mode: replays the script of the current stop in a container and stores the texts it leaves.
 
 import { Path } from "../src/structures/domain.ts";
-import { InverseStepEngine, InverseStepOutcome, StopGapKind } from "../src/structures/vocabulary.ts";
+// import { InverseStepEngine, InverseStepOutcome, StopGapKind } from "../src/structures/vocabulary.ts";
+import { InverseStepEngine, InverseStepOutcome, OtherFilesPolicy, StopGapKind } from "../src/structures/vocabulary.ts";
 import type { ProgressEvent, RecordSource } from "../src/parse/loadTranscript.ts";
 import { INVERSE_REPOS_CACHE_FOLDER } from "../src/viewer_api_layer1_inverse_repos.ts";
 import type { StateConfidence } from "./engineV3_file_known_states.ts";
@@ -19,6 +20,7 @@ import type { StepCliSession } from "./engineV3_step_cli.ts";
 import { listReplayFilesOfProject, type ReplayCommandOutput } from "./engineV3_step_replay_context.ts";
 import { findStopGap } from "./engineV3_step_replay_gap.ts";
 import { walkOtherFilesToTheEnd } from "./engineV3_step_other_files.ts";
+import { readOtherFilesWalkedToTheEnd } from "./engineV3_step_finished_other_files.ts";
 import { assertStoreHasNoFullBuildRepos, assertStoreIsInsideCacheFolder } from "./engineV3_step_store_guard.ts";
 
 export type ReplayedLineFields = { stepNumber: number; relativeFile: string; confidence: StateConfidence; positions: number[]; commit: string; instant: Date | undefined; source: string; tasks: { taskId: string; exitCode: number | null; timedOut: boolean }[] };
@@ -92,26 +94,44 @@ export async function runReplayCommand(session: StepCliSession, lastResult: File
     }
     const replayFiles = listReplayFilesOfProject(replay);
     assertStoreHasNoFullBuildRepos(replay.storeFolder, replay.projectFolder, replayFiles);
-    const staleFiles = listProjectFilesWithStaleInverseRepos(replay.storeFolder, replay.projectFolder, replayFiles, replay.transcriptsToParse);
+    // const staleFiles = listProjectFilesWithStaleInverseRepos(replay.storeFolder, replay.projectFolder, replayFiles, replay.transcriptsToParse);
+    const staleFiles = listProjectFilesWithStaleInverseRepos(replay.storeFolder, replay.projectFolder, replayFiles, replay.transcriptsToParse, replay.earliestBoundary);
     if (staleFiles.length > 0) {
         const staleRelativePath = getRelativePathInProject(replay.projectFolder, staleFiles[0]!.file);
         return createRefusal(stepNumber, session.relativeFile, stopSource, `the repo of ${staleRelativePath} no longer matches the logs or the disk (the logs grew or a file changed): quit, and start again with a new --store folder`);
+    }
+    if (replay.otherFilesPolicy === OtherFilesPolicy.RefuseIfUnfinished) {
+        if (replay.walkedOtherFiles === undefined) {
+            const reportReadProgress = createTerminalBarsSink(process.stderr, ["other files"]);
+            const finishedOtherFiles = readOtherFilesWalkedToTheEnd({ projectFolder: replay.projectFolder, replayFiles, replayedProjectFile: replay.stepProjectFile, storeFolder: replay.storeFolder, transcriptsToParse: replay.transcriptsToParse, fileHistoryFolders: replay.fileHistoryFolders, reportProgress: reportReadProgress, earliestBoundary: replay.earliestBoundary });
+            if (finishedOtherFiles.refusalReason !== undefined) {
+                return createRefusal(stepNumber, session.relativeFile, stopSource, finishedOtherFiles.refusalReason);
+            }
+            replay.walkedOtherFiles = finishedOtherFiles.walkedFiles;
+        }
     }
     const dockerReadiness = checkDockerReadiness();
     if (dockerReadiness !== DockerReadiness.Ready) {
         throw new Error(`runReplayCommand: docker is not ready: ${dockerReadiness}`);
     }
-    if (replay.walkedOtherFiles === undefined) {
-        const reportWalkProgress = createTerminalBarsSink(process.stderr, ["other files"]);
-        replay.walkedOtherFiles = walkOtherFilesToTheEnd({ projectFolder: replay.projectFolder, replayFiles, replayedProjectFile: replay.stepProjectFile, storeFolder: replay.storeFolder, transcriptsToParse: replay.transcriptsToParse, fileHistoryFolder: replay.fileHistoryFolder, reportProgress: reportWalkProgress });
+    // The walk of the other files writes into their repos, so only the WalkThem policy runs it.
+    if (replay.otherFilesPolicy === OtherFilesPolicy.WalkThem) {
+        if (replay.walkedOtherFiles === undefined) {
+            const reportWalkProgress = createTerminalBarsSink(process.stderr, ["other files"]);
+            // replay.walkedOtherFiles = walkOtherFilesToTheEnd({ projectFolder: replay.projectFolder, replayFiles, replayedProjectFile: replay.stepProjectFile, storeFolder: replay.storeFolder, transcriptsToParse: replay.transcriptsToParse, fileHistoryFolder: replay.fileHistoryFolder, reportProgress: reportWalkProgress });
+            // replay.walkedOtherFiles = walkOtherFilesToTheEnd({ projectFolder: replay.projectFolder, replayFiles, replayedProjectFile: replay.stepProjectFile, storeFolder: replay.storeFolder, transcriptsToParse: replay.transcriptsToParse, fileHistoryFolders: replay.fileHistoryFolders, reportProgress: reportWalkProgress });
+            replay.walkedOtherFiles = walkOtherFilesToTheEnd({ projectFolder: replay.projectFolder, replayFiles, replayedProjectFile: replay.stepProjectFile, storeFolder: replay.storeFolder, transcriptsToParse: replay.transcriptsToParse, fileHistoryFolders: replay.fileHistoryFolders, reportProgress: reportWalkProgress, earliestBoundary: replay.earliestBoundary });
+        }
     }
     const workspace = new ReplayWorkspace(replay.storeFolder, replay.projectFolder, replay.projectFolder, replayFiles);
-    for (const walkedFile of replay.walkedOtherFiles) {
+    for (const walkedFile of replay.walkedOtherFiles!) {
         workspace.setCommits(walkedFile.file, walkedFile.commits);
     }
     const fileIndex = replayFiles.findIndex((projectFile) => projectFile.file.equals(replay.stepProjectFile.file));
-    const settings: ScriptReplaySettings = { projectFolder: replay.projectFolder, recordedProjectFolder: replay.projectFolder, projectFiles: replayFiles, jsonlsFolders: [replay.jsonlsFolder], snapshotFolders: [replay.fileHistoryFolder], storeFolder: replay.storeFolder };
-    const result = await replaySingleGapInContainer({ settings, workspace, tasks: stopGap.tasks, gap: stopGap.gap, startText: stopGap.startText, fileIndex }, reportReplayProgress, new AbortController().signal);
+    // const settings: ScriptReplaySettings = { projectFolder: replay.projectFolder, recordedProjectFolder: replay.projectFolder, projectFiles: replayFiles, jsonlsFolders: [replay.jsonlsFolder], snapshotFolders: [replay.fileHistoryFolder], storeFolder: replay.storeFolder };
+    const settings: ScriptReplaySettings = { projectFolder: replay.projectFolder, recordedProjectFolder: replay.projectFolder, projectFiles: replayFiles, jsonlsFolders: replay.jsonlsFolders, snapshotFolders: replay.fileHistoryFolders, storeFolder: replay.storeFolder };
+    // const result = await replaySingleGapInContainer({ settings, workspace, tasks: stopGap.tasks, gap: stopGap.gap, startText: stopGap.startText, fileIndex }, reportReplayProgress, new AbortController().signal);
+    const result = await replaySingleGapInContainer({ settings, workspace, tasks: stopGap.tasks, gap: stopGap.gap, startText: stopGap.startText, fileIndex }, reportReplayProgress, replay.abortSignal);
     if (result.textByPosition === undefined) {
         return { ...createRefusal(stepNumber, session.relativeFile, stopSource, result.failureReason!), isContainerFailure: true };
     }

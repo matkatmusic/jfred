@@ -1,18 +1,25 @@
 // The program context the replay command needs, its output, and the replay list it caches.
 
 import type { Path } from "../src/structures/domain.ts";
+import type { OtherFilesPolicy } from "../src/structures/vocabulary.ts";
 import type { ProgressSink } from "../src/parse/loadTranscript.ts";
 import type { ProjectFile } from "./engineV3_inverse_repos_for_project.ts";
 import { listProjectFilesOnDiskAndInLogs } from "./engineV3_inverse_repos_project_files.ts";
 import type { WalkedOtherFile } from "./engineV3_step_other_files.ts";
+import type { EarliestBoundary } from "./engineV3_earliest_boundary.ts";
 
 // replayFiles and walkedOtherFiles stay undefined until the first r that passes its refusals; then the command caches them here.
 export type StepReplayContext = {
     projectFolder: Path;
-    jsonlsFolder: Path;
+    // jsonlsFolder: Path;
+    jsonlsFolders: Path[];
     transcriptsToParse: Path[];
-    fileHistoryFolder: Path;
+    // fileHistoryFolder: Path;
+    fileHistoryFolders: Path[];
     storeFolder: Path;
+    earliestBoundary: EarliestBoundary | undefined;
+    otherFilesPolicy: OtherFilesPolicy;
+    abortSignal: AbortSignal;
     stepProjectFile: ProjectFile;
     replayFiles: ProjectFile[] | undefined;
     walkedOtherFiles: WalkedOtherFile[] | undefined;
@@ -28,7 +35,8 @@ export function listReplayFilesOfProject(replay: StepReplayContext): ProjectFile
             scannedLogCount += 1;
             process.stderr.write(`scanned ${scannedLogCount} logs\r`);
         };
-        const scannedFiles = listProjectFilesOnDiskAndInLogs(replay.projectFolder, [replay.jsonlsFolder], reportLogScanned);
+        // const scannedFiles = listProjectFilesOnDiskAndInLogs(replay.projectFolder, [replay.jsonlsFolder], reportLogScanned);
+        const scannedFiles = listProjectFilesOnDiskAndInLogs(replay.projectFolder, replay.jsonlsFolders, reportLogScanned);
         process.stderr.write("\n");
         const isStepFileListed = scannedFiles.some((projectFile) => projectFile.file.equals(replay.stepProjectFile.file));
         if (!isStepFileListed) {

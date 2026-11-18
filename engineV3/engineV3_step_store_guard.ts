@@ -3,7 +3,8 @@
 // import { existsSync, realpathSync } from "node:fs";
 import { existsSync, readdirSync, realpathSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import type { Path } from "../src/structures/domain.ts";
+// import type { Path } from "../src/structures/domain.ts";
+import { Path } from "../src/structures/domain.ts";
 // import { getInverseRepoFolderForFile, isInverseRepoOnDemand, type ProjectFile } from "./engineV3_inverse_repos_for_project.ts";
 import { STAMP_FILE_NAME, getInverseRepoFolderForFile, isInverseRepoOnDemand, type ProjectFile } from "./engineV3_inverse_repos_for_project.ts";
 
@@ -28,7 +29,7 @@ export function assertStoreHasNoFullBuildRepos(storeFolder: Path, projectFolder:
 }
 
 // readdirSync with file types does not follow links, so a symbolic link shows up as a link.
-function assertRepoFolderHoldsOnlyOwnContent(repoFolder: string): void {
+export function assertRepoFolderHoldsOnlyOwnContent(repoFolder: string): void {
     for (const entry of readdirSync(repoFolder, { recursive: true, withFileTypes: true })) {
         if (entry.isSymbolicLink()) {
             throw new Error(`assertStoreHoldsOnlyInverseRepos: ${join(entry.parentPath, entry.name)} is a symbolic link, not part of a repo`);
@@ -60,6 +61,36 @@ export function assertStoreHoldsOnlyInverseRepos(storeFolder: Path): void {
     if (existsSync(storeFolder.toString())) {
         assertFolderHoldsOnlyInverseRepos(storeFolder.toString());
     }
+}
+
+// Checks the one repo folder first, then removes it: a refused repo loses nothing.
+export function resetStore(repoFolder: Path): void {
+    if (existsSync(repoFolder.toString())) {
+        assertRepoFolderHoldsOnlyOwnContent(repoFolder.toString());
+        rmSync(repoFolder.toString(), { recursive: true, force: true });
+    }
+}
+
+function listRepoFoldersInFolder(folder: string): Path[] {
+    const repoFolders: Path[] = [];
+    for (const entry of readdirSync(folder, { withFileTypes: true })) {
+        const entryPath = join(folder, entry.name);
+        if (entry.isDirectory()) {
+            if (entry.name.endsWith(".git")) {
+                repoFolders.push(new Path(entryPath));
+            } else {
+                repoFolders.push(...listRepoFoldersInFolder(entryPath));
+            }
+        }
+    }
+    return repoFolders;
+}
+
+export function listRepoFoldersOfStore(storeFolder: Path): Path[] {
+    if (existsSync(storeFolder.toString())) {
+        return listRepoFoldersInFolder(storeFolder.toString());
+    }
+    return [];
 }
 
 // Checks the whole store first, then removes: a refused store loses nothing.

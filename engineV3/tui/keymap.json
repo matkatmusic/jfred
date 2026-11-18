@@ -1,0 +1,15 @@
+{
+    "moveSelectionUp": { "key": "upArrow" },
+    "moveSelectionDown": { "key": "downArrow" },
+    "toggleSelection": { "input": "s" },
+    "extendSelection": { "input": "S" },
+    "resetSelectedStores": { "input": "r" },
+    "resetAllStores": { "input": "R" },
+    "stepSelectionTowardsNow": { "key": "leftArrow" },
+    "stepSelectionTowardsEarliest": { "key": "rightArrow" },
+    "stepAllTowardsNow": { "key": "leftArrow", "shift": true },
+    "stepAllTowardsEarliest": { "key": "rightArrow", "shift": true },
+    "toggleDaySpeed": { "input": "d" },
+    "toggleWeekSpeed": { "input": "w" },
+    "playScript": { "input": "p" }
+}

@@ -3,12 +3,12 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import { randomUUID, createHash } from "node:crypto";
-import { appendFileSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { appendFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
-import { InverseStepEngine, InverseStepOutcome } from "../src/structures/vocabulary.ts";
-import { Path } from "../src/structures/domain.ts";
+import { InverseStepEngine, InverseStepOutcome, OtherFilesPolicy } from "../src/structures/vocabulary.ts";
+import { Path, Uuid } from "../src/structures/domain.ts";
 import { INVERSE_REPOS_CACHE_FOLDER } from "../src/viewer_api_layer1_inverse_repos.ts";
 import { StateConfidence } from "../engineV3/engineV3_file_known_states.ts";
 import { FileEventType } from "../engineV3/engineV3_replay_reverse_events.ts";
@@ -17,9 +17,13 @@ import { listInverseCommits } from "../engineV3/engineV3_inverse_repo.ts";
 import { buildInverseReposForFiles, buildOnDemandInverseReposForFiles, createProjectEventsLoader, getInverseRepoFolderForFile, type ProjectFile } from "../engineV3/engineV3_inverse_repos_for_project.ts";
 import { listProjectFilesOnDiskAndInLogs } from "../engineV3/engineV3_inverse_repos_project_files.ts";
 import { runStepCommands, type StepCliSession } from "../engineV3/engineV3_step_cli.ts";
+import type { StepReplayContext } from "../engineV3/engineV3_step_replay_context.ts";
 import { formatReplayedLine, formatReplayRefusalLine } from "../engineV3/engineV3_step_replay_command.ts";
 import { walkOtherFilesToTheEnd } from "../engineV3/engineV3_step_other_files.ts";
-import { makeBashRows, makeEditRows, makeWriteCreateRows, writeProjectFiles, type ProjectWithFiles } from "./engineV3_step_test_projects.ts";
+import { readEarliestBoundary } from "../engineV3/engineV3_earliest_boundary.ts";
+import { writeWalkCoverage } from "../engineV3/engineV3_walk_coverage.ts";
+import { createReplayContext } from "../engineV3/engineV3_step_all.ts";
+import { commitFileAtSecond, makeBashRows, makeEditRows, makeWriteCreateRows, writeProjectFiles, type ProjectWithFiles } from "./engineV3_step_test_projects.ts";
 
 const STEPPED_FILE_NAME = "a.txt";
 const OTHER_FILE_NAME = "b.txt";
@@ -66,7 +70,9 @@ function makeSessionWithReplayContext(project: ProjectWithFiles, storeFolder: Pa
     const repoFolder = getInverseRepoFolderForFile(storeFolder, project.projectFolder, stepProjectFile.file);
     const fileName = basename(stepProjectFile.file.toString());
     const step = createFileStep(events, listInverseCommits(repoFolder, fileName, true));
-    const replay = { projectFolder: project.projectFolder, jsonlsFolder: project.jsonlsFolder, transcriptsToParse, fileHistoryFolder: project.snapshotFolder, storeFolder, stepProjectFile, replayFiles: undefined, walkedOtherFiles: undefined };
+    // const replay = { projectFolder: project.projectFolder, jsonlsFolders: [project.jsonlsFolder], transcriptsToParse, fileHistoryFolders: [project.snapshotFolder], storeFolder, stepProjectFile, replayFiles: undefined, walkedOtherFiles: undefined };
+    // const replay: StepReplayContext = { projectFolder: project.projectFolder, jsonlsFolders: [project.jsonlsFolder], transcriptsToParse, fileHistoryFolders: [project.snapshotFolder], storeFolder, earliestBoundary: undefined, stepProjectFile, replayFiles: undefined, walkedOtherFiles: undefined };
+    const replay: StepReplayContext = { projectFolder: project.projectFolder, jsonlsFolders: [project.jsonlsFolder], transcriptsToParse, fileHistoryFolders: [project.snapshotFolder], storeFolder, earliestBoundary: undefined, otherFilesPolicy: OtherFilesPolicy.WalkThem, abortSignal: new AbortController().signal, stepProjectFile, replayFiles: undefined, walkedOtherFiles: undefined };
     return { repoFolder, fileName, relativeFile: STEPPED_FILE_NAME, events, step, replay };
 }
 
@@ -252,7 +258,8 @@ test("test_r_after_the_logs_grew_refuses_and_changes_no_repo", async (t) => {
     const session = makeSessionWithReplayContext(project, storeFolder);
     const stepProjectFile = session.replay!.stepProjectFile;
     const replayFiles = listProjectFilesOnDiskAndInLogs(project.projectFolder, [project.jsonlsFolder]);
-    walkOtherFilesToTheEnd({ projectFolder: project.projectFolder, replayFiles, replayedProjectFile: stepProjectFile, storeFolder, transcriptsToParse: [project.jsonlsFolder], fileHistoryFolder: project.snapshotFolder, reportProgress: () => {} });
+    // walkOtherFilesToTheEnd({ projectFolder: project.projectFolder, replayFiles, replayedProjectFile: stepProjectFile, storeFolder, transcriptsToParse: [project.jsonlsFolder], fileHistoryFolders: [project.snapshotFolder], reportProgress: () => {} });
+    walkOtherFilesToTheEnd({ projectFolder: project.projectFolder, replayFiles, replayedProjectFile: stepProjectFile, storeFolder, transcriptsToParse: [project.jsonlsFolder], fileHistoryFolders: [project.snapshotFolder], reportProgress: () => {}, earliestBoundary: undefined });
     const repoFolders = replayFiles.map((projectFile) => getInverseRepoFolderForFile(storeFolder, project.projectFolder, projectFile.file));
     const listRepoStates = (): { commits: string[]; tree: string[] }[] => repoFolders.map((repoFolder, index) => {
         return { commits: listCommitSummaries(repoFolder, basename(replayFiles[index]!.file.toString())), tree: describeFolderTree(repoFolder.toString()) };
@@ -279,7 +286,85 @@ test("test_r_after_the_logs_grew_refuses_and_changes_no_repo", async (t) => {
     assert.deepEqual(repoStatesAfter, repoStatesBefore);
 });
 
-function spawnStepProgram(project: ProjectWithFiles, storeFolder: Path, stepFileName: string, inputLines: string[]): SpawnSyncReturns<string> {
+test("test_a_store_without_the_boundary_is_stale_for_a_bounded_replay", async (t) => {
+    // Scenario: the repos of a.txt and b.txt were built without a boundary; the replay context holds a boundary C.
+    const project = writeScriptStopProjectWithOtherFile(t);
+    const storeFolder = makeStoreFolderInsideCacheFolder(t);
+    const session = makeSessionWithReplayContext(project, storeFolder);
+    const stepProjectFile = session.replay!.stepProjectFile;
+    const replayFiles = listProjectFilesOnDiskAndInLogs(project.projectFolder, [project.jsonlsFolder]);
+    walkOtherFilesToTheEnd({ projectFolder: project.projectFolder, replayFiles, replayedProjectFile: stepProjectFile, storeFolder, transcriptsToParse: [project.jsonlsFolder], fileHistoryFolders: [project.snapshotFolder], reportProgress: () => {}, earliestBoundary: undefined });
+    const commitHash = commitFileAtSecond(project.projectFolder.toString(), OTHER_FILE_NAME, "b0\n", 15);
+    writeFileSync(project.fileByName.get(OTHER_FILE_NAME)!.toString(), "b1\n");
+    session.replay!.earliestBoundary = readEarliestBoundary(project.projectFolder, new Uuid(commitHash));
+    const capturedOutput = captureOutput(t);
+    // Run the lines "f", "r" and "q".
+    await runStepCommands(makeCommandLines(["f", "r", "q"]), session);
+    // The r line is a refusal that says a repo no longer matches: the old stamps hold no boundary.
+    const refusalLine = findLineByOutcome(capturedOutput.printedLines, InverseStepOutcome.ReplayRefused);
+    assert.match(String(refusalLine.reason), /no longer matches the logs or the disk/);
+});
+
+// Runs "f" (the stop), then "r" with the store listing taken just before it, and returns the listings and the printed lines.
+async function runFThenRAndListStore(t: TestContext, session: StepCliSession, storeFolder: Path): Promise<{ storeBefore: string[]; storeAfter: string[]; printedLines: PrintedLine[] }> {
+    let storeBefore: string[] = [];
+    let storeAfter: string[] = [];
+    async function* makeCommandLinesAroundR(): AsyncIterable<string> {
+        yield "f";
+        storeBefore = describeFolderTree(storeFolder.toString());
+        yield "r";
+        storeAfter = describeFolderTree(storeFolder.toString());
+        yield "q";
+    }
+    const capturedOutput = captureOutput(t);
+    await runStepCommands(makeCommandLinesAroundR(), session);
+    return { storeBefore, storeAfter, printedLines: capturedOutput.printedLines };
+}
+
+test("test_a_play_with_an_unfinished_other_file_refuses_and_writes_nothing", async (t) => {
+    // Scenario: b.txt has a repo, but its walk is not finished; the play refuses other files that are not walked.
+    const project = writeScriptStopProjectWithOtherFile(t);
+    const storeFolder = makeStoreFolderInsideCacheFolder(t);
+    const session = makeSessionWithReplayContext(project, storeFolder);
+    session.replay!.otherFilesPolicy = OtherFilesPolicy.RefuseIfUnfinished;
+    const otherFile = project.fileByName.get(OTHER_FILE_NAME)!;
+    buildOnDemandInverseReposForFiles(project.projectFolder, [{ file: otherFile, transcriptFile: otherFile }], [project.jsonlsFolder], storeFolder, DISK_NOW_INSTANT, () => {});
+    writeWalkCoverage(getInverseRepoFolderForFile(storeFolder, project.projectFolder, otherFile), OTHER_FILE_NAME, false);
+    // The lines "f", "r" and "q" run.
+    const { storeBefore, storeAfter, printedLines } = await runFThenRAndListStore(t, session, storeFolder);
+    // The r line is a refusal that names b.txt.
+    const refusalLine = findLineByOutcome(printedLines, InverseStepOutcome.ReplayRefused);
+    assert.match(String(refusalLine.reason), /the repo of b\.txt is not walked to its end/);
+    // The listing of the store (path, modified time, hash) is equal before and after r.
+    assert.deepEqual(storeAfter, storeBefore);
+});
+
+test("test_a_play_with_a_missing_other_repo_refuses", async (t) => {
+    // Scenario: b.txt has no repo in the store.
+    const project = writeScriptStopProjectWithOtherFile(t);
+    const storeFolder = makeStoreFolderInsideCacheFolder(t);
+    const session = makeSessionWithReplayContext(project, storeFolder);
+    session.replay!.otherFilesPolicy = OtherFilesPolicy.RefuseIfUnfinished;
+    // The lines "f", "r" and "q" run.
+    const { storeBefore, storeAfter, printedLines } = await runFThenRAndListStore(t, session, storeFolder);
+    // The r line is a refusal that names b.txt, and the store is equal before and after r.
+    const refusalLine = findLineByOutcome(printedLines, InverseStepOutcome.ReplayRefused);
+    assert.match(String(refusalLine.reason), /the repo of b\.txt is not walked to its end/);
+    assert.deepEqual(storeAfter, storeBefore);
+});
+
+test("test_the_step_all_context_still_walks_the_other_files", (t) => {
+    // Scenario: the step-all loop makes the replay context of a.txt.
+    const project = writeScriptStopProjectWithOtherFile(t);
+    const stepProjectFile: ProjectFile = { file: project.fileByName.get(STEPPED_FILE_NAME)!, transcriptFile: project.fileByName.get(STEPPED_FILE_NAME)! };
+    const input = { projectFolder: project.projectFolder, jsonlsFolders: [project.jsonlsFolder], fileHistoryFolders: [project.snapshotFolder], storeFolder: makeStoreFolderInsideCacheFolder(t), projectFiles: [stepProjectFile], transcriptsToParse: [project.jsonlsFolder], resultsFile: new Path(join(project.rootFolder, "results.jsonl")) };
+    const replayContext = createReplayContext({ input, getEvents: () => [], statesByFile: [], scannedReplayFiles: [stepProjectFile] }, stepProjectFile);
+    // The context walks the other files itself, and its abort signal is not aborted.
+    assert.equal(replayContext.otherFilesPolicy, OtherFilesPolicy.WalkThem);
+    assert.equal(replayContext.abortSignal.aborted, false);
+});
+
+function spawnStepProgram(project: ProjectWithFiles, storeFolder: Path, stepFileName: string, inputLines: string[], extraArguments: string[] = []): SpawnSyncReturns<string> {
     const programArguments = [
         "--import", "tsx", PROGRAM_FILE,
         "--project", project.projectFolder.toString(),
@@ -287,6 +372,7 @@ function spawnStepProgram(project: ProjectWithFiles, storeFolder: Path, stepFile
         "--file-history", project.snapshotFolder.toString(),
         "--store", storeFolder.toString(),
         "--step", stepFileName,
+        ...extraArguments,
     ];
     return spawnSync(process.execPath, programArguments, { input: inputLines.join("\n") + "\n", cwd: JFRED_FOLDER, encoding: "utf8", timeout: PROGRAM_TIMEOUT_MILLISECONDS });
 }
@@ -306,6 +392,32 @@ test("test_the_program_start_with_a_full_build_repo_of_the_stepped_file_throws_b
     assert.match(spawned.stderr, /full-build repo/);
     // The repo folder is equal to before: nothing was wiped.
     assert.deepEqual(describeFolderTree(repoFolder.toString()), repoTreeBefore);
+});
+
+test("test_cli_no_walk_other_files_with_standard_input_f_r_q_prints_the_refusal_and_creates_no_repo_for_the_other_file", (t) => {
+    // Scenario: the program steps a.txt with --no-walk-other-files; b.txt has no repo.
+    const project = writeScriptStopProjectWithOtherFile(t);
+    const storeFolder = makeStoreFolderInsideCacheFolder(t);
+    // The standard input is "f", "r", "q".
+    const spawned = spawnStepProgram(project, storeFolder, STEPPED_FILE_NAME, ["f", "r", "q"], ["--no-walk-other-files"]);
+    assert.equal(spawned.status, 0, spawned.stderr);
+    // One printed line is the refusal that names b.txt.
+    const printedLines = spawned.stdout.split("\n").filter((outputLine) => outputLine.startsWith("{")).map((outputLine) => JSON.parse(outputLine) as PrintedLine);
+    const refusalLine = findLineByOutcome(printedLines, InverseStepOutcome.ReplayRefused);
+    assert.match(String(refusalLine.reason), /the repo of b\.txt is not walked to its end/);
+    // The store holds the repo of a.txt and no repo of b.txt.
+    assert.equal(existsSync(getInverseRepoFolderForFile(storeFolder, project.projectFolder, project.fileByName.get(STEPPED_FILE_NAME)!).toString()), true);
+    assert.equal(existsSync(getInverseRepoFolderForFile(storeFolder, project.projectFolder, project.fileByName.get(OTHER_FILE_NAME)!).toString()), false);
+});
+
+test("test_cli_no_walk_other_files_without_step_exits_with_the_usage_text", (t) => {
+    // Scenario: --no-walk-other-files is given and --step is not.
+    const project = writeScriptStopProjectWithOtherFile(t);
+    const programArguments = ["--import", "tsx", PROGRAM_FILE, "--project", project.projectFolder.toString(), "--jsonls", project.jsonlsFolder.toString(), "--file-history", project.snapshotFolder.toString(), "--store", makeStoreFolderInsideCacheFolder(t).toString(), "--no-walk-other-files"];
+    const spawned = spawnSync(process.execPath, programArguments, { cwd: JFRED_FOLDER, encoding: "utf8", timeout: PROGRAM_TIMEOUT_MILLISECONDS });
+    // The program exits with an error that holds the usage text.
+    assert.notEqual(spawned.status, 0);
+    assert.match(spawned.stderr, /usage:/);
 });
 
 test("test_the_step_program_start_gives_a_copy_born_file_the_same_states_as_the_walker", (t) => {
@@ -332,7 +444,8 @@ test("test_the_step_program_start_gives_a_copy_born_file_the_same_states_as_the_
     // The walker runs on the same store with a.txt as the replayed file: it does not throw and it adds no commit.
     const replayFiles = listProjectFilesOnDiskAndInLogs(project.projectFolder, [project.jsonlsFolder]);
     const stepProjectFile: ProjectFile = { file: project.fileByName.get(STEPPED_FILE_NAME)!, transcriptFile: project.fileByName.get(STEPPED_FILE_NAME)! };
-    walkOtherFilesToTheEnd({ projectFolder: project.projectFolder, replayFiles, replayedProjectFile: stepProjectFile, storeFolder, transcriptsToParse: [project.jsonlsFolder], fileHistoryFolder: project.snapshotFolder, reportProgress: () => {} });
+    // walkOtherFilesToTheEnd({ projectFolder: project.projectFolder, replayFiles, replayedProjectFile: stepProjectFile, storeFolder, transcriptsToParse: [project.jsonlsFolder], fileHistoryFolders: [project.snapshotFolder], reportProgress: () => {} });
+    walkOtherFilesToTheEnd({ projectFolder: project.projectFolder, replayFiles, replayedProjectFile: stepProjectFile, storeFolder, transcriptsToParse: [project.jsonlsFolder], fileHistoryFolders: [project.snapshotFolder], reportProgress: () => {}, earliestBoundary: undefined });
     assert.deepEqual(listCommitSummaries(copyRepoFolder, "copy.txt"), commitsFromProgram);
 });
 

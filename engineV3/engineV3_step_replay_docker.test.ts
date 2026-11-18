@@ -2,7 +2,8 @@
 
 import assert from "node:assert/strict";
 import { test, before, after, type TestContext } from "node:test";
-import { spawnSync, type SpawnSyncReturns } from "node:child_process";
+import { spawn, spawnSync, type SpawnSyncReturns } from "node:child_process";
+import { once } from "node:events";
 import { createHash, randomUUID } from "node:crypto";
 import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -30,6 +31,8 @@ const PROGRAM_FILE = "engineV3/engineV3_inverse_repos_for_project.ts";
 const PROGRAM_TIMEOUT_MILLISECONDS = 110000;
 const DOCKER_TEST_TIMEOUT_MILLISECONDS = 120000;
 const SUCCESS_LIST_FILE = "/tmp/successes.txt";
+const PLAY_CHILD_WAIT_MILLISECONDS = 60000;
+const CONTAINER_POLL_MILLISECONDS = 500;
 
 type PrintedLine = Record<string, unknown>;
 
@@ -284,4 +287,38 @@ test("test_the_start_text_seeds_the_first_script_input_of_the_replayed_file", { 
     // The script found "v0" as its input and appended "x" to it.
     assert.equal(result.failureReason, undefined);
     assert.equal(result.textByPosition!.get(gap.droppedStates[0]!.position), "v0\nx\n");
+});
+
+function listNewContainerIds(containerIdsBefore: string[]): string[] {
+    return listContainerIdsOfStepReplay().split("\n").filter((containerId) => containerId !== "" && !containerIdsBefore.includes(containerId));
+}
+
+async function waitUntilNewContainerCountIs(containerIdsBefore: string[], expectedCount: number): Promise<void> {
+    const deadlineMilliseconds = Date.now() + PLAY_CHILD_WAIT_MILLISECONDS;
+    while (listNewContainerIds(containerIdsBefore).length !== expectedCount) {
+        assert.equal(Date.now() < deadlineMilliseconds, true, `the number of new replay containers did not become ${expectedCount}`);
+        await new Promise((resolve) => setTimeout(resolve, CONTAINER_POLL_MILLISECONDS));
+    }
+}
+
+test("test_a_play_child_that_gets_sigterm_stops_its_container_and_exits", { timeout: DOCKER_TEST_TIMEOUT_MILLISECONDS }, async (t) => {
+    // Scenario: the script of the stop sleeps for a long time before it writes "v1".
+    const project = writeScriptStopProject(t, "v1\n", (steppedPath) => `sleep 100; printf 'v1\\n' > ${steppedPath}`);
+    const storeFolder = makeStoreFolderInsideCacheFolder(t);
+    const containerIdsBefore = listContainerIdsOfStepReplay().split("\n").filter((containerId) => containerId !== "");
+    // The play child starts with the lines "f" and "r", and it walks no other file.
+    const programArguments = ["--import", "tsx", PROGRAM_FILE, "--project", project.projectFolder.toString(), "--jsonls", project.jsonlsFolder.toString(), "--file-history", project.snapshotFolder.toString(), "--store", storeFolder.toString(), "--step", PROJECT_FILE_NAME, "--no-walk-other-files"];
+    const playChild = spawn(process.execPath, programArguments, { cwd: JFRED_FOLDER, stdio: ["pipe", "ignore", "ignore"] });
+    t.after(() => playChild.kill("SIGKILL"));
+    playChild.stdin.write("f\nr\n");
+    // Its container starts.
+    await waitUntilNewContainerCountIs(containerIdsBefore, 1);
+    // The play child gets SIGTERM.
+    const exited = once(playChild, "exit");
+    playChild.kill("SIGTERM");
+    const [exitCode] = await exited;
+    // It exits with a code that is not zero, and its container is gone.
+    assert.notEqual(exitCode, 0);
+    assert.notEqual(exitCode, null);
+    await waitUntilNewContainerCountIs(containerIdsBefore, 0);
 });

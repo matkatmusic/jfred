@@ -10,17 +10,28 @@ import { createFileStep } from "./engineV3_file_step.ts";
 import { stepFileAndWriteCommit } from "./engineV3_file_step_write.ts";
 import { listInverseCommitsFromWalkedStates } from "./engineV3_inverse_commits_from_states.ts";
 import { listInverseCommits, type InverseCommit } from "./engineV3_inverse_repo.ts";
+import type { EarliestBoundary } from "./engineV3_earliest_boundary.ts";
 import { buildOnDemandInverseReposForFiles, createProjectEventsLoader, getInverseRepoFolderForFile, getRelativePathInProject, listStatesOfProjectFile, type ProjectFile } from "./engineV3_inverse_repos_for_project.ts";
 
 export type WalkedOtherFile = { file: Path; commits: InverseCommit[] };
 
 const PROGRESS_ROW_NAME = "other files";
 
-export function walkOtherFilesToTheEnd(input: { projectFolder: Path; replayFiles: ProjectFile[]; replayedProjectFile: ProjectFile; storeFolder: Path; transcriptsToParse: Path[]; fileHistoryFolder: Path; reportProgress: ProgressSink }): WalkedOtherFile[] {
-    const { projectFolder, replayFiles, replayedProjectFile, storeFolder, transcriptsToParse, fileHistoryFolder, reportProgress } = input;
+// export function walkOtherFilesToTheEnd(input: { projectFolder: Path; replayFiles: ProjectFile[]; replayedProjectFile: ProjectFile; storeFolder: Path; transcriptsToParse: Path[]; fileHistoryFolder: Path; reportProgress: ProgressSink }): WalkedOtherFile[] {
+export type WalkOtherFilesInput = { projectFolder: Path; replayFiles: ProjectFile[]; replayedProjectFile: ProjectFile; storeFolder: Path; transcriptsToParse: Path[]; fileHistoryFolders: Path[]; reportProgress: ProgressSink; earliestBoundary: EarliestBoundary | undefined };
+
+// export function walkOtherFilesToTheEnd(input: { projectFolder: Path; replayFiles: ProjectFile[]; replayedProjectFile: ProjectFile; storeFolder: Path; transcriptsToParse: Path[]; fileHistoryFolders: Path[]; reportProgress: ProgressSink }): WalkedOtherFile[] {
+// export function walkOtherFilesToTheEnd(input: { projectFolder: Path; replayFiles: ProjectFile[]; replayedProjectFile: ProjectFile; storeFolder: Path; transcriptsToParse: Path[]; fileHistoryFolders: Path[]; reportProgress: ProgressSink; earliestBoundary: EarliestBoundary | undefined }): WalkedOtherFile[] {
+export function walkOtherFilesToTheEnd(input: WalkOtherFilesInput): WalkedOtherFile[] {
+    // const { projectFolder, replayFiles, replayedProjectFile, storeFolder, transcriptsToParse, fileHistoryFolder, reportProgress } = input;
+    // const { projectFolder, replayFiles, replayedProjectFile, storeFolder, transcriptsToParse, fileHistoryFolders, reportProgress } = input;
+    const { projectFolder, replayFiles, replayedProjectFile, storeFolder, transcriptsToParse, fileHistoryFolders, reportProgress, earliestBoundary } = input;
     const otherFiles = replayFiles.filter((projectFile) => !projectFile.file.equals(replayedProjectFile.file));
-    buildOnDemandInverseReposForFiles(projectFolder, otherFiles, transcriptsToParse, storeFolder, new Date(), () => {});
-    const getEvents = createProjectEventsLoader(replayFiles, transcriptsToParse, [fileHistoryFolder]);
+    // buildOnDemandInverseReposForFiles(projectFolder, otherFiles, transcriptsToParse, storeFolder, new Date(), () => {});
+    buildOnDemandInverseReposForFiles(projectFolder, otherFiles, transcriptsToParse, storeFolder, new Date(), () => {}, earliestBoundary);
+    // const getEvents = createProjectEventsLoader(replayFiles, transcriptsToParse, [fileHistoryFolder]);
+    // const getEvents = createProjectEventsLoader(replayFiles, transcriptsToParse, fileHistoryFolders);
+    const getEvents = createProjectEventsLoader(replayFiles, transcriptsToParse, fileHistoryFolders, earliestBoundary);
     const statesByFile: (FileKnownState[] | undefined)[] = replayFiles.map(() => undefined);
     const fileIndexesBeingComputed = new Set<number>();
     const walkedFiles: WalkedOtherFile[] = [];

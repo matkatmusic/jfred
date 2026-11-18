@@ -142,10 +142,17 @@ export enum InverseStepOutcome {
     Paused = "paused",
     Replayed = "replayed",
     ReplayRefused = "replay-refused",
+    AlreadyStored = "already-stored",
+    StartAtReached = "start-at-reached",
 }
 
 export enum InverseRepoMode {
     OnDemand = "on-demand",
+}
+
+export enum OtherFilesPolicy {
+    WalkThem = "walk-them",
+    RefuseIfUnfinished = "refuse-if-unfinished",
 }
 
 export enum StepCommand {
@@ -171,6 +178,60 @@ export enum StepAllReplayKind {
     Derived = "derived",
     Refused = "refused",
     Failed = "failed",
+}
+
+export enum TuiCommand {
+    MoveSelectionUp = "moveSelectionUp",
+    MoveSelectionDown = "moveSelectionDown",
+    ToggleSelection = "toggleSelection",
+    ExtendSelection = "extendSelection",
+    ResetSelectedStores = "resetSelectedStores",
+    ResetAllStores = "resetAllStores",
+    StepSelectionTowardsNow = "stepSelectionTowardsNow",
+    StepSelectionTowardsEarliest = "stepSelectionTowardsEarliest",
+    StepAllTowardsNow = "stepAllTowardsNow",
+    StepAllTowardsEarliest = "stepAllTowardsEarliest",
+    ToggleDaySpeed = "toggleDaySpeed",
+    ToggleWeekSpeed = "toggleWeekSpeed",
+    PlayScript = "playScript",
+}
+
+export enum JumpSpeed {
+    Event = "event",
+    Day = "day",
+    Week = "week",
+}
+
+export enum MarkerDirection {
+    TowardsNow = "towardsNow",
+    TowardsEarliest = "towardsEarliest",
+}
+
+export enum FileWalkStatus {
+    Idle = "idle",
+    Queued = "queued",
+    Running = "running",
+    Stopped = "stopped",
+    Crashed = "crashed",
+}
+
+export enum StepProcessOutcomeKind {
+    Covered = "covered",
+    Finished = "finished",
+    Stopped = "stopped",
+    Crashed = "crashed",
+}
+
+export enum ScriptAction {
+    Refuse = "refuse",
+    WaitForKey = "waitForKey",
+    RunNow = "runNow",
+}
+
+export enum PlayOutcomeKind {
+    Replayed = "replayed",
+    ReplayRefused = "replay-refused",
+    Crashed = "crashed",
 }
 
 export enum StepAllRecordKind {
