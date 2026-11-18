@@ -26,6 +26,8 @@ export const DOT_COLORS: Record<BarDotKind, string> = {
     [BarDotKind.created]: "white",
 };
 
+export const UNDONE_SO_FAR_COLOR = "cyan";
+
 export type RowProps = {
     fileName: string;
     model: BarFileModel;
@@ -56,7 +58,8 @@ export function listBarCells(model: BarFileModel, markerRowIndex: number, rulerR
     const fillPercent = Math.min(computeFillPercent(model, markerRowIndex), 100);
     const fillEndCell = Math.round(startCell + fillPercent / 100 * (bornCell - startCell));
     for (let cellIndex = startCell; cellIndex <= fillEndCell; cellIndex++) {
-        cells[cellIndex] = { character: "█", color: undefined, isDim: false };
+        // cells[cellIndex] = { character: "█", color: undefined, isDim: false };
+        cells[cellIndex] = { character: "█", color: UNDONE_SO_FAR_COLOR, isDim: false };
     }
     for (const dot of model.dots) {
         const dotCell = computeCellIndexOfRow(dot.rowIndex, rulerRowCount, barWidth);

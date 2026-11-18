@@ -4,7 +4,8 @@ import { createElement } from "react";
 import { render } from "ink-testing-library";
 import { FileWalkStatus } from "../src/structures/vocabulary.ts";
 import type { BarFileModel } from "../webapp/layer1-components/bars-view/layer1-bars-model.ts";
-import { Row } from "../engineV3/tui/engineV3_tui_row.tsx";
+import { Row, listBarCells } from "../engineV3/tui/engineV3_tui_row.tsx";
+import { buildBarLegendLines } from "../engineV3/tui/engineV3_tui_legend.ts";
 
 const NAME_WIDTH = 10;
 const BAR_WIDTH = 20;
@@ -41,4 +42,20 @@ test("test_the_status_text_starts_in_the_same_column_for_a_short_name_and_a_long
     const longLine = renderRowLine("very_long_file_name_here.ts", "same as now");
     // The status text is in the same column in both lines.
     assert.equal(shortLine.indexOf("same as now"), longLine.indexOf("same as now"));
+});
+
+test("test_the_undone_so_far_bar_cells_have_the_same_color_as_the_legend_entry", () => {
+    // Scenario: the legend draws "undone so far" in one color, and the bar cells of the same part must use that color.
+    // The bar cells of a model with a filled part.
+    const cells = listBarCells(makeEmptyModel(), 3, 6, BAR_WIDTH);
+    const undoneSoFarCells = cells.filter((cell) => cell.character === "█");
+    assert.ok(undoneSoFarCells.length > 0);
+    // The legend entry for "undone so far".
+    const legendEntry = buildBarLegendLines().flat().find((entry) => entry.label === "█")!;
+    // The legend entry has a color.
+    assert.notEqual(legendEntry.labelColor, undefined);
+    // Every "█" cell has the color of the legend entry.
+    for (const cell of undoneSoFarCells) {
+        assert.equal(cell.color, legendEntry.labelColor);
+    }
 });
