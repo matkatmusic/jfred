@@ -207,8 +207,14 @@ const SETTLE_ROUND_LIMIT = 60;
 const STEP_SPAWN_LOOP_GUARD = 40;
 const STATEFUL_ENGINE_TIMEOUT_MILLISECONDS = 30000;
 const MAXIMUM_PROCESSES = 4;
+// The late instant of the first render of the screen: its walks are the first wave.
+const MARKER_INSTANT = new Date(2000000000000);
+const OLDEST_WALK_MILLISECONDS = 0;
+const PLAY_REFUSED_REASON_TEXT = "r works only right after a stop on a script that may write; press f first";
 
 type StepSpawnRecord = { file: Path; isPassingStops: boolean };
+// What a fake step child answers, and the sidecar it writes when it ends.
+type StepChildPlan = { outcome: StepProcessOutcome; writeSidecarAtEnd: () => void };
 type StatefulEngineHarness = {
     files: Path[];
     storeFolder: Path;
@@ -231,6 +237,12 @@ function writeFinishedSidecar(storeFolder: Path, projectFolder: Path, file: Path
     writeFileSync(join(repoFolder.toString(), WALK_COVERAGE_FILE_NAME), JSON.stringify({ tipInstant: null, isFinished: true }));
 }
 
+function writeCoveredSidecar(storeFolder: Path, projectFolder: Path, file: Path, tipInstant: Date): void {
+    const repoFolder = getInverseRepoFolderForFile(storeFolder, projectFolder, file);
+    mkdirSync(repoFolder.toString(), { recursive: true });
+    writeFileSync(join(repoFolder.toString(), WALK_COVERAGE_FILE_NAME), JSON.stringify({ tipInstant: tipInstant.toISOString(), isFinished: false }));
+}
+
 function makeStepResultLine(eventType: FileEventType | null, source: string | null): StepResultLine {
     return { startAt: new Date(0).toISOString(), outcome: InverseStepOutcome.UnknownOrRoadblock, commitsWritten: 0, position: 0, commit: "abc", eventType, source };
 }
@@ -241,6 +253,10 @@ function makeStoppedOutcome(eventType: FileEventType, source: string | null): St
 
 function makeFinishedOutcome(): StepProcessOutcome {
     return { kind: StepProcessOutcomeKind.Finished, lastLine: makeStepResultLine(null, null) };
+}
+
+function makeCoveredOutcome(): StepProcessOutcome {
+    return { kind: StepProcessOutcomeKind.Covered, lastLine: { ...makeStepResultLine(null, null), outcome: InverseStepOutcome.StartAtReached } };
 }
 
 function makeLoopGuardCrashedOutcome(): StepProcessOutcome {
@@ -263,36 +279,64 @@ function buildStatefulEngineHarness(t: TestContext, answers: ConsentAnswers): St
         const repoFolder = getInverseRepoFolderForFile(storeFolder, projectFolder, file);
         return readWalkCoverage(repoFolder)?.isFinished === true;
     };
-    const decideStepOutcome = (request: StepRequest): StepProcessOutcome => {
+    // const decideStepOutcome = (request: StepRequest): StepProcessOutcome => {
+    //     if (stepSpawns.length > STEP_SPAWN_LOOP_GUARD) {
+    //         return makeLoopGuardCrashedOutcome();
+    //     }
+    //     const fileValue = request.file.value;
+    //     if (request.isPassingStops) {
+    //         unresolvedScriptStopFileValues.delete(fileValue);
+    //         unresolvedUserEditStopFileValues.delete(fileValue);
+    //         writeFinishedSidecar(storeFolder, projectFolder, request.file);
+    //         return makeFinishedOutcome();
+    //     }
+    //     if (unresolvedScriptStopFileValues.has(fileValue)) {
+    //         return makeStoppedOutcome(FileEventType.ScriptMayWrite, SCRIPT_STOP_SOURCE);
+    //     }
+    //     if (unresolvedUserEditStopFileValues.has(fileValue)) {
+    //         return makeStoppedOutcome(FileEventType.UserEditNotice, SCRIPT_STOP_SOURCE);
+    //     }
+    //     writeFinishedSidecar(storeFolder, projectFolder, request.file);
+    //     return makeFinishedOutcome();
+    // };
+    const writeNothing = (): void => {};
+    const decideStepChildPlan = (request: StepRequest): StepChildPlan => {
         if (stepSpawns.length > STEP_SPAWN_LOOP_GUARD) {
-            return makeLoopGuardCrashedOutcome();
+            return { outcome: makeLoopGuardCrashedOutcome(), writeSidecarAtEnd: writeNothing };
         }
         const fileValue = request.file.value;
+        const writeFinishedSidecarOfFile = (): void => writeFinishedSidecar(storeFolder, projectFolder, request.file);
         if (request.isPassingStops) {
             unresolvedScriptStopFileValues.delete(fileValue);
             unresolvedUserEditStopFileValues.delete(fileValue);
-            writeFinishedSidecar(storeFolder, projectFolder, request.file);
-            return makeFinishedOutcome();
+            return { outcome: makeFinishedOutcome(), writeSidecarAtEnd: writeFinishedSidecarOfFile };
         }
         if (unresolvedScriptStopFileValues.has(fileValue)) {
-            return makeStoppedOutcome(FileEventType.ScriptMayWrite, SCRIPT_STOP_SOURCE);
+            return { outcome: makeStoppedOutcome(FileEventType.ScriptMayWrite, SCRIPT_STOP_SOURCE), writeSidecarAtEnd: writeNothing };
         }
         if (unresolvedUserEditStopFileValues.has(fileValue)) {
-            return makeStoppedOutcome(FileEventType.UserEditNotice, SCRIPT_STOP_SOURCE);
+            return { outcome: makeStoppedOutcome(FileEventType.UserEditNotice, SCRIPT_STOP_SOURCE), writeSidecarAtEnd: writeNothing };
         }
-        writeFinishedSidecar(storeFolder, projectFolder, request.file);
-        return makeFinishedOutcome();
+        if (request.startAt.getTime() === OLDEST_WALK_MILLISECONDS) {
+            return { outcome: makeFinishedOutcome(), writeSidecarAtEnd: writeFinishedSidecarOfFile };
+        }
+        return { outcome: makeCoveredOutcome(), writeSidecarAtEnd: () => writeCoveredSidecar(storeFolder, projectFolder, request.file, request.startAt) };
     };
     const spawnStepProcess = async (request: StepRequest): Promise<StepProcessOutcome> => {
         stepSpawns.push({ file: request.file, isPassingStops: request.isPassingStops });
-        const outcome = decideStepOutcome(request);
+        const stepChildPlan = decideStepChildPlan(request);
         await waitMilliseconds(SPAWN_DELAY_MILLISECONDS);
-        return outcome;
+        stepChildPlan.writeSidecarAtEnd();
+        return stepChildPlan.outcome;
     };
     const spawnPlayProcess = async (request: PlayRequest): Promise<PlayOutcome> => {
         playSpawns.push(request.file);
+        const isScriptStopResolved = !unresolvedScriptStopFileValues.has(request.file.value);
         unresolvedScriptStopFileValues.delete(request.file.value);
         await waitMilliseconds(SPAWN_DELAY_MILLISECONDS);
+        if (isScriptStopResolved) {
+            return { kind: PlayOutcomeKind.ReplayRefused, reasonText: PLAY_REFUSED_REASON_TEXT };
+        }
         return { kind: PlayOutcomeKind.Replayed, reasonText: undefined };
     };
     const walker = createHistoryWalker({
@@ -321,6 +365,13 @@ function buildStatefulEngineHarness(t: TestContext, answers: ConsentAnswers): St
         endAllChildren: throwBecauseNotExpected,
     });
     return { files, storeFolder, projectFolder, walker, pool, stepSpawns, playSpawns, getRunState: (file) => getFileRunState(walkState, file), isFileWalkFinished };
+}
+
+// The first render of the screen walks every file at the marker instant before the auto walk asks for the oldest instant.
+function startFirstWaveOfHarness(harness: StatefulEngineHarness): void {
+    for (const file of harness.files) {
+        harness.walker.walkHistoryTo(MARKER_INSTANT, file, true);
+    }
 }
 
 function runAutoWalkOfHarness(harness: StatefulEngineHarness): Promise<void> {
@@ -361,17 +412,24 @@ function readReasonTextOfFile(harness: StatefulEngineHarness, file: Path): strin
     return reasonText!;
 }
 
+// 9 step children: 4 first walks, 4 walks to the oldest time (3 of them are the pre-play walks that pass the stops), 1 walk again of the played file.
+export const EXPECTED_STEP_SPAWNS = 9;
+export const EXPECTED_PASS_STOPS_SPAWNS = 3;
+
 test("test_auto_with_both_answers_yes_ends_with_a_bounded_number_of_children", { timeout: STATEFUL_ENGINE_TIMEOUT_MILLISECONDS }, async (t) => {
     // Scenario: four files; three stop at one script; one of the three has a second stop that only a pass-stops walk passes; both answers are yes.
     const harness = buildStatefulEngineHarness(t, { runScripts: true, runModifyingScriptsAutomatically: true });
+    // Start the first wave: the walks of the first render, at the marker instant.
+    startFirstWaveOfHarness(harness);
     // Run the auto walk, then wait until no more children start.
     await runAutoWalkOfHarness(harness);
     await waitUntilEverythingSettles(harness);
-    // 7 step children: 4 first walks, 2 pre-play walks that pass the stops, 1 walk again of the played file.
-    assert.equal(harness.stepSpawns.length, 7);
-    assert.equal(harness.stepSpawns.filter((spawn) => spawn.isPassingStops).length, 2);
-    // Exactly one play child ran.
+    // Exactly one play child ran: a second play of the same file would be refused by the real play child.
     assert.equal(harness.playSpawns.length, 1);
+    // No file has a failed replay.
+    for (const file of harness.files) {
+        assert.equal(harness.getRunState(file).failedReplayCount, 0, `${file.toString()} has a failed replay`);
+    }
     // Every file is Idle or Stopped; none is Crashed, Running or Queued.
     for (const file of harness.files) {
         const status = harness.getRunState(file).status;
@@ -384,6 +442,9 @@ test("test_auto_with_both_answers_yes_ends_with_a_bounded_number_of_children", {
     for (const file of harness.files) {
         assert.equal(harness.isFileWalkFinished(file), true, `${file.toString()} is not finished`);
     }
+    // The step child counts match the numbers of the green run.
+    assert.equal(harness.stepSpawns.length, EXPECTED_STEP_SPAWNS);
+    assert.equal(harness.stepSpawns.filter((spawn) => spawn.isPassingStops).length, EXPECTED_PASS_STOPS_SPAWNS);
 });
 
 test("test_auto_with_the_first_answer_no_runs_no_play_and_the_play_key_runs_nothing", { timeout: STATEFUL_ENGINE_TIMEOUT_MILLISECONDS }, async (t) => {

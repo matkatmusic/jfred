@@ -9,6 +9,7 @@ import { getFileRunState, setFileRunState, type FileRunState } from "./engineV3_
 import type { HistoryWalker, HistoryWalkerOptions, PlayOutcome, StepProcessOutcome, StepRequest } from "./engineV3_tui_walk_types.ts";
 import type { StoppedWalk } from "./engineV3_tui_consent.ts";
 import { describeCrash, describeRefusedStop, formatShortSource } from "./engineV3_tui_walk_stop_text.ts";
+import { isRepoWalkFinished, requestPlayOnce } from "./engineV3_tui_walk_play.ts";
 
 // The caller of handleOutcome gives no visibility, so a walk requested again after an answer counts as visible.
 const IS_REWALK_VISIBLE = true;
@@ -20,15 +21,6 @@ function isRepoSpanningInstant(options: HistoryWalkerOptions, file: Path, instan
         return false;
     }
     return isInstantSpannedByWalkCoverage(coverage, instant);
-}
-
-function isRepoWalkFinished(options: HistoryWalkerOptions, file: Path): boolean {
-    const repoFolder = getInverseRepoFolderForFile(options.storeFolder, options.projectFolder, file);
-    const coverage = readWalkCoverage(repoFolder);
-    if (coverage === undefined) {
-        return false;
-    }
-    return coverage.isFinished === true;
 }
 
 function writeRunState(options: HistoryWalkerOptions, file: Path, runState: FileRunState): void {
@@ -78,7 +70,7 @@ function writePlayOutcome(options: HistoryWalkerOptions, file: Path, startAt: Da
     writeStatus(options, file, FileWalkStatus.Crashed, playOutcome.reasonText);
 }
 
-async function playScript(options: HistoryWalkerOptions, lastStopByFileValue: Map<string, StoppedWalk>, file: Path, startAt: Date): Promise<void> {
+async function playScript(options: HistoryWalkerOptions, lastStopByFileValue: Map<string, StoppedWalk>, playStartAtByFileValue: Map<string, Date>, file: Path, startAt: Date): Promise<void> {
     const lastStop = lastStopByFileValue.get(file.value);
     if (lastStop === undefined) {
         throw new Error(`playScript: no stop is known for ${file.toString()}`);
@@ -87,11 +79,13 @@ async function playScript(options: HistoryWalkerOptions, lastStopByFileValue: Ma
         writeStatus(options, file, FileWalkStatus.Stopped, describeRefusedStop(lastStop.eventType, lastStop.source));
         return;
     }
-    const playOutcome = await options.requestPlay({ file });
-    writePlayOutcome(options, file, startAt, playOutcome);
+    // const playOutcome = await options.requestPlay({ file });
+    // writePlayOutcome(options, file, startAt, playOutcome);
+    const playRun = await requestPlayOnce(options.requestPlay, playStartAtByFileValue, file, startAt);
+    if (playRun !== undefined) { writePlayOutcome(options, file, playRun.oldestStartAt, playRun.playOutcome); }
 }
 
-async function handleScriptStop(options: HistoryWalkerOptions, request: StepRequest, source: string | null): Promise<void> {
+async function handleScriptStop(options: HistoryWalkerOptions, playStartAtByFileValue: Map<string, Date>, request: StepRequest, source: string | null): Promise<void> {
     // const stopText = `stopped at ${FileEventType.ScriptMayWrite} ${source}`;
     const shortSource = formatShortSource(source);
     const scriptAction = options.decideScriptAction(request.file, FileEventType.ScriptMayWrite, source);
@@ -107,11 +101,13 @@ async function handleScriptStop(options: HistoryWalkerOptions, request: StepRequ
         return;
     }
     writeStatus(options, request.file, FileWalkStatus.Stopped, `stopped at ${FileEventType.ScriptMayWrite} ${shortSource}: running the script`);
-    const playOutcome = await options.requestPlay({ file: request.file });
-    writePlayOutcome(options, request.file, request.startAt, playOutcome);
+    // const playOutcome = await options.requestPlay({ file: request.file });
+    // writePlayOutcome(options, request.file, request.startAt, playOutcome);
+    const playRun = await requestPlayOnce(options.requestPlay, playStartAtByFileValue, request.file, request.startAt);
+    if (playRun !== undefined) { writePlayOutcome(options, request.file, playRun.oldestStartAt, playRun.playOutcome); }
 }
 
-async function handleOutcome(options: HistoryWalkerOptions, lastStopByFileValue: Map<string, StoppedWalk>, request: StepRequest, outcome: StepProcessOutcome): Promise<void> {
+async function handleOutcome(options: HistoryWalkerOptions, lastStopByFileValue: Map<string, StoppedWalk>, playStartAtByFileValue: Map<string, Date>, request: StepRequest, outcome: StepProcessOutcome): Promise<void> {
     if (outcome.kind === StepProcessOutcomeKind.Covered) {
         handleDoneOutcome(options, request, outcome.kind);
         return;
@@ -127,7 +123,7 @@ async function handleOutcome(options: HistoryWalkerOptions, lastStopByFileValue:
         }
         lastStopByFileValue.set(request.file.value, { file: request.file, eventType: outcome.eventType, source: outcome.source });
         if (outcome.eventType === FileEventType.ScriptMayWrite) {
-            await handleScriptStop(options, request, outcome.source);
+            await handleScriptStop(options, playStartAtByFileValue, request, outcome.source);
             return;
         }
         // writeStatus(options, request.file, FileWalkStatus.Stopped, `stopped at ${outcome.eventType} ${outcome.source}: the engine stops here in every new process`);
@@ -140,9 +136,10 @@ async function handleOutcome(options: HistoryWalkerOptions, lastStopByFileValue:
 
 export function createHistoryWalker(options: HistoryWalkerOptions): HistoryWalker {
     const lastStopByFileValue = new Map<string, StoppedWalk>();
+    const playStartAtByFileValue = new Map<string, Date>();
     return {
         walkHistoryTo: (currentTime, file, isVisible) => walkHistoryTo(options, currentTime, file, isVisible),
-        handleOutcome: (request, outcome) => handleOutcome(options, lastStopByFileValue, request, outcome),
-        playScript: (file, startAt) => playScript(options, lastStopByFileValue, file, startAt),
+        handleOutcome: (request, outcome) => handleOutcome(options, lastStopByFileValue, playStartAtByFileValue, request, outcome),
+        playScript: (file, startAt) => playScript(options, lastStopByFileValue, playStartAtByFileValue, file, startAt),
     };
 }

@@ -758,3 +758,90 @@ test("test_a_file_born_after_the_time_is_finished_spans_the_time_and_is_not_resp
     const storedCommits = listInverseCommits(repoFolder, PROJECT_FILE_NAME, false);
     assert.equal(selectInverseCommitAtInstant(storedCommits, markerTime), undefined);
 });
+
+const LATE_START_TIME = makeInstant(50);
+
+type HoldingPlayRequester = { requestPlay: HistoryWalkerOptions["requestPlay"]; getCallCount: () => number; resolveAllPlays: () => void };
+
+function createHoldingPlayRequester(): HoldingPlayRequester {
+    const resolvers: (() => void)[] = [];
+    let callCount = 0;
+    const requestPlay: HistoryWalkerOptions["requestPlay"] = () => {
+        callCount += 1;
+        return new Promise<PlayOutcome>((resolve) => {
+            resolvers.push(() => resolve({ kind: PlayOutcomeKind.Replayed, reasonText: undefined }));
+        });
+    };
+    const resolveAllPlays = (): void => {
+        for (const resolver of resolvers.splice(0)) {
+            resolver();
+        }
+    };
+    return { requestPlay, getCallCount: () => callCount, resolveAllPlays };
+}
+
+test("test_a_second_stop_answer_for_a_file_with_a_play_waiting_requests_no_second_play", async (t) => {
+    // Scenario: the session runs scripts now; the play of the file is held open.
+    const holdingPlayRequester = createHoldingPlayRequester();
+    const harness = buildHarness(t, { decideScriptAction: () => ScriptAction.RunNow, requestPlay: holdingPlayRequester.requestPlay });
+    // The first stop answer asks for a play; the answer is not awaited.
+    const firstHandling = harness.walker.handleOutcome({ file: harness.file, startAt: LATE_START_TIME, isPassingStops: false }, makeStoppedOutcome(FileEventType.ScriptMayWrite, SOURCE_TEXT));
+    // The second stop answer for the same file arrives while the play waits.
+    const secondHandling = harness.walker.handleOutcome({ file: harness.file, startAt: new Date(0), isPassingStops: false }, makeStoppedOutcome(FileEventType.ScriptMayWrite, SOURCE_TEXT));
+    // Only one play was requested.
+    assert.equal(holdingPlayRequester.getCallCount(), 1);
+    // The play ends; both answers finish.
+    holdingPlayRequester.resolveAllPlays();
+    await firstHandling;
+    await secondHandling;
+    // Still only one play was requested.
+    assert.equal(holdingPlayRequester.getCallCount(), 1);
+});
+
+test("test_the_play_key_on_a_file_with_a_play_waiting_requests_no_second_play", async (t) => {
+    // Scenario: the file has a known script stop; the session runs scripts now; the play from the stop answer is held open.
+    const holdingPlayRequester = createHoldingPlayRequester();
+    const harness = buildHarness(t, { decideScriptAction: () => ScriptAction.RunNow, requestPlay: holdingPlayRequester.requestPlay });
+    const stopHandling = harness.walker.handleOutcome({ file: harness.file, startAt: MARKER_TIME, isPassingStops: false }, makeStoppedOutcome(FileEventType.ScriptMayWrite, SOURCE_TEXT));
+    assert.equal(holdingPlayRequester.getCallCount(), 1);
+    // The play key is pressed while that play waits.
+    const keyHandling = harness.walker.playScript(harness.file, LATE_START_TIME);
+    // Only one play was requested in total.
+    assert.equal(holdingPlayRequester.getCallCount(), 1);
+    holdingPlayRequester.resolveAllPlays();
+    await stopHandling;
+    await keyHandling;
+    assert.equal(holdingPlayRequester.getCallCount(), 1);
+});
+
+test("test_the_walk_after_a_play_uses_the_oldest_start_time_of_the_dropped_requests", async (t) => {
+    // Scenario: no coverage sidecar exists; the play of the file is held open.
+    const holdingPlayRequester = createHoldingPlayRequester();
+    const harness = buildHarness(t, { decideScriptAction: () => ScriptAction.RunNow, requestPlay: holdingPlayRequester.requestPlay });
+    // The first stop answer starts late; the second stop answer starts at time zero and is dropped.
+    const firstHandling = harness.walker.handleOutcome({ file: harness.file, startAt: LATE_START_TIME, isPassingStops: false }, makeStoppedOutcome(FileEventType.ScriptMayWrite, SOURCE_TEXT));
+    const secondHandling = harness.walker.handleOutcome({ file: harness.file, startAt: new Date(0), isPassingStops: false }, makeStoppedOutcome(FileEventType.ScriptMayWrite, SOURCE_TEXT));
+    // The play ends with Replayed.
+    holdingPlayRequester.resolveAllPlays();
+    await firstHandling;
+    await secondHandling;
+    // Exactly one walk was requested, and it starts at the oldest time.
+    assert.equal(harness.requestedWalks.length, 1);
+    assert.equal(harness.requestedWalks[0]!.request.startAt.getTime(), 0);
+});
+
+test("test_a_new_stop_answer_after_the_play_ended_requests_a_new_play", async (t) => {
+    // Scenario: the first play runs and ends.
+    const holdingPlayRequester = createHoldingPlayRequester();
+    const harness = buildHarness(t, { decideScriptAction: () => ScriptAction.RunNow, requestPlay: holdingPlayRequester.requestPlay });
+    const firstHandling = harness.walker.handleOutcome({ file: harness.file, startAt: LATE_START_TIME, isPassingStops: false }, makeStoppedOutcome(FileEventType.ScriptMayWrite, SOURCE_TEXT));
+    holdingPlayRequester.resolveAllPlays();
+    await firstHandling;
+    assert.equal(holdingPlayRequester.getCallCount(), 1);
+    // Another stop answer for the same file arrives after the play ended.
+    const secondHandling = harness.walker.handleOutcome({ file: harness.file, startAt: LATE_START_TIME, isPassingStops: false }, makeStoppedOutcome(FileEventType.ScriptMayWrite, SOURCE_TEXT));
+    holdingPlayRequester.resolveAllPlays();
+    await secondHandling;
+    // A second play was requested.
+    assert.equal(holdingPlayRequester.getCallCount(), 2);
+});
