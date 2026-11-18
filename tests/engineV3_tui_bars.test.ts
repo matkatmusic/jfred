@@ -195,7 +195,8 @@ function makeAppProps(project: Project, events: ProjectEventEntry[]): AppProps {
         countsByFile: new Map([[project.file.toString(), makeZeroEventCounts()]]),
         keymap: loadKeymap(DEFAULT_KEYMAP_FILE),
         walkState: createWalkState(),
-        walker: { walkHistoryTo: () => true, handleOutcome: async () => {} },
+        // walker: { walkHistoryTo: () => true, handleOutcome: async () => {} },
+        walker: { walkHistoryTo: () => true, handleOutcome: async () => {}, playScript: throwBecauseNotExpected },
         pool: {
             requestWalk: () => {},
             requestPlay: throwBecauseNotExpected,

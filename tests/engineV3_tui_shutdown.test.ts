@@ -328,6 +328,7 @@ test("test_a_step_child_ended_by_the_shutdown_gives_no_crashed_status_and_no_err
         storeFolder,
         projectFolder: new Path("/project"),
         walkState,
+        playKeyName: "p",
         requestWalk: () => {},
         requestPlay: async () => ({ kind: PlayOutcomeKind.Replayed, reasonText: undefined }),
         decideScriptAction: () => {

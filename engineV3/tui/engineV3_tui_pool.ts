@@ -5,6 +5,7 @@ import { FileWalkStatus, PlayOutcomeKind } from "../../src/structures/vocabulary
 import { cancelAll, cancelFile, type PoolCancelContext } from "./engineV3_tui_pool_cancel.ts";
 import { validateStepPoolOptions } from "./engineV3_tui_pool_options.ts";
 import { listRunningFiles, runPlayRequest } from "./engineV3_tui_pool_play.ts";
+import { createPlayQueue } from "./engineV3_tui_pool_play_queue.ts";
 import { mergeEntry, pickNextEntry, type PoolEntry } from "./engineV3_tui_pool_queue.ts";
 import { isStoreStale } from "./engineV3_tui_pool_stale.ts";
 import type { PlayOutcome, PlayRequest, StepPool, StepPoolOptions, StepProcessOutcome, StepRequest } from "./engineV3_tui_walk_types.ts";
@@ -19,6 +20,7 @@ export function createStepPool(options: StepPoolOptions): StepPool {
     let isStartingStopped = false;
     let isPlayRunning = false;
     let isConsentOpen = options.consentGate !== undefined;
+    const playQueue = createPlayQueue();
 
     function setStatus(file: Path, status: FileWalkStatus): void {
         options.onStatusChange(file, { status, reasonText: undefined, failedReplayCount: 0 });
@@ -130,7 +132,7 @@ export function createStepPool(options: StepPoolOptions): StepPool {
         if (isStoreStale(options)) {
             return Promise.resolve({ kind: PlayOutcomeKind.ReplayRefused, reasonText: "the store has stale repos: press Shift-R to reset" });
         }
-        return runPlayRequest(request, walkToEndFiles, {
+        return playQueue.enqueuePlay(() => runPlayRequest(request, walkToEndFiles, {
             isFileSteppable: options.isFileSteppable,
             isFileWalkFinished: options.isFileWalkFinished,
             spawnPlayProcess: options.spawnPlayProcess,
@@ -140,7 +142,7 @@ export function createStepPool(options: StepPoolOptions): StepPool {
             isIdle,
             setPlayRunning: (isRunning) => { isPlayRunning = isRunning; },
             releaseQueue: () => { startQueuedChildren(); resolveIdleWaiters(); },
-        });
+        }));
     }
 
     return { requestWalk, requestPlay, cancelFile: (file) => cancelFile(cancelContext, file), cancelAll: () => cancelAll(cancelContext), stopStarting, waitUntilIdle, listRunningFiles: () => listRunningFiles(runningRequestByFileValue) };

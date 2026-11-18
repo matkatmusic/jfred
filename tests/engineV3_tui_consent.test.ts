@@ -50,6 +50,7 @@ async function readStoppedReasonText(t: TestContext, answers: ConsentAnswers): P
         storeFolder: new Path(join(rootFolder, "store")),
         projectFolder,
         walkState,
+        playKeyName: "p",
         requestWalk: (request) => {
             requestedWalks.push(request);
         },
@@ -180,11 +181,13 @@ test("test_the_stop_text_names_the_play_key_only_when_the_key_is_allowed", async
     // Scenario: the walker stops at a script that may write, once with each kind of answers.
     // With the key allowed, the stop text names the play key.
     const allowedText = await readStoppedReasonText(t, makeAnswers(true, false));
-    assert.ok(allowedText.includes("press the play key"));
+    // assert.ok(allowedText.includes("press the play key"));
+    assert.ok(allowedText.includes("press p to run the script"));
     // With scripts refused, the stop text says scripts are not allowed and does not name the play key.
     const refusedText = await readStoppedReasonText(t, makeAnswers(false, undefined));
     assert.ok(refusedText.includes("scripts are not allowed in this session"));
-    assert.ok(!refusedText.includes("press the play key"));
+    // assert.ok(!refusedText.includes("press the play key"));
+    assert.ok(!refusedText.includes("press p to run the script"));
 });
 
 test("test_the_play_key_acts_on_the_cursor_row_only", () => {

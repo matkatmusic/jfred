@@ -73,7 +73,8 @@ function LoadedApp(props: AppProps) {
     const playScriptOfCursorFile = (): void => {
         const file = chooseFileForPlayKey(cursorFile, selection.selectedFiles);
         if (getFileRunState(props.walkState, file).status === FileWalkStatus.Stopped) {
-            void props.onPlayScript(file);
+            // void props.onPlayScript(file);
+            void props.onPlayScript(file, getTimeOfFile(file));
         }
     };
 
@@ -133,7 +134,8 @@ function LoadedApp(props: AppProps) {
                 {props.cacheStatusText !== undefined && <Barbershop width={BAR_WIDTH} />}
             </Box>
             <Box flexDirection="column" flexGrow={1}>{rows}</Box>
-            <Box height={1}><Text wrap="truncate-start">{infoRowText}</Text></Box>
+            {/* <Box height={1}><Text wrap="truncate-start">{infoRowText}</Text></Box> */}
+            <Box height={1}><Text wrap="truncate-end">{infoRowText}</Text></Box>
             <MenuRow keymap={props.keymap} speed={speed} />
         </Box>
     );

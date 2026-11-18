@@ -169,6 +169,9 @@ function makeAppProps(overrides: Partial<AppProps>): AppHarness {
         handleOutcome: () => {
             throw new Error("unexpected walker.handleOutcome");
         },
+        playScript: () => {
+            throw new Error("unexpected walker.playScript");
+        },
     };
     const props: AppProps = {
         terminalRows: 10,
@@ -579,4 +582,58 @@ test("test_shift_left_in_event_speed_returns_the_header_to_the_newest_time_after
     screen.stdin.write(SHIFT_LEFT_ARROW);
     await settle();
     assert.equal(getHeaderRow(screen.readFrameLines()).trim(), `marker ${newestIso}`);
+});
+
+type PlayScriptCall = { file: Path; startAt: Date };
+
+function makePlayScriptRecorder(playScriptCalls: PlayScriptCall[]): AppProps["onPlayScript"] {
+    return async (file, startAt) => {
+        playScriptCalls.push({ file, startAt });
+    };
+}
+
+test("test_the_play_key_on_a_stopped_row_calls_onPlayScript_with_the_file_and_its_time", async (t) => {
+    // Scenario: scripts are allowed and no question is open. The cursor file f00 is Stopped with a reason text.
+    const playScriptCalls: PlayScriptCall[] = [];
+    const harness = makeAppProps({ consentAnswers: { runScripts: true, runModifyingScriptsAutomatically: false }, onPlayScript: makePlayScriptRecorder(playScriptCalls) });
+    setFileRunState(harness.walkState, harness.files[0]!, makeRunState(FileWalkStatus.Stopped, "script may write: press p"));
+    const screen = startScreen(t, harness.props);
+    await settle();
+    // The marker starts at the newest event; f00 has no own time.
+    const markerInstant = harness.props.events[0]!.instant;
+    // Press p.
+    screen.stdin.write("p");
+    await settle();
+    // Exactly one call: the cursor file, and the project marker time as a Date.
+    assert.equal(playScriptCalls.length, 1);
+    assert.equal(playScriptCalls[0]!.file.value, harness.files[0]!.value);
+    assert.ok(playScriptCalls[0]!.startAt instanceof Date);
+    assert.equal(playScriptCalls[0]!.startAt.getTime(), markerInstant.getTime());
+});
+
+test("test_the_play_key_on_a_row_that_is_not_stopped_calls_nothing", async (t) => {
+    // Scenario: scripts are allowed and no question is open. The cursor file f00 is Idle.
+    const playScriptCalls: PlayScriptCall[] = [];
+    const harness = makeAppProps({ consentAnswers: { runScripts: true, runModifyingScriptsAutomatically: false }, onPlayScript: makePlayScriptRecorder(playScriptCalls) });
+    const screen = startScreen(t, harness.props);
+    await settle();
+    // Press p.
+    screen.stdin.write("p");
+    await settle();
+    // Nothing was called.
+    assert.equal(playScriptCalls.length, 0);
+});
+
+test("test_a_long_info_row_text_keeps_the_file_name_at_its_start", async (t) => {
+    // Scenario: the reason text of the cursor file f00 is far longer than the terminal width.
+    const harness = makeAppProps({});
+    const endOfLongText = "END-OF-THE-LONG-REASON";
+    setFileRunState(harness.walkState, harness.files[0]!, makeRunState(FileWalkStatus.Crashed, `${"x".repeat(300)}${endOfLongText}`));
+    const screen = startScreen(t, harness.props);
+    await settle();
+    // The info row starts with the file name.
+    const infoRow = getInfoRow(screen.readFrameLines());
+    assert.ok(infoRow.startsWith(makeFileName(0)), `info row: ${infoRow}`);
+    // The end of the long text is cut off.
+    assert.ok(!infoRow.includes(endOfLongText), `info row: ${infoRow}`);
 });

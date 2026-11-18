@@ -24,6 +24,7 @@ const JFRED_FOLDER = new Path(join(import.meta.dirname, ".."));
 const REAL_PROCESS_TIMEOUT_MILLISECONDS = 110000;
 const MARKER_TIME = makeInstant(20);
 const SOURCE_TEXT = "toolu_x";
+const PLAY_KEY_NAME = "p";
 
 type RequestedWalk = { request: StepRequest; isVisible: boolean };
 type StatusChange = { file: Path; runState: FileRunState };
@@ -63,6 +64,7 @@ function buildHarness(t: TestContext, overrides: Partial<HistoryWalkerOptions> =
         onStatusChange: (changedFile, runState) => {
             statusChanges.push({ file: changedFile, runState });
         },
+        playKeyName: PLAY_KEY_NAME,
         ...overrides,
     };
     return { file, folders, walkState, requestedWalks, statusChanges, walker: createHistoryWalker(options) };
@@ -185,7 +187,8 @@ test("test_walkHistoryTo_stops_at_a_script_stop_and_reports_the_source", async (
     assert.equal(askedAbout[0]!.source, SOURCE_TEXT);
     // The file is Stopped, the text names the source, and no new walk was requested.
     assert.equal(readRunState(harness).status, FileWalkStatus.Stopped);
-    assert.equal(readReasonText(harness), `stopped at ScriptMayWrite ${SOURCE_TEXT}: press the play key`);
+    // assert.equal(readReasonText(harness), `stopped at ScriptMayWrite ${SOURCE_TEXT}: press the play key`);
+    assert.equal(readReasonText(harness), `stopped at ScriptMayWrite: press ${PLAY_KEY_NAME} to run the script (${SOURCE_TEXT})`);
     assert.equal(harness.requestedWalks.length, 1);
     assertLastStatusChangeIsTheWalkState(harness);
 });
@@ -197,6 +200,7 @@ test("test_a_script_stop_says_scripts_are_not_allowed_when_the_session_refuses_s
     await harness.walker.handleOutcome(harness.requestedWalks[0]!.request, makeStoppedOutcome(FileEventType.ScriptMayWrite, SOURCE_TEXT));
     // The file is Stopped with the refusal text and no new walk was requested.
     assert.equal(readRunState(harness).status, FileWalkStatus.Stopped);
+    // The source text has no folders, so the short source equals SOURCE_TEXT.
     assert.equal(readReasonText(harness), `stopped at ScriptMayWrite ${SOURCE_TEXT}: scripts are not allowed in this session`);
     assert.equal(harness.requestedWalks.length, 1);
 });
@@ -264,8 +268,24 @@ test("test_a_script_stop_result_for_a_file_with_an_unfinished_walk_still_marks_t
     await harness.walker.handleOutcome(makeRequest(harness), makeStoppedOutcome(FileEventType.ScriptMayWrite, SOURCE_TEXT));
     // The row is Stopped with the play key text, and no walk was requested.
     assert.equal(readRunState(harness).status, FileWalkStatus.Stopped);
-    assert.equal(readReasonText(harness), `stopped at ScriptMayWrite ${SOURCE_TEXT}: press the play key`);
+    // assert.equal(readReasonText(harness), `stopped at ScriptMayWrite ${SOURCE_TEXT}: press the play key`);
+    assert.equal(readReasonText(harness), `stopped at ScriptMayWrite: press ${PLAY_KEY_NAME} to run the script (${SOURCE_TEXT})`);
     assert.equal(harness.requestedWalks.length, 0);
+});
+
+test("test_the_stop_text_names_the_play_key_and_the_short_source_only_when_the_key_is_allowed", async (t) => {
+    // Scenario: a script stop whose source holds folders; once the session waits for the play key, once it refuses scripts.
+    const longSource = "/tmp/x/logs/abc.jsonl:154";
+    const waitingHarness = buildHarness(t, { decideScriptAction: () => ScriptAction.WaitForKey });
+    const refusingHarness = buildHarness(t, { decideScriptAction: () => ScriptAction.Refuse });
+    await waitingHarness.walker.handleOutcome(makeRequest(waitingHarness), makeStoppedOutcome(FileEventType.ScriptMayWrite, longSource));
+    await refusingHarness.walker.handleOutcome(makeRequest(refusingHarness), makeStoppedOutcome(FileEventType.ScriptMayWrite, longSource));
+    // The wait-for-key text names the play key and the short source.
+    assert.equal(readReasonText(waitingHarness), "stopped at ScriptMayWrite: press p to run the script (abc.jsonl:154)");
+    // The refuse text names the short source and never names a key.
+    const refusedText = readReasonText(refusingHarness);
+    assert.equal(refusedText, "stopped at ScriptMayWrite abc.jsonl:154: scripts are not allowed in this session");
+    assert.ok(!refusedText.includes("press"), refusedText);
 });
 
 test("test_walkHistoryTo_stops_at_a_crash_and_does_not_respawn", async (t) => {
@@ -407,6 +427,77 @@ test("test_a_replay_refusal_for_a_file_with_an_unfinished_walk_counts_a_failed_r
     assertLastStatusChangeIsTheWalkState(harness);
 });
 
+function setStoppedRunState(harness: Harness): void {
+    setFileRunState(harness.walkState, harness.file, { status: FileWalkStatus.Stopped, reasonText: "stopped at ScriptMayWrite: press p to run the script (toolu_x)", failedReplayCount: 0 });
+}
+
+test("test_playScript_with_a_replayed_answer_writes_idle_and_walks_to_the_start_time_again", async (t) => {
+    // Scenario: the row is Stopped; the play key asks for a play; the play answers Replayed; the sidecar still stops at second 40.
+    const playRequests: { file: Path }[] = [];
+    const requestPlay: HistoryWalkerOptions["requestPlay"] = async (playRequest) => {
+        playRequests.push(playRequest);
+        return { kind: PlayOutcomeKind.Replayed, reasonText: undefined };
+    };
+    const harness = buildHarness(t, { requestPlay });
+    setStoppedRunState(harness);
+    writeCoverageSidecar(harness, makeInstant(40), false);
+    await harness.walker.playScript(harness.file, MARKER_TIME);
+    // The play request named the file.
+    assert.equal(playRequests.length, 1);
+    assert.equal(playRequests[0]!.file.toString(), harness.file.toString());
+    // The row is Idle with no reason text, and the time is not spanned, so one walk to the start time was requested.
+    assert.equal(readRunState(harness).status, FileWalkStatus.Idle);
+    assert.equal(readRunState(harness).reasonText, undefined);
+    assert.equal(harness.requestedWalks.length, 1);
+    assert.deepEqual(harness.requestedWalks[0]!.request, makeRequest(harness));
+    assertLastStatusChangeIsTheWalkState(harness);
+});
+
+test("test_playScript_with_a_refused_answer_writes_stopped_with_the_reason_and_counts_a_failed_replay", async (t) => {
+    // Scenario: the row is Stopped; the play answers replay-refused; the walk of the file is not finished.
+    const refusalReason = "the replay found no stop to pass";
+    const requestPlay: HistoryWalkerOptions["requestPlay"] = async () => ({ kind: PlayOutcomeKind.ReplayRefused, reasonText: refusalReason });
+    const harness = buildHarness(t, { requestPlay });
+    setStoppedRunState(harness);
+    writeCoverageSidecar(harness, makeInstant(40), false);
+    await harness.walker.playScript(harness.file, MARKER_TIME);
+    // The row is Stopped with the play reason, one failed replay is counted, and no walk was requested.
+    assert.equal(readRunState(harness).status, FileWalkStatus.Stopped);
+    assert.equal(readReasonText(harness), refusalReason);
+    assert.equal(readRunState(harness).failedReplayCount, 1);
+    assert.equal(harness.requestedWalks.length, 0);
+    assertLastStatusChangeIsTheWalkState(harness);
+});
+
+test("test_playScript_with_a_refused_answer_for_a_finished_file_writes_idle_with_no_failed_replay", async (t) => {
+    // Scenario: the row is Stopped; the play answers replay-refused; the walk of the file is finished.
+    const requestPlay: HistoryWalkerOptions["requestPlay"] = async () => ({ kind: PlayOutcomeKind.ReplayRefused, reasonText: "the replay found no stop to pass" });
+    const harness = buildHarness(t, { requestPlay });
+    setStoppedRunState(harness);
+    writeCoverageSidecar(harness, makeInstant(10), true);
+    await harness.walker.playScript(harness.file, MARKER_TIME);
+    // The row is Idle with no reason text, no failed replay is counted, and no walk was requested.
+    assert.equal(readRunState(harness).status, FileWalkStatus.Idle);
+    assert.equal(readRunState(harness).reasonText, undefined);
+    assert.equal(readRunState(harness).failedReplayCount, 0);
+    assert.equal(harness.requestedWalks.length, 0);
+    assertLastStatusChangeIsTheWalkState(harness);
+});
+
+test("test_playScript_with_a_crashed_answer_writes_crashed_with_the_reason", async (t) => {
+    // Scenario: the row is Stopped; the play child crashes.
+    const crashReason = "the play child exited with code 1";
+    const requestPlay: HistoryWalkerOptions["requestPlay"] = async () => ({ kind: PlayOutcomeKind.Crashed, reasonText: crashReason });
+    const harness = buildHarness(t, { requestPlay });
+    setStoppedRunState(harness);
+    await harness.walker.playScript(harness.file, MARKER_TIME);
+    // The row is Crashed with the play reason, and no walk was requested.
+    assert.equal(readRunState(harness).status, FileWalkStatus.Crashed);
+    assert.equal(readReasonText(harness), crashReason);
+    assert.equal(harness.requestedWalks.length, 0);
+    assertLastStatusChangeIsTheWalkState(harness);
+});
+
 function writeCoverageSidecarOfFile(folders: Folders, file: Path, tipInstant: Date | null, isFinished: boolean): void {
     const repoFolder = getInverseRepoFolderForFile(folders.storeFolder, folders.projectFolder, file);
     mkdirSync(repoFolder.toString(), { recursive: true });
@@ -454,6 +545,7 @@ test("test_two_files_stopped_at_a_script_stop_get_one_play_child_when_the_first_
         requestPlay: (playRequest) => pool.requestPlay(playRequest, [getOtherFile(playRequest.file)]),
         decideScriptAction: () => ScriptAction.RunNow,
         onStatusChange: (file, runState) => setFileRunState(walkState, file, runState),
+        playKeyName: PLAY_KEY_NAME,
     });
     // Both files report the script stop; the answers are not awaited yet.
     const requestOfFileA: StepRequest = { file: fileA, startAt: MARKER_TIME, isPassingStops: false };
@@ -470,6 +562,81 @@ test("test_two_files_stopped_at_a_script_stop_get_one_play_child_when_the_first_
     assert.equal(getFileRunState(walkState, fileB).status, FileWalkStatus.Idle);
     assert.equal(getFileRunState(walkState, fileA).failedReplayCount, 0);
     assert.equal(getFileRunState(walkState, fileB).failedReplayCount, 0);
+});
+
+test("test_three_files_stopped_at_one_script_stop_get_exactly_one_play_child_spawned_after_the_pre_play_walks", async (t) => {
+    // Scenario: fileA, fileB and fileC stop at the same script stop; the session runs scripts now; the pre-play walks stay open until the test opens the gate.
+    const folders = makeTemporaryFolders(t);
+    const fileA = new Path(join(folders.projectFolder.toString(), "fileA.txt"));
+    const fileB = new Path(join(folders.projectFolder.toString(), "fileB.txt"));
+    const fileC = new Path(join(folders.projectFolder.toString(), "fileC.txt"));
+    const allFiles = [fileA, fileB, fileC];
+    const walkState = createWalkState();
+    const eventLog: string[] = [];
+    let openGate: () => void = throwBecauseNotExpected;
+    const gate = new Promise<void>((resolve) => {
+        openGate = resolve;
+    });
+    for (const file of allFiles) {
+        writeCoverageSidecarOfFile(folders, file, makeInstant(40), false);
+    }
+    const getOtherFiles = (file: Path): Path[] => allFiles.filter((otherFile) => otherFile.toString() !== file.toString());
+    const pool = createStepPool({
+        maxProcesses: 4,
+        spawnStepProcess: async (request: StepRequest): Promise<StepProcessOutcome> => {
+            eventLog.push(`walk:${request.file.toString()}`);
+            await gate;
+            writeCoverageSidecarOfFile(folders, request.file, makeInstant(10), true);
+            return makeFinishedOutcome();
+        },
+        spawnPlayProcess: async (playRequest): Promise<PlayOutcome> => {
+            eventLog.push(`play:${playRequest.file.toString()}`);
+            writeCoverageSidecarOfFile(folders, playRequest.file, makeInstant(10), true);
+            return { kind: PlayOutcomeKind.Replayed, reasonText: undefined };
+        },
+        onOutcome: (request: StepRequest, outcome: StepProcessOutcome) => {
+            void walker.handleOutcome(request, outcome);
+        },
+        onStatusChange: () => {},
+        isFileWalkFinished: (file) => readWalkCoverage(getInverseRepoFolderForFile(folders.storeFolder, folders.projectFolder, file))?.isFinished === true,
+        isFileSteppable: () => true,
+        hasLogsGrown: () => false,
+        onLogsGrew: () => {},
+        endChildOfFile: async () => {},
+        endAllChildren: async () => {},
+    });
+    const walker = createHistoryWalker({
+        storeFolder: folders.storeFolder,
+        projectFolder: folders.projectFolder,
+        walkState,
+        requestWalk: pool.requestWalk,
+        requestPlay: (playRequest) => pool.requestPlay(playRequest, getOtherFiles(playRequest.file)),
+        decideScriptAction: () => ScriptAction.RunNow,
+        onStatusChange: (file, runState) => setFileRunState(walkState, file, runState),
+        playKeyName: PLAY_KEY_NAME,
+    });
+    // All three files report the script stop; the answers are not awaited yet.
+    const handlings = allFiles.map((file) => walker.handleOutcome({ file, startAt: MARKER_TIME, isPassingStops: false }, makeStoppedOutcome(FileEventType.ScriptMayWrite, SOURCE_TEXT)));
+    // Wait on a real timer so every play request reaches its pre-play walk phase, then open the gate.
+    await new Promise<void>((resolve) => setTimeout(resolve, 50));
+    openGate();
+    await Promise.all(handlings);
+    await pool.waitUntilIdle();
+    // Exactly one play child ran, and it was the play of fileA.
+    const playEntries = eventLog.filter((entry) => entry.startsWith("play:"));
+    assert.deepEqual(playEntries, [`play:${fileA.toString()}`]);
+    // Every pre-play walk came before that play.
+    const playIndex = eventLog.indexOf(playEntries[0]!);
+    eventLog.forEach((entry, index) => {
+        if (entry.startsWith("walk:")) {
+            assert.ok(index < playIndex, `${entry} came after the play: ${eventLog.join(", ")}`);
+        }
+    });
+    // All three rows are Idle and no failed replay is counted.
+    for (const file of allFiles) {
+        assert.equal(getFileRunState(walkState, file).status, FileWalkStatus.Idle);
+        assert.equal(getFileRunState(walkState, file).failedReplayCount, 0);
+    }
 });
 
 test("test_the_answer_of_a_cancelled_child_is_dropped", async (t) => {

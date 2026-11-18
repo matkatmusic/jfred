@@ -15,6 +15,18 @@ export type InfoRowInput = {
 
 export function buildInfoRowText(input: InfoRowInput): string {
     const textPieces: string[] = [input.fileName];
+    if (input.runState.reasonText !== undefined) {
+        textPieces.push(input.runState.reasonText);
+    }
+    if (input.scriptRefusalText !== undefined) {
+        textPieces.push(input.scriptRefusalText);
+    }
+    if (input.ownTime !== undefined) {
+        textPieces.push(`own time ${input.ownTime.toISOString()}`);
+    }
+    if (input.isTimeSpanned === false) {
+        textPieces.push("not walked to this time");
+    }
     if (input.barInfo !== undefined) {
         const barInfo = input.barInfo;
         textPieces.push(
@@ -25,18 +37,6 @@ export function buildInfoRowText(input: InfoRowInput): string {
             `failed replays ${barInfo.failedReplayCount}`,
             barInfo.stateText,
         );
-    }
-    if (input.ownTime !== undefined) {
-        textPieces.push(`own time ${input.ownTime.toISOString()}`);
-    }
-    if (input.isTimeSpanned === false) {
-        textPieces.push("not walked to this time");
-    }
-    if (input.runState.reasonText !== undefined) {
-        textPieces.push(input.runState.reasonText);
-    }
-    if (input.scriptRefusalText !== undefined) {
-        textPieces.push(input.scriptRefusalText);
     }
     return textPieces.join("  ");
 }

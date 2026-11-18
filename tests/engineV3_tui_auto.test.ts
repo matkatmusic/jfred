@@ -58,6 +58,7 @@ function createFakeWalker(
             return false;
         },
         handleOutcome: throwBecauseNotExpected,
+        playScript: throwBecauseNotExpected,
     };
 }
 
@@ -92,6 +93,7 @@ test("test_auto_ends_with_every_file_finished_on_a_small_project", { timeout: RE
         requestWalk: (request, isVisible) => pool!.requestWalk(request, isVisible),
         requestPlay: throwBecauseNotExpected,
         decideScriptAction: throwBecauseNotExpected,
+        playKeyName: "p",
         onStatusChange: () => {},
     });
     pool = createStepPool({

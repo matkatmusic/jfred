@@ -412,6 +412,37 @@ test("test_a_play_for_a_file_whose_walk_finished_during_the_pre_play_walks_spawn
     assert.equal(playOutcome.reasonText, undefined);
 });
 
+test("test_play_requests_run_one_after_the_other_as_whole_units", async () => {
+    // Scenario: a later play request does not start its unit (pre-play walks, play child) until the earlier play request has returned its outcome.
+    // Steps:
+    // the play child is held, and two files fileA and fileB are not finished.
+    const testPool = makeTestPool({ maxProcesses: 4, isPlayHeld: true });
+    const fileA = makeFile("fileA.txt");
+    const fileB = makeFile("fileB.txt");
+    // two play requests are made in the same tick: play A (walks fileB first) and play B (walks fileA first).
+    const firstPlayPromise = testPool.pool.requestPlay({ file: fileA }, [fileB]);
+    const secondPlayPromise = testPool.pool.requestPlay({ file: fileB }, [fileA]);
+    // the walk child of fileB opens: it is the pre-play walk of play A.
+    await waitForCondition(() => testPool.held.hasOpenCallForFile(fileB), WAIT_TIMEOUT_MILLISECONDS);
+    // the walk child of fileB finishes the repo of fileB.
+    testPool.finishedFileValues.add(fileB.value);
+    testPool.held.resolveOpenCallOfFile(fileB, makeFinishedOutcome());
+    // the play child of fileA starts.
+    await waitForCondition(() => testPool.eventLog.includes("play:/project/fileA.txt"), WAIT_TIMEOUT_MILLISECONDS);
+    // play B has not started its unit: no walk request for fileA exists.
+    await waitMilliseconds(NEGATIVE_WAIT_MILLISECONDS + 20);
+    const walkRequestsOfFileA = testPool.held.getRequests().filter((request) => request.file.equals(fileA));
+    assert.equal(walkRequestsOfFileA.length, 0);
+    // the play child of fileA exits and play A returns its outcome.
+    testPool.releasePlay();
+    const firstPlayOutcome = await firstPlayPromise;
+    assert.equal(firstPlayOutcome.kind, PlayOutcomeKind.Replayed);
+    // fileB is finished, so play B ends at its own finished check and starts no play child.
+    const secondPlayOutcome = await secondPlayPromise;
+    assert.equal(secondPlayOutcome.kind, PlayOutcomeKind.Replayed);
+    assert.deepEqual(testPool.playedFiles.map((file) => file.value), [fileA.value]);
+});
+
 test("test_a_play_for_a_replay_file_outside_the_layered_list_is_refused_before_any_child_starts", async () => {
     // Scenario: a replay file that the step program cannot walk refuses the play at once.
     // Steps:

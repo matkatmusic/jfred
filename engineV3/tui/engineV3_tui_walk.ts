@@ -6,10 +6,15 @@ import { FileEventType } from "../engineV3_replay_reverse_events.ts";
 import { getInverseRepoFolderForFile } from "../engineV3_inverse_repos_for_project.ts";
 import { isInstantSpannedByWalkCoverage, readWalkCoverage } from "../engineV3_walk_coverage.ts";
 import { getFileRunState, setFileRunState, type FileRunState } from "./engineV3_tui_walk_state.ts";
-import type { HistoryWalker, HistoryWalkerOptions, StepProcessOutcome, StepRequest } from "./engineV3_tui_walk_types.ts";
+import type { HistoryWalker, HistoryWalkerOptions, PlayOutcome, StepProcessOutcome, StepRequest } from "./engineV3_tui_walk_types.ts";
+import { basename } from "node:path";
 
 // The caller of handleOutcome gives no visibility, so a walk requested again after an answer counts as visible.
 const IS_REWALK_VISIBLE = true;
+
+function formatShortSource(source: string | null): string {
+    return basename(String(source));
+}
 
 function isRepoSpanningInstant(options: HistoryWalkerOptions, file: Path, instant: Date): boolean {
     const repoFolder = getInverseRepoFolderForFile(options.storeFolder, options.projectFolder, file);
@@ -58,33 +63,45 @@ function handleDoneOutcome(options: HistoryWalkerOptions, request: StepRequest, 
     }
 }
 
-async function handleScriptStop(options: HistoryWalkerOptions, request: StepRequest, source: string | null): Promise<void> {
-    const stopText = `stopped at ${FileEventType.ScriptMayWrite} ${source}`;
-    const scriptAction = options.decideScriptAction(request.file, FileEventType.ScriptMayWrite, source);
-    if (scriptAction === ScriptAction.Refuse) {
-        writeStatus(options, request.file, FileWalkStatus.Stopped, `${stopText}: scripts are not allowed in this session`);
-        return;
-    }
-    if (scriptAction === ScriptAction.WaitForKey) {
-        writeStatus(options, request.file, FileWalkStatus.Stopped, `${stopText}: press the play key`);
-        return;
-    }
-    const playOutcome = await options.requestPlay({ file: request.file });
+function writePlayOutcome(options: HistoryWalkerOptions, file: Path, startAt: Date, playOutcome: PlayOutcome): void {
     if (playOutcome.kind === PlayOutcomeKind.Replayed) {
-        writeStatus(options, request.file, FileWalkStatus.Idle, undefined);
-        walkHistoryTo(options, request.startAt, request.file, IS_REWALK_VISIBLE);
+        writeStatus(options, file, FileWalkStatus.Idle, undefined);
+        walkHistoryTo(options, startAt, file, IS_REWALK_VISIBLE);
         return;
     }
     if (playOutcome.kind === PlayOutcomeKind.ReplayRefused) {
-        if (isRepoWalkFinished(options, request.file)) {
-            writeStatus(options, request.file, FileWalkStatus.Idle, undefined);
+        if (isRepoWalkFinished(options, file)) {
+            writeStatus(options, file, FileWalkStatus.Idle, undefined);
             return;
         }
-        const previousRunState = getFileRunState(options.walkState, request.file);
-        writeRunState(options, request.file, { status: FileWalkStatus.Stopped, reasonText: playOutcome.reasonText, failedReplayCount: previousRunState.failedReplayCount + 1 });
+        const previousRunState = getFileRunState(options.walkState, file);
+        writeRunState(options, file, { status: FileWalkStatus.Stopped, reasonText: playOutcome.reasonText, failedReplayCount: previousRunState.failedReplayCount + 1 });
         return;
     }
-    writeStatus(options, request.file, FileWalkStatus.Crashed, playOutcome.reasonText);
+    writeStatus(options, file, FileWalkStatus.Crashed, playOutcome.reasonText);
+}
+
+async function playScript(options: HistoryWalkerOptions, file: Path, startAt: Date): Promise<void> {
+    const playOutcome = await options.requestPlay({ file });
+    writePlayOutcome(options, file, startAt, playOutcome);
+}
+
+async function handleScriptStop(options: HistoryWalkerOptions, request: StepRequest, source: string | null): Promise<void> {
+    // const stopText = `stopped at ${FileEventType.ScriptMayWrite} ${source}`;
+    const shortSource = formatShortSource(source);
+    const scriptAction = options.decideScriptAction(request.file, FileEventType.ScriptMayWrite, source);
+    if (scriptAction === ScriptAction.Refuse) {
+        // writeStatus(options, request.file, FileWalkStatus.Stopped, `${stopText}: scripts are not allowed in this session`);
+        writeStatus(options, request.file, FileWalkStatus.Stopped, `stopped at ${FileEventType.ScriptMayWrite} ${shortSource}: scripts are not allowed in this session`);
+        return;
+    }
+    if (scriptAction === ScriptAction.WaitForKey) {
+        // writeStatus(options, request.file, FileWalkStatus.Stopped, `${stopText}: press the play key`);
+        writeStatus(options, request.file, FileWalkStatus.Stopped, `stopped at ${FileEventType.ScriptMayWrite}: press ${options.playKeyName} to run the script (${shortSource})`);
+        return;
+    }
+    const playOutcome = await options.requestPlay({ file: request.file });
+    writePlayOutcome(options, request.file, request.startAt, playOutcome);
 }
 
 function describeCrash(outcome: Extract<StepProcessOutcome, { kind: StepProcessOutcomeKind.Crashed }>): string {
@@ -116,7 +133,8 @@ async function handleOutcome(options: HistoryWalkerOptions, request: StepRequest
             await handleScriptStop(options, request, outcome.source);
             return;
         }
-        writeStatus(options, request.file, FileWalkStatus.Stopped, `stopped at ${outcome.eventType} ${outcome.source}: the engine stops here in every new process`);
+        // writeStatus(options, request.file, FileWalkStatus.Stopped, `stopped at ${outcome.eventType} ${outcome.source}: the engine stops here in every new process`);
+        writeStatus(options, request.file, FileWalkStatus.Stopped, `stopped at ${outcome.eventType} ${formatShortSource(outcome.source)}: the engine stops here in every new process`);
         return;
     }
     writeStatus(options, request.file, FileWalkStatus.Crashed, describeCrash(outcome));
@@ -126,5 +144,6 @@ export function createHistoryWalker(options: HistoryWalkerOptions): HistoryWalke
     return {
         walkHistoryTo: (currentTime, file, isVisible) => walkHistoryTo(options, currentTime, file, isVisible),
         handleOutcome: (request, outcome) => handleOutcome(options, request, outcome),
+        playScript: (file, startAt) => playScript(options, file, startAt),
     };
 }

@@ -6,7 +6,7 @@ import type { ConsentAnswers, ConsentQuestion } from "./engineV3_tui_consent.ts"
 import type { Keymap } from "./engineV3_tui_keymap.ts";
 import type { FileEventCounts, ProjectEventEntry } from "./engineV3_tui_project_cache.ts";
 import type { WalkState } from "./engineV3_tui_walk_state.ts";
-import type { HistoryWalker, PlayOutcome, StepPool } from "./engineV3_tui_walk_types.ts";
+import type { HistoryWalker, StepPool } from "./engineV3_tui_walk_types.ts";
 
 export type AppProps = {
     terminalRows: number;
@@ -33,7 +33,7 @@ export type AppProps = {
     onConsentAnswered: (answerKey: ConsentQuestion["answerKey"], answer: boolean) => void;
     onResetSelectedStores: (files: Path[]) => Promise<void>;
     onResetAllStores: () => Promise<void>;
-    onPlayScript: (file: Path) => Promise<PlayOutcome>;
+    onPlayScript: (file: Path, startAt: Date) => Promise<void>;
 };
 
 export type SelectionState = { cursorIndex: number; selectedFiles: Path[]; lastToggledIndex: number | undefined };

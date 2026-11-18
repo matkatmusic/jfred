@@ -66,10 +66,13 @@ export type HistoryWalkerOptions = {
     requestPlay: (request: PlayRequest) => Promise<PlayOutcome>;
     decideScriptAction: (file: Path, eventType: FileEventType, source: string | null) => ScriptAction;
     onStatusChange: (file: Path, runState: FileRunState) => void;
+    playKeyName: string;   // display name of the play key from the keymap, named in the stop text
 };
 
 export type HistoryWalker = {
     // true = the repo already spans the time, no process requested
     walkHistoryTo(currentTime: Date, file: Path, isVisible: boolean): boolean;
     handleOutcome(request: StepRequest, outcome: StepProcessOutcome): Promise<void>;
+    // the play key: asks the pool for a play of the file and writes the row state from the answer; startAt is the time to walk to again after a good replay
+    playScript(file: Path, startAt: Date): Promise<void>;
 };

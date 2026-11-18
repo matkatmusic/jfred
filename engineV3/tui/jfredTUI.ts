@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { render } from "ink";
 import { createElement } from "react";
 import { Path } from "../../src/structures/domain.ts";
+import { TuiCommand } from "../../src/structures/vocabulary.ts";
 import { readEarliestBoundary, type EarliestBoundary } from "../engineV3_earliest_boundary.ts";
 import { getInverseRepoFolderForFile, getLogFilesHash, listProjectFilesWithStaleInverseRepos } from "../engineV3_inverse_repos_for_project.ts";
 import { isInstantSpannedByWalkCoverage, readWalkCoverage } from "../engineV3_walk_coverage.ts";
@@ -14,7 +15,7 @@ import { runAutoWalk } from "./engineV3_tui_auto.ts";
 import { listInverseRepoFileWire } from "./engineV3_tui_bars.ts";
 import { createLoadingScreen, runProjectCacheChild } from "./engineV3_tui_cache_child.ts";
 import { createConsentGate, decideScriptAction, type ConsentAnswers } from "./engineV3_tui_consent.ts";
-import { loadKeymap } from "./engineV3_tui_keymap.ts";
+import { formatKeyBinding, loadKeymap } from "./engineV3_tui_keymap.ts";
 import { createStepPool } from "./engineV3_tui_pool.ts";
 import { getProjectCacheFile, readProjectCache } from "./engineV3_tui_project_cache.ts";
 import { acquireTuiLock, prepareTuiStore, readTuiSettings } from "./engineV3_tui_settings.ts";
@@ -87,6 +88,7 @@ async function main(): Promise<void> {
         requestPlay: (request: PlayRequest) => pool.requestPlay(request, listWalkToEndFiles(request.file)),
         decideScriptAction: (file, eventType, source) => decideScriptAction(consentAnswers, { file, eventType, source }),
         onStatusChange: handleStatusChange,
+        playKeyName: formatKeyBinding(keymap.get(TuiCommand.PlayScript)!),
     });
     registerShutdownSignalHandlers(pool, storeFolder);
     const resetHandlers = createResetHandlers({ storeFolder, projectFolder, pool, walkState, clearRunStateOfFile, refreshStaleRepoCount });
@@ -120,7 +122,8 @@ async function main(): Promise<void> {
         },
         onResetSelectedStores: resetHandlers.resetSelectedStores,
         onResetAllStores: resetHandlers.resetAllStoresOfProject,
-        onPlayScript: (file) => pool.requestPlay({ file }, listWalkToEndFiles(file)),
+        // onPlayScript: (file) => pool.requestPlay({ file }, listWalkToEndFiles(file)),
+        onPlayScript: (file, startAt) => walker.playScript(file, startAt),
     };
     instance.rerender(createElement(App, appProps));
     if (settings.isAuto) {
