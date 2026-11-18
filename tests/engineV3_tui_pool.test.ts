@@ -443,3 +443,62 @@ test("test_the_pool_drops_the_outcome_of_a_cancelled_file", async () => {
     assert.equal(testPool.outcomeCalls.length, 0);
     assert.equal(listStatusesOfFile(testPool, file).at(-1), FileWalkStatus.Idle);
 });
+
+test("test_requestWalk_starts_no_child_while_the_store_is_stale", async () => {
+    // Scenario: while isStoreStale returns true, requestWalk does nothing.
+    // Steps:
+    // the pool options report a stale store.
+    const harness = makeHarness({ maxProcesses: 4 });
+    harness.options.isStoreStale = () => true;
+    const pool: StepPool = createStepPool(harness.options);
+    // a walk is requested for one file.
+    pool.requestWalk(makeWalkRequest(makeFile("one.txt"), 10), true);
+    // no child starts and onStatusChange is never called.
+    await waitMilliseconds(NEGATIVE_WAIT_MILLISECONDS);
+    assert.equal(harness.held.getRequests().length, 0);
+    assert.equal(harness.statusLog.length, 0);
+});
+
+test("test_requestWalk_starts_a_child_again_when_the_store_is_no_longer_stale", async () => {
+    // Scenario: after the store stops being stale, requestWalk starts a child as before.
+    // Steps:
+    // the pool options report a stale store through a flag the test controls.
+    const harness = makeHarness({ maxProcesses: 4 });
+    let isStale = true;
+    harness.options.isStoreStale = () => isStale;
+    const pool: StepPool = createStepPool(harness.options);
+    // a walk request made while the store is stale starts no child.
+    const file = makeFile("one.txt");
+    pool.requestWalk(makeWalkRequest(file, 10), true);
+    await waitMilliseconds(NEGATIVE_WAIT_MILLISECONDS);
+    assert.equal(harness.held.getRequests().length, 0);
+    // the flag turns false, and the same request is made again.
+    isStale = false;
+    pool.requestWalk(makeWalkRequest(file, 10), true);
+    // exactly one child starts.
+    await waitForCondition(() => harness.held.hasOpenCallForFile(file), WAIT_TIMEOUT_MILLISECONDS);
+    await waitMilliseconds(NEGATIVE_WAIT_MILLISECONDS);
+    assert.equal(harness.held.getRequests().length, 1);
+    harness.held.resolveCallNumber(0, makeCoveredOutcome());
+    await pool.waitUntilIdle();
+});
+
+test("test_requestPlay_is_refused_while_the_store_is_stale", async () => {
+    // Scenario: while isStoreStale returns true, requestPlay answers replay-refused at once and starts no child.
+    // Steps:
+    // the pool options report a stale store.
+    const harness = makeHarness({ maxProcesses: 4 });
+    harness.options.isStoreStale = () => true;
+    const pool: StepPool = createStepPool(harness.options);
+    // a play is requested with one other replay file; the race ends the wait if the pool does not answer.
+    const playOutcome: PlayOutcome | undefined = await Promise.race([
+        pool.requestPlay({ file: makeFile("played.txt") }, [makeFile("b.txt")]),
+        waitMilliseconds(WAIT_TIMEOUT_MILLISECONDS).then(() => undefined),
+    ]);
+    // the answer is replay-refused and the reason text says the store is stale.
+    assert.equal(playOutcome?.kind, PlayOutcomeKind.ReplayRefused);
+    assert.ok(playOutcome!.reasonText!.includes("stale"));
+    // neither a walk child nor a play child started.
+    assert.equal(harness.held.getRequests().length, 0);
+    assert.equal(harness.playedFiles.length, 0);
+});

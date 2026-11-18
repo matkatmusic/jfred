@@ -1,7 +1,7 @@
 // The step pool of the terminal viewer: a limited number of step children, one child per file, and a play child that runs alone.
 
 import type { Path } from "../../src/structures/domain.ts";
-import { FileWalkStatus } from "../../src/structures/vocabulary.ts";
+import { FileWalkStatus, PlayOutcomeKind } from "../../src/structures/vocabulary.ts";
 import { runPlayRequest } from "./engineV3_tui_pool_play.ts";
 import { mergeEntry, pickNextEntry, type PoolEntry } from "./engineV3_tui_pool_queue.ts";
 import type { PlayOutcome, PlayRequest, StepPool, StepPoolOptions, StepProcessOutcome, StepRequest } from "./engineV3_tui_walk_types.ts";
@@ -98,7 +98,17 @@ export function createStepPool(options: StepPoolOptions): StepPool {
         }
     }
 
+    function isStoreStale(): boolean {
+        if (options.isStoreStale === undefined) {
+            return false;
+        }
+        return options.isStoreStale();
+    }
+
     function requestWalk(request: StepRequest, isVisible: boolean): void {
+        if (isStoreStale()) {
+            return;
+        }
         const entry: PoolEntry = { request, isVisible };
         if (runningRequestByFileValue.has(request.file.value)) {
             mergeEntry(pendingByFileValue, entry);
@@ -116,6 +126,9 @@ export function createStepPool(options: StepPoolOptions): StepPool {
     }
 
     function requestPlay(request: PlayRequest, walkToEndFiles: Path[]): Promise<PlayOutcome> {
+        if (isStoreStale()) {
+            return Promise.resolve({ kind: PlayOutcomeKind.ReplayRefused, reasonText: "the store has stale repos: press Shift-R to reset" });
+        }
         return runPlayRequest(request, walkToEndFiles, {
             isFileSteppable: options.isFileSteppable,
             isFileWalkFinished: options.isFileWalkFinished,

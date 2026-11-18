@@ -8,6 +8,7 @@ import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { INVERSE_REPOS_CACHE_FOLDER } from "../src/viewer_api_layer1_inverse_repos.ts";
+import { getInverseRepoFolderForFile } from "../engineV3/engineV3_inverse_repos_for_project.ts";
 import { getProjectCacheFile } from "../engineV3/tui/engineV3_tui_project_cache.ts";
 import { acquireTuiLock, getTuiLockFile, prepareTuiStore, readTuiSettings } from "../engineV3/tui/engineV3_tui_settings.ts";
 
@@ -31,7 +32,7 @@ test("test_start_makes_the_store_folder_before_the_store_check", (t) => {
     const storeFolder = makeMissingStoreFolderInsideCacheFolder(t);
     assert.equal(existsSync(storeFolder.toString()), false);
     // the start check runs.
-    prepareTuiStore(storeFolder, new Path(join(INVERSE_REPOS_CACHE_FOLDER, "jfred-test-no-such-project-" + randomUUID())));
+    prepareTuiStore(storeFolder, new Path(join(INVERSE_REPOS_CACHE_FOLDER, "jfred-test-no-such-project-" + randomUUID())), []);
     // the store folder exists afterwards.
     assert.equal(existsSync(storeFolder.toString()), true);
 });
@@ -41,9 +42,21 @@ test("test_start_accepts_a_store_folder_that_does_not_exist_yet_inside_the_cache
     // a store path inside the cache folder does not exist yet.
     const storeFolder = makeMissingStoreFolderInsideCacheFolder(t);
     // the start check runs and must not throw.
-    assert.doesNotThrow(() => prepareTuiStore(storeFolder, new Path(join(INVERSE_REPOS_CACHE_FOLDER, "jfred-test-no-such-project-" + randomUUID()))));
+    assert.doesNotThrow(() => prepareTuiStore(storeFolder, new Path(join(INVERSE_REPOS_CACHE_FOLDER, "jfred-test-no-such-project-" + randomUUID())), []));
     // the store folder was made.
     assert.equal(existsSync(storeFolder.toString()), true);
+});
+
+test("test_start_refuses_a_store_that_holds_a_full_build_repo_of_a_project_file", (t) => {
+    // Scenario: the start check throws when the store holds a full-build repo of one of the project files.
+    // a store path inside the cache folder, a project folder, and one project file.
+    const storeFolder = makeMissingStoreFolderInsideCacheFolder(t);
+    const projectFolder = new Path(join(INVERSE_REPOS_CACHE_FOLDER, "jfred-test-project-" + randomUUID()));
+    const file = new Path(join(projectFolder.toString(), "a.txt"));
+    // the store holds a repo folder of that file without an on-demand stamp, so it is a full-build repo.
+    mkdirSync(getInverseRepoFolderForFile(storeFolder, projectFolder, file).toString(), { recursive: true });
+    // the start check with that project file list throws and names the full-build repo.
+    assert.throws(() => prepareTuiStore(storeFolder, projectFolder, [{ file, transcriptFile: file }]), /full-build repo/);
 });
 
 test("test_the_lock_refuses_a_second_start_while_the_first_process_is_alive", (t) => {

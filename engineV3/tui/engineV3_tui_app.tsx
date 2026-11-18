@@ -148,7 +148,9 @@ export function App(props: AppProps) {
         isTimeSpanned: props.isTimeSpannedForFile(cursorFile, getTimeOfFile(cursorFile)),
         scriptRefusalText: undefined,
     });
-    const headerText = consentQuestion?.questionText ?? props.cacheStatusText ?? `marker ${marker.instant.toISOString()}`;
+    // const headerText = consentQuestion?.questionText ?? props.cacheStatusText ?? `marker ${marker.instant.toISOString()}`;
+    const staleText = props.staleRepoCount > 0 ? `${props.staleRepoCount} repos are stale: press Shift-R` : undefined;
+    const headerText = consentQuestion?.questionText ?? staleText ?? props.cacheStatusText ?? `marker ${marker.instant.toISOString()}`;
     return (
         <Box flexDirection="column" height={props.terminalRows}>
             <Box gap={1}>

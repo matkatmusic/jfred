@@ -1,5 +1,6 @@
 // The TUI bar data: wires of a partial step repo, bar models, and the info row counts.
 
+import { existsSync } from "node:fs";
 import { basename } from "node:path";
 import { Path } from "../../src/structures/domain.ts";
 import { buildInverseCommitWire } from "../../src/layer1_inverse_repos_wire.ts";
@@ -24,7 +25,11 @@ export type BarInfo = {
 
 export function listInverseRepoFileWire(storeFolder: Path, projectFolder: Path, file: Path): InverseRepoFileWire {
     const repoFolder = getInverseRepoFolderForFile(storeFolder, projectFolder, file);
-    const commits = listInverseCommits(repoFolder, basename(file.toString()), false).map(buildInverseCommitWire);
+    // const commits = listInverseCommits(repoFolder, basename(file.toString()), false).map(buildInverseCommitWire);
+    let commits: InverseRepoFileWire["commits"] = [];
+    if (existsSync(repoFolder.toString())) {
+        commits = listInverseCommits(repoFolder, basename(file.toString()), false).map(buildInverseCommitWire);
+    }
     return { file: getRelativePathInProject(projectFolder, file), commits };
 }
 

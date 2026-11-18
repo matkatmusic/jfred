@@ -31,7 +31,7 @@ const jfredFolder = new Path(join(tuiFolder, "..", ".."));
 async function main(): Promise<void> {
     const settings = readTuiSettings(process.argv.slice(2));
     const { projectFolder, storeFolder } = settings;
-    prepareTuiStore(storeFolder, projectFolder);
+    // prepareTuiStore(storeFolder, projectFolder);
     acquireTuiLock(storeFolder);
     const keymap = loadKeymap(new Path(join(tuiFolder, "keymap.json")));
     const instance = render(createLoadingScreen("files done 0 of ?"));
@@ -42,7 +42,15 @@ async function main(): Promise<void> {
         earliestBoundary = readEarliestBoundary(settings.repoFolder, settings.commit!);
     }
     const projectFiles = cache.projectFiles.map((file) => ({ file, transcriptFile: file }));
-    const staleFiles = listProjectFilesWithStaleInverseRepos(storeFolder, projectFolder, projectFiles, cache.transcriptsToParse, earliestBoundary);
+    // Late on purpose: the real project file list exists only after the cache is loaded.
+    prepareTuiStore(storeFolder, projectFolder, projectFiles);
+    // const staleFiles = listProjectFilesWithStaleInverseRepos(storeFolder, projectFolder, projectFiles, cache.transcriptsToParse, earliestBoundary);
+    let staleRepoCount = listProjectFilesWithStaleInverseRepos(storeFolder, projectFolder, projectFiles, cache.transcriptsToParse, earliestBoundary).length;
+    const refreshStaleRepoCount = (): void => {
+        staleRepoCount = listProjectFilesWithStaleInverseRepos(storeFolder, projectFolder, projectFiles, cache.transcriptsToParse, earliestBoundary).length;
+        appProps.staleRepoCount = staleRepoCount;
+        instance.rerender(createElement(App, { ...appProps }));
+    };
     const logFilesHashAtStart = getLogFilesHash(cache.transcriptsToParse);
     const spawnSettings = { projectFolder, jsonlsFolders: settings.jsonlsFolders, fileHistoryFolders: settings.fileHistoryFolders, storeFolder, earliestBoundary, jfredFolder };
     const walkState = createWalkState();
@@ -69,6 +77,7 @@ async function main(): Promise<void> {
         isFileWalkFinished,
         isFileSteppable: (file) => cache.projectFiles.some((projectFile) => projectFile.toString() === file.toString()),
         hasLogsGrown: () => getLogFilesHash(cache.transcriptsToParse) !== logFilesHashAtStart,
+        isStoreStale: () => staleRepoCount > 0,
         onLogsGrew: () => {
             appProps.cacheStatusText = "the logs grew: restart the TUI to see the new events";
             instance.rerender(createElement(App, { ...appProps }));
@@ -98,7 +107,7 @@ async function main(): Promise<void> {
         pool,
         scriptCounts: cache.scriptCounts,
         consentAnswers,
-        staleRepoCount: staleFiles.length,
+        staleRepoCount,
         cacheStatusText: undefined,
         subscribeToStatusChanges: (listener) => {
             statusListeners.add(listener);
@@ -117,8 +126,16 @@ async function main(): Promise<void> {
         onConsentAnswered: (answerKey, answer) => {
             consentAnswers[answerKey] = answer;
         },
-        onResetSelectedStores: (files) => resetStoresOfFiles(storeFolder, files.map((file) => ({ file, repoFolder: getInverseRepoFolderForFile(storeFolder, projectFolder, file) })), pool.cancelFile, clearRunStateOfFile),
-        onResetAllStores: () => resetAllStores(storeFolder, pool.cancelAll, () => walkState.listFiles().forEach(clearRunStateOfFile)),
+        // onResetSelectedStores: (files) => resetStoresOfFiles(storeFolder, files.map((file) => ({ file, repoFolder: getInverseRepoFolderForFile(storeFolder, projectFolder, file) })), pool.cancelFile, clearRunStateOfFile),
+        onResetSelectedStores: async (files) => {
+            await resetStoresOfFiles(storeFolder, files.map((file) => ({ file, repoFolder: getInverseRepoFolderForFile(storeFolder, projectFolder, file) })), pool.cancelFile, clearRunStateOfFile);
+            refreshStaleRepoCount();
+        },
+        // onResetAllStores: () => resetAllStores(storeFolder, pool.cancelAll, () => walkState.listFiles().forEach(clearRunStateOfFile)),
+        onResetAllStores: async () => {
+            await resetAllStores(storeFolder, pool.cancelAll, () => walkState.listFiles().forEach(clearRunStateOfFile));
+            refreshStaleRepoCount();
+        },
         onPlayScript: (file) => pool.requestPlay({ file }, listWalkToEndFiles(file)),
     };
     instance.rerender(createElement(App, appProps));

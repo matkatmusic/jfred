@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 import { Path, Uuid } from "../../src/structures/domain.ts";
 import { extractValueFlag } from "../../src/reconstruction_cli_flags.ts";
 import { INVERSE_REPOS_CACHE_FOLDER } from "../../src/viewer_api_layer1_inverse_repos.ts";
-import { readInverseReposSettingsFromArguments } from "../engineV3_inverse_repos_for_project.ts";
+import { readInverseReposSettingsFromArguments, type ProjectFile } from "../engineV3_inverse_repos_for_project.ts";
 import { assertStoreHasNoFullBuildRepos, assertStoreIsInsideCacheFolder } from "../engineV3_step_store_guard.ts";
 import { getProjectCacheFile } from "./engineV3_tui_project_cache.ts";
 
@@ -72,10 +72,12 @@ export function readTuiSettings(argv: string[]): TuiSettings {
     return { projectFolder: folderSettings.projectFolder, jsonlsFolders: folderSettings.jsonlsFolders, fileHistoryFolders: folderSettings.fileHistoryFolders, storeFolder: folderSettings.storeFolder, repoFolder, commit, processes, isAuto };
 }
 
-export function prepareTuiStore(storeFolder: Path, projectFolder: Path): void {
+// export function prepareTuiStore(storeFolder: Path, projectFolder: Path): void {
+export function prepareTuiStore(storeFolder: Path, projectFolder: Path, projectFiles: ProjectFile[]): void {
     mkdirSync(storeFolder.toString(), { recursive: true });
     assertStoreIsInsideCacheFolder(storeFolder, new Path(INVERSE_REPOS_CACHE_FOLDER));
-    assertStoreHasNoFullBuildRepos(storeFolder, projectFolder, []);
+    // assertStoreHasNoFullBuildRepos(storeFolder, projectFolder, []);
+    assertStoreHasNoFullBuildRepos(storeFolder, projectFolder, projectFiles);
 }
 
 export function getTuiLockFile(storeFolder: Path): Path {

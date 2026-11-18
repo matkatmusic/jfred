@@ -493,3 +493,19 @@ test("test_day_speed_walks_every_file_that_does_not_cover_the_new_time", async (
         assert.equal(call.currentTime.getTime(), newMarkerInstant.getTime());
     }
 });
+
+test("test_the_header_shows_the_stale_repo_count_and_the_reset_key", async (t) => {
+    // Scenario: no repo is stale, then three repos are stale.
+    const freshHarness = makeAppProps({ staleRepoCount: 0 });
+    const freshScreen = startScreen(t, freshHarness.props);
+    await settle();
+    // With zero stale repos the header row does not mention stale repos.
+    assert.ok(!getHeaderRow(freshScreen.readFrameLines()).includes("repos are stale"));
+    // Draw a second screen with three stale repos.
+    const staleHarness = makeAppProps({ staleRepoCount: 3 });
+    const staleScreen = startScreen(t, staleHarness.props);
+    await settle();
+    // The header row names the count and the Shift-R key that resets all stores.
+    const headerRow = getHeaderRow(staleScreen.readFrameLines());
+    assert.ok(headerRow.includes("3 repos are stale: press Shift-R"), `the header shows no stale repo line: ${headerRow}`);
+});

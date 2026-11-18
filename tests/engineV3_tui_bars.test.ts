@@ -1,6 +1,7 @@
 // The TUI bar data: wires of a partial step repo, bar models, and the info row counts.
 
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { test, type TestContext } from "node:test";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -248,4 +249,30 @@ test("test_a_row_of_a_file_born_after_the_marker_shows_did_not_exist_yet", async
     const fileRowLine = (lastFrame() ?? "").split("\n").find((line) => line.includes(PROJECT_FILE_NAME));
     assert.ok(fileRowLine !== undefined);
     assert.ok(fileRowLine.includes(DID_NOT_EXIST_YET_TEXT));
+});
+
+test("test_listInverseRepoFileWire_returns_no_commits_for_a_file_whose_repo_folder_does_not_exist", (t) => {
+    // Scenario: a fresh empty store; the project is written but never walked, so the repo folder of a.txt is missing.
+    const project = writeProject(t, "hello\n", (projectFolder, filePath) => makeWriteCreateRows(projectFolder, "toolu_w1", filePath, "hello\n", 30));
+    const repoFolder = getInverseRepoFolderForFile(project.storeFolder, project.projectFolder, project.file);
+    // The repo folder does not exist.
+    assert.equal(existsSync(repoFolder.toString()), false);
+    // The wire is read without a throw.
+    const wire = listInverseRepoFileWire(project.storeFolder, project.projectFolder, project.file);
+    // The wire holds zero commits.
+    assert.equal(wire.commits.length, 0);
+    // The wire names the file by its base name.
+    assert.equal(wire.file, basename(project.file.toString()));
+});
+
+test("test_the_screen_shows_the_row_of_a_file_with_no_repo_in_a_fresh_empty_store", async (t) => {
+    // Scenario: a fresh empty store; the project is written but never walked, so the repo folder of a.txt is missing.
+    const project = writeProject(t, "hello\n", (projectFolder, filePath) => makeWriteCreateRows(projectFolder, "toolu_w1", filePath, "hello\n", 30));
+    // The events are newest first and hold one event of a.txt, so the screen has a marker.
+    const events: ProjectEventEntry[] = [{ instant: makeInstant(30), file: project.file, eventType: FileEventType.WriteRow, source: "toolu_w1" }];
+    // The screen is drawn from the empty store.
+    const { lastFrame, unmount } = render(createElement(App, makeAppProps(project, events)));
+    t.after(() => unmount());
+    // The screen shows the row of a.txt without a throw.
+    await waitForFrame(lastFrame, PROJECT_FILE_NAME);
 });

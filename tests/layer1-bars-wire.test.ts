@@ -185,6 +185,13 @@ test("test_find_gone_commit_ignores_a_flagged_commit_after_a_present_commit", ()
     assert.equal(findGoneCommitIndex(commits), undefined);
 });
 
+test("test_findGoneCommitIndex_returns_undefined_for_a_file_with_no_commits", () => {
+    // An empty commit list.
+    const commits: ReturnType<typeof buildPresent>[] = [];
+    // No gone commit, and no throw.
+    assert.equal(findGoneCommitIndex(commits), undefined);
+});
+
 test("test_the_gone_commit_is_a_deleted_dot", () => {
     // List [A(DiskNow), A+R, P].
     const commits = [buildDiskNowCommit({ isFileAbsent: true }), buildAbsent({ isRemoved: true }), buildPresent()];

@@ -138,6 +138,9 @@ function getCommitAt(commits: readonly InverseCommitWire[], commitIndex: number)
     return commit;
 }
 export function findGoneCommitIndex(commits: readonly InverseCommitWire[]): number | undefined {   // rule: "A file that is gone now" in section 2. commits is newest first.
+    if (commits.length === 0) {
+        return undefined;
+    }
     if (getCommitAt(commits, 0).isFileAbsent) {
         for (let commitIndex = 1; commitIndex < commits.length; commitIndex++) {
             const commit = getCommitAt(commits, commitIndex);
