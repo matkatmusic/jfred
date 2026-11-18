@@ -76,6 +76,8 @@ async function main(): Promise<void> {
         },
         endChildOfFile,
         endAllChildren: endAllLiveChildren,
+        // the pool starts no walk and no play until the consent questions are answered
+        consentGate: consentGate.whenAnswered,
     });
     const walker = createHistoryWalker({
         storeFolder,

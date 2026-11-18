@@ -12,10 +12,12 @@ import { pathToFileURL } from "node:url";
 import { createStepPool } from "../engineV3/tui/engineV3_tui_pool.ts";
 import { shutdownTui } from "../engineV3/tui/engineV3_tui_shutdown.ts";
 import { acquireTuiLock, getTuiLockFile } from "../engineV3/tui/engineV3_tui_settings.ts";
-import { listLiveChildProcessIds, runStepChild } from "../engineV3/tui/engineV3_tui_step_process.ts";
+import { endAllLiveChildren, listLiveChildProcessIds, runStepChild } from "../engineV3/tui/engineV3_tui_step_process.ts";
+import { createHistoryWalker } from "../engineV3/tui/engineV3_tui_walk.ts";
+import { createWalkState, getFileRunState, setFileRunState } from "../engineV3/tui/engineV3_tui_walk_state.ts";
 import type { SpawnStepProcess, StepPool, StepPoolOptions, StepProcessOutcome, StepRequest } from "../engineV3/tui/engineV3_tui_walk_types.ts";
 import { Path } from "../src/structures/domain.ts";
-import { PlayOutcomeKind, StepProcessOutcomeKind } from "../src/structures/vocabulary.ts";
+import { FileWalkStatus, PlayOutcomeKind, StepProcessOutcomeKind } from "../src/structures/vocabulary.ts";
 
 const POLL_INTERVAL_MILLISECONDS = 20;
 const WAIT_TIMEOUT_MILLISECONDS = 10000;
@@ -67,7 +69,8 @@ function makePoolWithSpawn(spawnStepProcess: SpawnStepProcess): StepPool {
         hasLogsGrown: () => false,
         onLogsGrew: () => {},
         endChildOfFile: async () => {},
-        endAllChildren: async () => {},
+        // endAllChildren: async () => {},
+        endAllChildren: endAllLiveChildren,
     };
     return createStepPool(options);
 }
@@ -312,4 +315,62 @@ test("test_a_sigterm_runs_the_shutdown_ends_every_child_and_removes_the_lock", a
 test("test_a_sighup_runs_the_shutdown_ends_every_child_and_removes_the_lock", async (t) => {
     // Scenario: a SIGHUP sent to a viewer process runs the same shutdown as Ctrl-C, then the process exits with code 0.
     await verifySignalRunsTheShutdown(t, "SIGHUP");
+});
+
+test("test_a_step_child_ended_by_the_shutdown_gives_no_crashed_status_and_no_error_text", async (t) => {
+    // Scenario: the answer of a step child that the shutdown itself ended is dropped: no Crashed status, no error text.
+    const { storeFolder, removeLockAndStore } = makeStoreFolderForLock();
+    t.after(removeLockAndStore);
+    const file = new Path("/project/a.ts");
+    const walkState = createWalkState();
+    // a walker writes every status it gives into a real walk state
+    const walker = createHistoryWalker({
+        storeFolder,
+        projectFolder: new Path("/project"),
+        walkState,
+        requestWalk: () => {},
+        requestPlay: async () => ({ kind: PlayOutcomeKind.Replayed, reasonText: undefined }),
+        decideScriptAction: () => {
+            throw new Error("the walker must not decide a script action in this test");
+        },
+        onStatusChange: (changedFile, runState) => setFileRunState(walkState, changedFile, runState),
+    });
+    // the fake step child answers only when the test resolves it by hand
+    let resolveFakeChild: (outcome: StepProcessOutcome) => void = () => {};
+    const fakeChildOutcomePromise = new Promise<StepProcessOutcome>((resolve) => {
+        resolveFakeChild = resolve;
+    });
+    let endAllChildrenCallCount = 0;
+    // a real pool sends every child answer to the walker
+    const pool = createStepPool({
+        maxProcesses: 4,
+        spawnStepProcess: () => fakeChildOutcomePromise,
+        spawnPlayProcess: async () => ({ kind: PlayOutcomeKind.Replayed, reasonText: undefined }),
+        onOutcome: (request, outcome) => {
+            void walker.handleOutcome(request, outcome);
+        },
+        onStatusChange: (changedFile, runState) => setFileRunState(walkState, changedFile, runState),
+        isFileWalkFinished: () => false,
+        isFileSteppable: () => true,
+        hasLogsGrown: () => false,
+        onLogsGrew: () => {},
+        endChildOfFile: async () => {},
+        endAllChildren: async () => {
+            endAllChildrenCallCount += 1;
+        },
+    });
+    // one file is requested, so the fake child is running
+    pool.requestWalk({ file, startAt: new Date(1000), isPassingStops: false }, true);
+    assert.deepEqual(pool.listRunningFiles(), [file]);
+    // the shutdown runs while the child is running
+    await shutdownTui(pool, storeFolder);
+    // the shutdown asked the pool to end all children once
+    assert.equal(endAllChildrenCallCount, 1);
+    // the kill result of the child arrives after the shutdown returned
+    resolveFakeChild({ kind: StepProcessOutcomeKind.Crashed, exitCode: null, signal: "SIGTERM", crashedAt: null, stderrTail: "" });
+    await waitMilliseconds(0);
+    // the file has no Crashed status and no error text
+    const runState = getFileRunState(walkState, file);
+    assert.notEqual(runState.status, FileWalkStatus.Crashed);
+    assert.equal(runState.reasonText, undefined);
 });

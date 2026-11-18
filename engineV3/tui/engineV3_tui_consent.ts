@@ -28,13 +28,17 @@ export function getNextConsentQuestion(answers: ConsentAnswers, scriptCounts: Sc
         return undefined;
     }
     if (answers.runScripts === undefined) {
-        const questionText = `${totalScriptRuns} script runs were found (${scriptCounts.mayWrite} may write files, ${scriptCounts.readOnly} only read). Run scripts in the docker container? (y/n)`;
+        // const questionText = `${totalScriptRuns} script runs were found (${scriptCounts.mayWrite} may write files, ${scriptCounts.readOnly} only read). Run scripts in the docker container? (y/n)`;
+        const foundText = totalScriptRuns === 1 ? "1 script run was found" : `${totalScriptRuns} script runs were found`;
+        const questionText = `${foundText} (${scriptCounts.mayWrite} may write files, ${scriptCounts.readOnly} only read). Run scripts in the docker container? (y/n)`;
         return { answerKey: "runScripts", questionText };
     }
     if (answers.runScripts === true) {
         if (scriptCounts.mayWrite > 0) {
             if (answers.runModifyingScriptsAutomatically === undefined) {
-                const questionText = `Run the ${scriptCounts.mayWrite} scripts that may write automatically at each script stop? (y/n)`;
+                // const questionText = `Run the ${scriptCounts.mayWrite} scripts that may write automatically at each script stop? (y/n)`;
+                const scriptsText = scriptCounts.mayWrite === 1 ? "1 script" : `${scriptCounts.mayWrite} scripts`;
+                const questionText = `Run the ${scriptsText} that may write automatically at each script stop? (y/n)`;
                 return { answerKey: "runModifyingScriptsAutomatically", questionText };
             }
         }

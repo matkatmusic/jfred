@@ -502,3 +502,82 @@ test("test_requestPlay_is_refused_while_the_store_is_stale", async () => {
     assert.equal(harness.held.getRequests().length, 0);
     assert.equal(harness.playedFiles.length, 0);
 });
+
+test("test_pool_starts_no_step_child_while_the_consent_gate_is_unresolved", async () => {
+    // Scenario: while consentGate is unresolved, requested walks wait in the queue; when the gate resolves, the pool starts them by itself.
+    // Steps:
+    // the pool options carry a consent gate promise whose resolver the test holds.
+    const harness = makeHarness({ maxProcesses: 4 });
+    const consentGate = makeGate(false);
+    harness.options.consentGate = consentGate.wait();
+    const pool: StepPool = createStepPool(harness.options);
+    // two walks are requested for two files.
+    const firstFile = makeFile("one.txt");
+    const secondFile = makeFile("two.txt");
+    pool.requestWalk(makeWalkRequest(firstFile, 10), true);
+    pool.requestWalk(makeWalkRequest(secondFile, 10), true);
+    // no step child starts, and both files are reported Queued.
+    await waitMilliseconds(NEGATIVE_WAIT_MILLISECONDS);
+    assert.equal(harness.held.getRequests().length, 0);
+    assert.deepEqual(listStatusesOfFile({ ...harness, pool }, firstFile), [FileWalkStatus.Queued]);
+    assert.deepEqual(listStatusesOfFile({ ...harness, pool }, secondFile), [FileWalkStatus.Queued]);
+    // the gate resolves, and nobody calls the pool again.
+    consentGate.open();
+    // both children start.
+    await waitForCondition(() => harness.held.getRequests().length === 2, WAIT_TIMEOUT_MILLISECONDS);
+    assert.ok(harness.held.hasOpenCallForFile(firstFile));
+    assert.ok(harness.held.hasOpenCallForFile(secondFile));
+    harness.held.resolveEveryOpenCall(makeCoveredOutcome());
+    await pool.waitUntilIdle();
+});
+
+test("test_pool_runs_a_queued_walk_with_the_request_made_before_the_answer", async () => {
+    // Scenario: the walk request made while the gate is unresolved is the exact request the child receives after the gate resolves.
+    // Steps:
+    // the pool options carry a consent gate promise whose resolver the test holds.
+    const harness = makeHarness({ maxProcesses: 4 });
+    const consentGate = makeGate(false);
+    harness.options.consentGate = consentGate.wait();
+    const pool: StepPool = createStepPool(harness.options);
+    // one walk is requested at second 10 with isPassingStops true.
+    const file = makeFile("one.txt");
+    pool.requestWalk(makeWalkRequest(file, 10, true), true);
+    await waitMilliseconds(NEGATIVE_WAIT_MILLISECONDS);
+    assert.equal(harness.held.getRequests().length, 0);
+    // the gate resolves.
+    consentGate.open();
+    // exactly one child starts, with the same file, startAt and isPassingStops.
+    await waitForCondition(() => harness.held.getRequests().length === 1, WAIT_TIMEOUT_MILLISECONDS);
+    await waitMilliseconds(NEGATIVE_WAIT_MILLISECONDS);
+    assert.equal(harness.held.getRequests().length, 1);
+    const spawnedRequest = harness.held.getRequests()[0]!;
+    assert.ok(spawnedRequest.file.equals(file));
+    assert.equal(spawnedRequest.startAt.getTime(), new Date(10 * 1000).getTime());
+    assert.equal(spawnedRequest.isPassingStops, true);
+    harness.held.resolveCallNumber(0, makeCoveredOutcome());
+    await pool.waitUntilIdle();
+});
+
+test("test_pool_starts_no_play_child_while_the_consent_gate_is_unresolved", async () => {
+    // Scenario: while consentGate is unresolved, requestPlay does not call spawnPlayProcess; after the gate resolves it plays and returns the play outcome.
+    // Steps:
+    // the pool options carry a consent gate promise whose resolver the test holds.
+    const harness = makeHarness({ maxProcesses: 4 });
+    const consentGate = makeGate(false);
+    harness.options.consentGate = consentGate.wait();
+    const pool: StepPool = createStepPool(harness.options);
+    // a play is requested with no other replay file.
+    const playPromise = pool.requestPlay({ file: makeFile("played.txt") }, []);
+    // spawnPlayProcess is not called while the gate is unresolved.
+    await waitMilliseconds(NEGATIVE_WAIT_MILLISECONDS);
+    assert.equal(harness.playedFiles.length, 0);
+    // the gate resolves.
+    consentGate.open();
+    // the play promise resolves with the fake play outcome, and spawnPlayProcess was called once.
+    const playOutcome: PlayOutcome | undefined = await Promise.race([
+        playPromise,
+        waitMilliseconds(WAIT_TIMEOUT_MILLISECONDS).then(() => undefined),
+    ]);
+    assert.equal(playOutcome?.kind, PlayOutcomeKind.Replayed);
+    assert.equal(harness.playedFiles.length, 1);
+});

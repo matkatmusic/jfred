@@ -105,6 +105,46 @@ test("test_question_two_follows_a_yes_to_question_one", () => {
     assert.equal(getNextConsentQuestion(makeAnswers(true, false), scriptCounts), undefined);
 });
 
+test("test_question_one_says_script_run_was_found_when_the_count_is_one", () => {
+    // Scenario: the cache counted one script run, and it may write.
+    const scriptCounts = { mayWrite: 1, readOnly: 0 };
+    // Ask for the next question with no answers.
+    const question = getNextConsentQuestion(makeAnswers(undefined, undefined), scriptCounts);
+    // The whole text uses the singular form.
+    assert.equal(question!.answerKey, "runScripts");
+    assert.equal(question!.questionText, "1 script run was found (1 may write files, 0 only read). Run scripts in the docker container? (y/n)");
+});
+
+test("test_question_one_says_script_runs_were_found_when_the_count_is_many", () => {
+    // Scenario: the cache counted 8 script runs, 1 may write and 7 only read.
+    const scriptCounts = { mayWrite: 1, readOnly: 7 };
+    // Ask for the next question with no answers.
+    const question = getNextConsentQuestion(makeAnswers(undefined, undefined), scriptCounts);
+    // The whole text uses the plural form.
+    assert.equal(question!.answerKey, "runScripts");
+    assert.equal(question!.questionText, "8 script runs were found (1 may write files, 7 only read). Run scripts in the docker container? (y/n)");
+});
+
+test("test_question_two_says_script_that_may_write_when_the_count_is_one", () => {
+    // Scenario: one script may write and none only read.
+    const scriptCounts = { mayWrite: 1, readOnly: 0 };
+    // Ask for the next question after a yes to question one.
+    const question = getNextConsentQuestion(makeAnswers(true, undefined), scriptCounts);
+    // The whole text uses the singular form.
+    assert.equal(question!.answerKey, "runModifyingScriptsAutomatically");
+    assert.equal(question!.questionText, "Run the 1 script that may write automatically at each script stop? (y/n)");
+});
+
+test("test_question_two_says_scripts_that_may_write_when_the_count_is_many", () => {
+    // Scenario: two scripts may write and none only read.
+    const scriptCounts = { mayWrite: 2, readOnly: 0 };
+    // Ask for the next question after a yes to question one.
+    const question = getNextConsentQuestion(makeAnswers(true, undefined), scriptCounts);
+    // The whole text uses the plural form.
+    assert.equal(question!.answerKey, "runModifyingScriptsAutomatically");
+    assert.equal(question!.questionText, "Run the 2 scripts that may write automatically at each script stop? (y/n)");
+});
+
 test("test_both_yes_runs_a_script_stop_at_once", () => {
     // Scenario: the session answered yes to both questions.
     const answers = makeAnswers(true, true);

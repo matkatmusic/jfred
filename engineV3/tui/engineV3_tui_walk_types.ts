@@ -43,6 +43,7 @@ export type StepPoolOptions = {
     hasLogsGrown: () => boolean;
     isStoreStale?: () => boolean;   // while true the pool starts no child and refuses a play (the store holds stale repos)
     onLogsGrew: () => void;
+    consentGate?: Promise<void>;   // while this promise is unresolved the pool starts no walk and no play; requests wait in the queue
     endChildOfFile: (file: Path) => Promise<void>;   // sends the end signal to the running step child of that file and resolves on its exit
     endAllChildren: () => Promise<void>;   // ends every live child and resolves when all have exited
 };

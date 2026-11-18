@@ -226,6 +226,48 @@ test("test_the_marker_walk_does_not_pass_a_stop", async (t) => {
     assert.equal(harness.requestedWalks.length, 1);
 });
 
+test("test_a_script_stop_result_for_a_file_with_a_finished_walk_leaves_the_row_idle", async (t) => {
+    // Scenario: the walk of the file is finished; a late child reports a script stop; the session runs scripts now.
+    let playRequestCount = 0;
+    const requestPlay: HistoryWalkerOptions["requestPlay"] = async () => {
+        playRequestCount += 1;
+        return { kind: PlayOutcomeKind.Replayed, reasonText: undefined };
+    };
+    const harness = buildHarness(t, { decideScriptAction: () => ScriptAction.RunNow, requestPlay });
+    writeCoverageSidecar(harness, makeInstant(10), true);
+    // The late stopped result arrives.
+    await harness.walker.handleOutcome(makeRequest(harness), makeStoppedOutcome(FileEventType.ScriptMayWrite, SOURCE_TEXT));
+    // The row is Idle with no reason text, and no play and no walk was requested.
+    assert.equal(readRunState(harness).status, FileWalkStatus.Idle);
+    assert.equal(readRunState(harness).reasonText, undefined);
+    assert.equal(playRequestCount, 0);
+    assert.equal(harness.requestedWalks.length, 0);
+});
+
+test("test_a_non_script_stop_result_for_a_file_with_a_finished_walk_leaves_the_row_idle", async (t) => {
+    // Scenario: the walk of the file is finished; a late child reports a stop at an event that is not a script.
+    const harness = buildHarness(t);
+    writeCoverageSidecar(harness, makeInstant(10), true);
+    // The late stopped result arrives.
+    await harness.walker.handleOutcome(makeRequest(harness), makeStoppedOutcome(FileEventType.RowBytesUnknown, SOURCE_TEXT));
+    // The row is Idle with no reason text, and no walk was requested.
+    assert.equal(readRunState(harness).status, FileWalkStatus.Idle);
+    assert.equal(readRunState(harness).reasonText, undefined);
+    assert.equal(harness.requestedWalks.length, 0);
+});
+
+test("test_a_script_stop_result_for_a_file_with_an_unfinished_walk_still_marks_the_row_stopped", async (t) => {
+    // Scenario: the walk of the file is not finished; a child reports a script stop; the session waits for the play key.
+    const harness = buildHarness(t, { decideScriptAction: () => ScriptAction.WaitForKey });
+    writeCoverageSidecar(harness, makeInstant(40), false);
+    // The stopped result arrives.
+    await harness.walker.handleOutcome(makeRequest(harness), makeStoppedOutcome(FileEventType.ScriptMayWrite, SOURCE_TEXT));
+    // The row is Stopped with the play key text, and no walk was requested.
+    assert.equal(readRunState(harness).status, FileWalkStatus.Stopped);
+    assert.equal(readReasonText(harness), `stopped at ScriptMayWrite ${SOURCE_TEXT}: press the play key`);
+    assert.equal(harness.requestedWalks.length, 0);
+});
+
 test("test_walkHistoryTo_stops_at_a_crash_and_does_not_respawn", async (t) => {
     // Scenario: the process exits with code 1 at an Edit row and prints an error line.
     const harness = buildHarness(t);

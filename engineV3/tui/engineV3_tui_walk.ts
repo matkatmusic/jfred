@@ -20,6 +20,15 @@ function isRepoSpanningInstant(options: HistoryWalkerOptions, file: Path, instan
     return isInstantSpannedByWalkCoverage(coverage, instant);
 }
 
+function isRepoWalkFinished(options: HistoryWalkerOptions, file: Path): boolean {
+    const repoFolder = getInverseRepoFolderForFile(options.storeFolder, options.projectFolder, file);
+    const coverage = readWalkCoverage(repoFolder);
+    if (coverage === undefined) {
+        return false;
+    }
+    return coverage.isFinished === true;
+}
+
 function writeRunState(options: HistoryWalkerOptions, file: Path, runState: FileRunState): void {
     setFileRunState(options.walkState, file, runState);
     options.onStatusChange(file, runState);
@@ -95,6 +104,10 @@ async function handleOutcome(options: HistoryWalkerOptions, request: StepRequest
         return;
     }
     if (outcome.kind === StepProcessOutcomeKind.Stopped) {
+        if (isRepoWalkFinished(options, request.file)) {
+            writeStatus(options, request.file, FileWalkStatus.Idle, undefined);
+            return;
+        }
         if (outcome.eventType === FileEventType.ScriptMayWrite) {
             await handleScriptStop(options, request, outcome.source);
             return;

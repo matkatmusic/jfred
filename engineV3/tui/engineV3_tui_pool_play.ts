@@ -6,11 +6,16 @@ import type { PlayOutcome, PlayRequest, StepPoolOptions, StepRequest } from "./e
 
 export type PlayContext = Pick<StepPoolOptions, "isFileSteppable" | "isFileWalkFinished" | "spawnPlayProcess"> & {
     requestWalk: (request: StepRequest, isVisible: boolean) => void;
+    waitForConsent: () => Promise<void>;
     waitUntilIdle: () => Promise<void>;
     isIdle: () => boolean;
     setPlayRunning: (isRunning: boolean) => void;
     releaseQueue: () => void;
 };
+
+export function listRunningFiles(runningRequestByFileValue: Map<string, StepRequest>): Path[] {
+    return [...runningRequestByFileValue.values()].map((request) => request.file);
+}
 
 function makeRefusedOutcome(reasonText: string): PlayOutcome {
     return { kind: PlayOutcomeKind.ReplayRefused, reasonText };
@@ -21,6 +26,7 @@ function findUnfinishedFile(files: Path[], context: PlayContext): Path | undefin
 }
 
 export async function runPlayRequest(request: PlayRequest, walkToEndFiles: Path[], context: PlayContext): Promise<PlayOutcome> {
+    await context.waitForConsent();
     const unsteppableFile = walkToEndFiles.find((file) => !context.isFileSteppable(file));
     if (unsteppableFile !== undefined) {
         return makeRefusedOutcome(`the replay needs ${unsteppableFile.toString()}, which the step program cannot walk`);

@@ -29,6 +29,8 @@ const DOWN_ARROW = "\x1b[B";
 const RIGHT_ARROW = "\x1b[C";
 const LEFT_ARROW = "\x1b[D";
 const SHIFT_RIGHT_ARROW = "\x1b[1;2C";
+const SHIFT_LEFT_ARROW = "\x1b[1;2D";
+const SHARED_INSTANT_GAP_DAYS = 10;
 
 type AppHarness = {
     props: AppProps;
@@ -528,4 +530,53 @@ test("test_a_project_with_no_events_shows_the_header_and_the_no_events_line", as
     assert.ok(!headerRow.includes("This project has no file events."));
     // No line shows a file row.
     assert.ok(!lines.some((line) => line.includes(".txt")), `a file row is drawn: ${lines.join("\n")}`);
+});
+
+// Newest first: two events of two files share the newest instant, then two events of two files share an instant ten days older.
+function makeEventsWithSharedNewestInstant(files: Path[]): ProjectEventEntry[] {
+    const newestInstant = makeInstant(NEWEST_EVENT_DAY * SECONDS_PER_DAY);
+    const olderInstant = makeInstant((NEWEST_EVENT_DAY - SHARED_INSTANT_GAP_DAYS) * SECONDS_PER_DAY);
+    return [
+        { instant: newestInstant, file: files[0]!, eventType: FileEventType.EditRow, source: null },
+        { instant: newestInstant, file: files[1]!, eventType: FileEventType.EditRow, source: null },
+        { instant: olderInstant, file: files[2]!, eventType: FileEventType.EditRow, source: null },
+        { instant: olderInstant, file: files[3]!, eventType: FileEventType.EditRow, source: null },
+    ];
+}
+
+test("test_shift_right_in_event_speed_changes_the_header_time_when_the_newest_events_share_one_instant", async (t) => {
+    // Scenario: the two newest events share one instant. The next events are ten days older.
+    const harness = makeAppProps({});
+    harness.props.events = makeEventsWithSharedNewestInstant(harness.files);
+    const newestIso = makeInstant(NEWEST_EVENT_DAY * SECONDS_PER_DAY).toISOString();
+    const olderIso = makeInstant((NEWEST_EVENT_DAY - SHARED_INSTANT_GAP_DAYS) * SECONDS_PER_DAY).toISOString();
+    const screen = startScreen(t, harness.props);
+    await settle();
+    // The header shows the newest instant.
+    assert.equal(getHeaderRow(screen.readFrameLines()).trim(), `marker ${newestIso}`);
+    // One Shift-Right press.
+    screen.stdin.write(SHIFT_RIGHT_ARROW);
+    await settle();
+    // The header shows the older instant, not the newest one.
+    const headerRow = getHeaderRow(screen.readFrameLines()).trim();
+    assert.equal(headerRow, `marker ${olderIso}`);
+    assert.ok(!headerRow.includes(newestIso));
+});
+
+test("test_shift_left_in_event_speed_returns_the_header_to_the_newest_time_after_shift_right", async (t) => {
+    // Scenario: the two newest events share one instant. The next events are ten days older.
+    const harness = makeAppProps({});
+    harness.props.events = makeEventsWithSharedNewestInstant(harness.files);
+    const newestIso = makeInstant(NEWEST_EVENT_DAY * SECONDS_PER_DAY).toISOString();
+    const olderIso = makeInstant((NEWEST_EVENT_DAY - SHARED_INSTANT_GAP_DAYS) * SECONDS_PER_DAY).toISOString();
+    const screen = startScreen(t, harness.props);
+    await settle();
+    // One Shift-Right press: the header shows the older instant.
+    screen.stdin.write(SHIFT_RIGHT_ARROW);
+    await settle();
+    assert.equal(getHeaderRow(screen.readFrameLines()).trim(), `marker ${olderIso}`);
+    // One Shift-Left press: the header shows the newest instant again.
+    screen.stdin.write(SHIFT_LEFT_ARROW);
+    await settle();
+    assert.equal(getHeaderRow(screen.readFrameLines()).trim(), `marker ${newestIso}`);
 });

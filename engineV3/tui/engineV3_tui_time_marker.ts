@@ -13,10 +13,16 @@ const oneDay = 86_400_000;
 
 function findNextEventIndex(events: ProjectEventEntry[], marker: TimeMarker, direction: MarkerDirection): number {
     if (marker.eventIndex !== undefined) {
-        if (direction === MarkerDirection.TowardsEarliest) {
-            return marker.eventIndex + 1;
+        // if (direction === MarkerDirection.TowardsEarliest) {
+        //     return marker.eventIndex + 1;
+        // }
+        // return marker.eventIndex - 1;
+        const step = direction === MarkerDirection.TowardsEarliest ? 1 : -1;
+        let nextIndex = marker.eventIndex + step;
+        while (events[nextIndex]?.instant.getTime() === marker.instant.getTime()) {
+            nextIndex += step;
         }
-        return marker.eventIndex - 1;
+        return nextIndex;
     }
     if (direction === MarkerDirection.TowardsEarliest) {
         return events.findIndex((event) => event.instant.getTime() < marker.instant.getTime());

@@ -145,7 +145,8 @@ function makeCanaryScriptText(canaryFolder: string, projectFolder: string, stepp
     return lines.join("\n");
 }
 
-type HostSnapshot = { canaryLines: string[]; projectLines: string[]; snapshotFolderLines: string[]; jsonlsLines: string[]; storeLines: string[]; tmpFolderNames: string[] };
+type HostSnapshot = { canaryLines: string[]; projectLines: string[]; snapshotFolderLines: string[]; jsonlsLines: string[]; storeLines: string[]; ownedRootFolderNames: string[] };
+// type HostSnapshot = { canaryLines: string[]; projectLines: string[]; snapshotFolderLines: string[]; jsonlsLines: string[]; storeLines: string[]; tmpFolderNames: string[] };
 
 function takeHostSnapshot(canaryFolder: string, project: Project, storeFolder: Path, repoFolder: Path): HostSnapshot {
     return {
@@ -154,7 +155,8 @@ function takeHostSnapshot(canaryFolder: string, project: Project, storeFolder: P
         snapshotFolderLines: makeFolderTreeLines(project.snapshotFolder.toString(), []),
         jsonlsLines: makeFolderTreeLines(project.jsonlsFolder.toString(), []),
         storeLines: makeFolderTreeLines(storeFolder.toString(), [repoFolder.toString()]),
-        tmpFolderNames: readdirSync(tmpdir()).sort(),
+        // tmpFolderNames: readdirSync(tmpdir()).sort(),
+        ownedRootFolderNames: readdirSync(project.rootFolder).sort(),
     };
 }
 

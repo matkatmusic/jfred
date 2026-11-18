@@ -69,23 +69,59 @@ test("test_event_speed_stops_at_the_last_event_and_at_the_first_event", () => {
     assert.equal(stuckAtNewest.steppedFile, undefined);
 });
 
-test("test_events_with_one_instant_are_separate_steps_one_file_each", () => {
-    // Scenario: two events share one instant. Each is its own step and names its own file.
-    const events = [makeEntry(30, "a.txt"), makeEntry(20, "b.txt"), makeEntry(20, "c.txt"), makeEntry(10, "d.txt")];
-    const bounds = { newest: events[0]!.instant, oldest: events[3]!.instant };
-    // step onto the first of the two
-    const toFirstShared = computeNextMarker(JumpSpeed.Event, events, bounds, makeMarkerOnEvent(events, 0), MarkerDirection.TowardsEarliest);
-    assert.equal(toFirstShared.marker.eventIndex, 1);
-    assert.equal(toFirstShared.steppedFile?.value, "/project/b.txt");
-    // the next step stays on the same instant and names the second file
-    const toSecondShared = computeNextMarker(JumpSpeed.Event, events, bounds, toFirstShared.marker, MarkerDirection.TowardsEarliest);
-    assert.equal(toSecondShared.marker.eventIndex, 2);
-    assert.equal(toSecondShared.marker.instant.getTime(), toFirstShared.marker.instant.getTime());
-    assert.equal(toSecondShared.steppedFile?.value, "/project/c.txt");
-    // the step after that leaves the shared instant
-    const pastShared = computeNextMarker(JumpSpeed.Event, events, bounds, toSecondShared.marker, MarkerDirection.TowardsEarliest);
-    assert.equal(pastShared.marker.eventIndex, 3);
-    assert.equal(pastShared.steppedFile?.value, "/project/d.txt");
+// The rule changed: event speed now skips every event that shares the marker instant. Replaced by the test below.
+// test("test_events_with_one_instant_are_separate_steps_one_file_each", () => {
+//     // Scenario: two events share one instant. Each is its own step and names its own file.
+//     const events = [makeEntry(30, "a.txt"), makeEntry(20, "b.txt"), makeEntry(20, "c.txt"), makeEntry(10, "d.txt")];
+//     const bounds = { newest: events[0]!.instant, oldest: events[3]!.instant };
+//     // step onto the first of the two
+//     const toFirstShared = computeNextMarker(JumpSpeed.Event, events, bounds, makeMarkerOnEvent(events, 0), MarkerDirection.TowardsEarliest);
+//     assert.equal(toFirstShared.marker.eventIndex, 1);
+//     assert.equal(toFirstShared.steppedFile?.value, "/project/b.txt");
+//     // the next step stays on the same instant and names the second file
+//     const toSecondShared = computeNextMarker(JumpSpeed.Event, events, bounds, toFirstShared.marker, MarkerDirection.TowardsEarliest);
+//     assert.equal(toSecondShared.marker.eventIndex, 2);
+//     assert.equal(toSecondShared.marker.instant.getTime(), toFirstShared.marker.instant.getTime());
+//     assert.equal(toSecondShared.steppedFile?.value, "/project/c.txt");
+//     // the step after that leaves the shared instant
+//     const pastShared = computeNextMarker(JumpSpeed.Event, events, bounds, toSecondShared.marker, MarkerDirection.TowardsEarliest);
+//     assert.equal(pastShared.marker.eventIndex, 3);
+//     assert.equal(pastShared.steppedFile?.value, "/project/d.txt");
+// });
+
+test("test_event_speed_skips_events_that_share_the_marker_instant", () => {
+    // Scenario: indices 0, 1, 2 share the newest instant. Every press leaves the marker instant and lands on the nearest different instant.
+    const events = [makeEntry(30, "a.txt"), makeEntry(30, "b.txt"), makeEntry(30, "c.txt"), makeEntry(20, "d.txt"), makeEntry(10, "e.txt")];
+    const bounds = { newest: events[0]!.instant, oldest: events[4]!.instant };
+    // from index 0 towards earliest the marker skips indices 1 and 2 and lands on index 3
+    const toSecondGroup = computeNextMarker(JumpSpeed.Event, events, bounds, makeMarkerOnEvent(events, 0), MarkerDirection.TowardsEarliest);
+    assert.equal(toSecondGroup.marker.eventIndex, 3);
+    assert.equal(toSecondGroup.marker.instant.getTime(), makeInstant(20).getTime());
+    assert.equal(toSecondGroup.steppedFile?.value, "/project/d.txt");
+    // towards earliest again lands on index 4
+    const toOldest = computeNextMarker(JumpSpeed.Event, events, bounds, toSecondGroup.marker, MarkerDirection.TowardsEarliest);
+    assert.equal(toOldest.marker.eventIndex, 4);
+    // from index 4 towards now the marker lands on index 3
+    const backToSecondGroup = computeNextMarker(JumpSpeed.Event, events, bounds, toOldest.marker, MarkerDirection.TowardsNow);
+    assert.equal(backToSecondGroup.marker.eventIndex, 3);
+    // from index 3 towards now the marker lands on index 2, the highest index of the newest group
+    const toNewestGroup = computeNextMarker(JumpSpeed.Event, events, bounds, backToSecondGroup.marker, MarkerDirection.TowardsNow);
+    assert.equal(toNewestGroup.marker.eventIndex, 2);
+    assert.equal(toNewestGroup.marker.instant.getTime(), makeInstant(30).getTime());
+    assert.equal(toNewestGroup.steppedFile?.value, "/project/c.txt");
+    // from index 2 towards now no newer instant exists, so the marker does not move
+    const stuckAtNewest = computeNextMarker(JumpSpeed.Event, events, bounds, toNewestGroup.marker, MarkerDirection.TowardsNow);
+    assert.equal(stuckAtNewest.marker.eventIndex, 2);
+    assert.equal(stuckAtNewest.steppedFile, undefined);
+});
+
+test("test_getNextNearestTimeStampEventForDirection_returns_undefined_when_every_event_left_shares_the_marker_instant", () => {
+    // Scenario: indices 0 and 1 share one instant. No event with a different instant exists in either direction.
+    const events = [makeEntry(30, "a.txt"), makeEntry(30, "b.txt")];
+    // from index 0 towards earliest there is no older instant
+    assert.equal(getNextNearestTimeStampEventForDirection(events, makeMarkerOnEvent(events, 0), MarkerDirection.TowardsEarliest), undefined);
+    // from index 1 towards now there is no newer instant
+    assert.equal(getNextNearestTimeStampEventForDirection(events, makeMarkerOnEvent(events, 1), MarkerDirection.TowardsNow), undefined);
 });
 
 test("test_event_speed_from_a_marker_between_events_lands_on_the_next_older_or_newer_event", () => {

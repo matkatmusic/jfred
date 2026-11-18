@@ -1,7 +1,7 @@
 // Tests of the reset loop of the terminal viewer: check first, wait for the child, remove only repos inside the store.
 
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
@@ -183,4 +183,59 @@ test("test_reset_of_a_running_file_shows_idle_not_crashed", async (testContext) 
     assert.equal(announcedRunStates.some((runState) => runState.status === FileWalkStatus.Crashed), false);
     // the pool reported no outcome.
     assert.deepEqual(reportedOutcomes, []);
+});
+
+test("test_reset_all_stores_leaves_the_store_folder_empty_when_a_repo_was_in_a_sub_folder", async (testContext) => {
+    // Scenario: a repo sits in a sub folder of the store: after the reset of all stores the store holds nothing at all.
+    // a store holds one repo at the top and one repo in the sub folder "tests".
+    const storeFolder = makeTemporaryFolder(testContext);
+    makeStampedRepoFolder(storeFolder, "geo_core.py.git");
+    makeStampedRepoFolder(storeFolder, "tests/test_geo_core.py.git");
+    // the reset of all stores is asked for.
+    await resetAllStores(new Path(storeFolder), async () => {}, () => {});
+    // the store folder still exists and holds nothing.
+    assert.equal(existsSync(storeFolder), true);
+    assert.deepEqual(readdirSync(storeFolder), []);
+});
+
+test("test_reset_of_one_file_removes_the_empty_parent_folders_of_its_repo", async (testContext) => {
+    // Scenario: the only repo of a deep path is reset: the empty parent folders of that repo go too, the store stays.
+    // a store holds one repo two folders deep.
+    const storeFolder = makeTemporaryFolder(testContext);
+    const repoFolder = makeStampedRepoFolder(storeFolder, "a/b/deep.py.git");
+    const file = new Path("/project/a/b/deep.py");
+    // the reset of that one file is asked for.
+    await resetStoresOfFiles(new Path(storeFolder), [{ file, repoFolder: new Path(repoFolder) }], async () => {}, () => {});
+    // the folder "a" does not exist any more, and the store folder still exists.
+    assert.equal(existsSync(join(storeFolder, "a")), false);
+    assert.equal(existsSync(storeFolder), true);
+});
+
+test("test_reset_of_one_file_keeps_a_parent_folder_that_holds_another_repo", async (testContext) => {
+    // Scenario: two repos share a parent folder: the reset of one repo leaves the parent folder and the other repo.
+    // a store holds two repos in the sub folder "tests".
+    const storeFolder = makeTemporaryFolder(testContext);
+    const oneRepoFolder = makeStampedRepoFolder(storeFolder, "tests/one.py.git");
+    const twoRepoFolder = makeStampedRepoFolder(storeFolder, "tests/two.py.git");
+    const file = new Path("/project/tests/one.py");
+    // the reset of one.py is asked for.
+    await resetStoresOfFiles(new Path(storeFolder), [{ file, repoFolder: new Path(oneRepoFolder) }], async () => {}, () => {});
+    // the repo of one.py is gone.
+    assert.equal(existsSync(oneRepoFolder), false);
+    // the folder "tests" still exists and still holds the repo of two.py.
+    assert.equal(existsSync(join(storeFolder, "tests")), true);
+    assert.equal(existsSync(twoRepoFolder), true);
+    assert.deepEqual(readdirSync(join(storeFolder, "tests")), ["two.py.git"]);
+});
+
+test("test_reset_all_stores_removes_an_empty_folder_that_held_no_repo", async (testContext) => {
+    // Scenario: an old empty folder sits in the store: the reset of all stores removes it too.
+    // a store holds one repo and one empty folder.
+    const storeFolder = makeTemporaryFolder(testContext);
+    makeStampedRepoFolder(storeFolder, "file.py.git");
+    mkdirSync(join(storeFolder, "old_empty"));
+    // the reset of all stores is asked for.
+    await resetAllStores(new Path(storeFolder), async () => {}, () => {});
+    // the store holds nothing.
+    assert.deepEqual(readdirSync(storeFolder), []);
 });
