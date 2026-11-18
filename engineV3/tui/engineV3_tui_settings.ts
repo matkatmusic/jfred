@@ -12,7 +12,10 @@ import { getProjectCacheFile } from "./engineV3_tui_project_cache.ts";
 import { registerLockFileForExit } from "./engineV3_tui_step_process.ts";
 
 // const USAGE = "usage: node --import tsx engineV3/tui/engineV3_tui_main.tsx --project <folder> --jsonls <folder>[,<folder>...] --file-history <folder>[,<folder>...] --store <folder> [--repo <folder> --commit <commit>] [--processes <1-4>] [--auto]";
-const USAGE = "usage: node --import tsx engineV3/tui/jfredTUI.ts --project <folder> --jsonls <folder>[,<folder>...] --file-history <folder>[,<folder>...] --store <folder> [--repo <folder> --commit <commit>] [--processes <1-4>] [--auto]";
+// const USAGE = "usage: node --import tsx engineV3/tui/jfredTUI.ts --project <folder> --jsonls <folder>[,<folder>...] --file-history <folder>[,<folder>...] --store <folder> [--repo <folder> --commit <commit>] [--processes <1-4>] [--auto]";
+const USAGE = "usage: node --import tsx engineV3/tui/jfredTUI.ts --project <folder> --jsonls <folder>[,<folder>...] --file-history <folder>[,<folder>...] --store <folder> [--repo <folder> --commit <commit>] [--processes <1-4>] [--auto] | --settings <file.json>";
+const SETTINGS_KEYS = ["project", "jsonls", "file-history", "store", "repo", "commit", "processes", "auto"];
+const SETTINGS_LIST_KEYS = ["jsonls", "file-history"];
 const DEFAULT_PROCESSES = 4;
 const MAXIMUM_PROCESSES = 4;
 const MINIMUM_PROCESSES = 1;
@@ -45,7 +48,50 @@ function readProcessCountFlag(processesFlagValue: string | undefined): number {
     return processes;
 }
 
-export function readTuiSettings(argv: string[]): TuiSettings {
+function readSettingsFileAsArguments(settingsFile: string): string[] {
+    const settingsObject = JSON.parse(readFileSync(settingsFile, "utf8"));
+    const argv: string[] = [];
+    for (const [key, value] of Object.entries(settingsObject)) {
+        if (!SETTINGS_KEYS.includes(key)) {
+            throw new Error(USAGE);
+        }
+        if (key === "auto") {
+            if (typeof value !== "boolean") {
+                throw new Error(USAGE);
+            }
+            if (value) {
+                argv.push("--auto");
+            }
+            continue;
+        }
+        if (SETTINGS_LIST_KEYS.includes(key)) {
+            if (!Array.isArray(value)) {
+                throw new Error(USAGE);
+            }
+            argv.push("--" + key, value.join(","));
+            continue;
+        }
+        argv.push("--" + key, String(value));
+    }
+    return argv;
+}
+
+export function getFlagArguments(argv: string[]): string[] {
+    if (!argv.includes("--settings")) {
+        return argv;
+    }
+    const settingsFlag = extractValueFlag(argv, "--settings");
+    if (settingsFlag.rest.length !== 0) {
+        throw new Error(USAGE);
+    }
+    if (settingsFlag.value === undefined) {
+        throw new Error(USAGE);
+    }
+    return readSettingsFileAsArguments(settingsFlag.value);
+}
+
+export function readTuiSettings(settingsOrFlagArguments: string[]): TuiSettings {
+    const argv = getFlagArguments(settingsOrFlagArguments);
     const folderSettings = readInverseReposSettingsFromArguments(argv);
     const repoFlag = extractValueFlag(argv, "--repo");
     const commitFlag = extractValueFlag(argv, "--commit");

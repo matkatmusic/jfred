@@ -3,7 +3,8 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { Path } from "../src/structures/domain.ts";
@@ -11,7 +12,7 @@ import { INVERSE_REPOS_CACHE_FOLDER } from "../src/viewer_api_layer1_inverse_rep
 import { getInverseRepoFolderForFile } from "../engineV3/engineV3_inverse_repos_for_project.ts";
 import { isFullBuildRepoInStore } from "../engineV3/engineV3_step_store_guard.ts";
 import { getProjectCacheFile } from "../engineV3/tui/engineV3_tui_project_cache.ts";
-import { acquireTuiLock, getTuiLockFile, prepareTuiStore, readTuiSettings } from "../engineV3/tui/engineV3_tui_settings.ts";
+import { acquireTuiLock, getFlagArguments, getTuiLockFile, prepareTuiStore, readTuiSettings } from "../engineV3/tui/engineV3_tui_settings.ts";
 
 // A store path inside the cache folder that does not exist yet. The test removes the store and its tui cache folder.
 function makeMissingStoreFolderInsideCacheFolder(t: TestContext): Path {
@@ -132,4 +133,101 @@ test("test_readTuiSettings_reads_the_comma_lists_and_defaults", () => {
     assert.equal(settings.commit, undefined);
     assert.equal(settings.processes, 4);
     assert.equal(settings.isAuto, false);
+});
+
+const REQUIRED_SETTINGS_KEYS = { project: "/tmp/project", jsonls: ["/tmp/jsonls-a", "/tmp/jsonls-b"], "file-history": ["/tmp/history-a", "/tmp/history-b"], store: "/tmp/store" };
+
+function writeSettingsFile(t: TestContext, content: object): string {
+    const settingsFolder = mkdtempSync(join(tmpdir(), "jfred-settings-"));
+    t.after(() => rmSync(settingsFolder, { recursive: true, force: true }));
+    const settingsFile = join(settingsFolder, "settings.json");
+    writeFileSync(settingsFile, JSON.stringify(content));
+    return settingsFile;
+}
+
+test("test_settings_file_gives_the_same_settings_as_the_flags", (t) => {
+    // Scenario: every key of the settings file gives the same settings object as the matching flags.
+    // a settings file holds all eight keys.
+    const settingsFile = writeSettingsFile(t, { ...REQUIRED_SETTINGS_KEYS, repo: "/tmp/repo", commit: "abc123", processes: 2, auto: true });
+    // the same values as flags.
+    const flagArguments = ["--project", "/tmp/project", "--jsonls", "/tmp/jsonls-a,/tmp/jsonls-b", "--file-history", "/tmp/history-a,/tmp/history-b", "--store", "/tmp/store", "--repo", "/tmp/repo", "--commit", "abc123", "--processes", "2", "--auto"];
+    // reading the settings file gives the same object as reading the flags.
+    assert.deepEqual(readTuiSettings(["--settings", settingsFile]), readTuiSettings(flagArguments));
+});
+
+test("test_settings_file_auto_false_gives_isAuto_false", (t) => {
+    // Scenario: the key auto with the value false leaves auto mode off.
+    // a settings file holds the required keys and auto false.
+    const settingsFile = writeSettingsFile(t, { ...REQUIRED_SETTINGS_KEYS, auto: false });
+    // reading it gives isAuto false.
+    assert.equal(readTuiSettings(["--settings", settingsFile]).isAuto, false);
+});
+
+test("test_settings_flag_with_another_flag_throws", (t) => {
+    // Scenario: with --settings, any other flag on the command line throws.
+    // a good settings file and one more flag on the command line.
+    const settingsFile = writeSettingsFile(t, REQUIRED_SETTINGS_KEYS);
+    // reading the settings throws.
+    assert.throws(() => readTuiSettings(["--settings", settingsFile, "--auto"]));
+});
+
+test("test_settings_file_with_an_unknown_key_throws", (t) => {
+    // Scenario: a key that is not a flag name throws.
+    // a settings file holds the required keys and one unknown key.
+    const settingsFile = writeSettingsFile(t, { ...REQUIRED_SETTINGS_KEYS, colour: "red" });
+    // reading the settings throws.
+    assert.throws(() => readTuiSettings(["--settings", settingsFile]));
+});
+
+test("test_settings_file_that_does_not_exist_throws", () => {
+    // Scenario: a missing settings file throws.
+    // reading a settings file that does not exist throws.
+    assert.throws(() => readTuiSettings(["--settings", join(tmpdir(), "jfred-no-such-settings-" + randomUUID() + ".json")]));
+});
+
+test("test_settings_file_with_processes_above_four_throws", (t) => {
+    // Scenario: the file path keeps the rule that processes above four throw.
+    // a settings file holds the required keys and processes 5.
+    const settingsFile = writeSettingsFile(t, { ...REQUIRED_SETTINGS_KEYS, processes: 5 });
+    // reading the settings throws.
+    assert.throws(() => readTuiSettings(["--settings", settingsFile]));
+});
+
+test("test_settings_file_with_repo_and_no_commit_throws", (t) => {
+    // Scenario: the file path keeps the rule that repo and commit go together.
+    // a settings file holds the required keys and a repo, but no commit.
+    const settingsFile = writeSettingsFile(t, { ...REQUIRED_SETTINGS_KEYS, repo: "/tmp/repo" });
+    // reading the settings throws.
+    assert.throws(() => readTuiSettings(["--settings", settingsFile]));
+});
+
+test("test_settings_file_without_a_required_key_throws", (t) => {
+    // Scenario: the file path keeps the rule that the store key is required.
+    // a settings file holds the required keys except store.
+    const { store, ...keysWithoutStore } = REQUIRED_SETTINGS_KEYS;
+    const settingsFile = writeSettingsFile(t, keysWithoutStore);
+    // reading the settings throws.
+    assert.throws(() => readTuiSettings(["--settings", settingsFile]));
+});
+
+test("test_settings_argument_becomes_the_flags_the_cache_child_reads", (t) => {
+    // Scenario: the cache child only knows real flags, so --settings must become those flags before the child starts.
+    // a settings file holds the four required keys.
+    const settingsFile = writeSettingsFile(t, REQUIRED_SETTINGS_KEYS);
+    // the flag arguments for that settings file are the real flags, and they hold no --settings.
+    assert.deepEqual(getFlagArguments(["--settings", settingsFile]), ["--project", "/tmp/project", "--jsonls", "/tmp/jsonls-a,/tmp/jsonls-b", "--file-history", "/tmp/history-a,/tmp/history-b", "--store", "/tmp/store"]);
+});
+
+test("test_flag_arguments_without_settings_stay_the_same", () => {
+    // Scenario: real flags pass through unchanged.
+    // an argument list holds only real flags.
+    const argv = ["--project", "/tmp/project", "--auto"];
+    // the flag arguments are the same list.
+    assert.deepEqual(getFlagArguments(argv), argv);
+});
+
+test("test_usage_text_names_the_settings_flag", () => {
+    // Scenario: the usage text lists --settings.
+    // reading --settings with no file throws the usage text, and the text names --settings.
+    assert.throws(() => readTuiSettings(["--settings"]), /\| --settings <file\.json>/);
 });

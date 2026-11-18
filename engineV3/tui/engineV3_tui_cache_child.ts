@@ -7,6 +7,7 @@ import { createElement } from "react";
 import { Path } from "../../src/structures/domain.ts";
 import { Barbershop } from "./engineV3_tui_barbershop.tsx";
 import { LegendFrame } from "./engineV3_tui_legend_frame.tsx";
+import { getFlagArguments } from "./engineV3_tui_settings.ts";
 
 export const BARBERSHOP_WIDTH = 30;
 
@@ -15,7 +16,8 @@ export function createLoadingScreen(progressText: string) {
 }
 
 export function runProjectCacheChild(jfredFolder: Path, showProgress: (progressText: string) => void): Promise<void> {
-    const cacheChildArguments = ["--import", "tsx", "engineV3/tui/engineV3_tui_project_cache_main.ts", ...process.argv.slice(2)];
+    // const cacheChildArguments = ["--import", "tsx", "engineV3/tui/engineV3_tui_project_cache_main.ts", ...process.argv.slice(2)];
+    const cacheChildArguments = ["--import", "tsx", "engineV3/tui/engineV3_tui_project_cache_main.ts", ...getFlagArguments(process.argv.slice(2))];
     const child = spawn(process.execPath, cacheChildArguments, { cwd: jfredFolder.toString(), stdio: ["ignore", "ignore", "pipe"] });
     const standardErrorLines: string[] = [];
     createInterface({ input: child.stderr }).on("line", (line) => {
