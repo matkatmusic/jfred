@@ -1,7 +1,7 @@
 // Tests of the terminal UI keymap: keys come from a JSON file and map to TuiCommand values.
 
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test, type TestContext } from "node:test";
@@ -9,36 +9,22 @@ import { fileURLToPath } from "node:url";
 import type { Key } from "ink";
 import { Path } from "../src/structures/domain.ts";
 import { TuiCommand } from "../src/structures/vocabulary.ts";
-import { findCommandForKey, formatKeyBinding, loadKeymap } from "../engineV3/tui/engineV3_tui_keymap.ts";
+import { KeyBox, findCommandForKey, formatKeyBinding, loadKeymap } from "../engineV3/tui/engineV3_tui_keymap.ts";
 
 const DEFAULT_KEYMAP_FILE = new Path(join(dirname(fileURLToPath(import.meta.url)), "..", "engineV3", "tui", "keymap.json"));
 
-const VALID_KEYMAP: Record<string, unknown> = {
-    moveSelectionUp: { key: "upArrow" },
-    moveSelectionDown: { key: "downArrow" },
-    toggleSelection: { input: "s" },
-    extendSelection: { input: "S" },
-    resetSelectedStores: { input: "r" },
-    resetAllStores: { input: "R" },
-    stepSelectionTowardsNow: { key: "leftArrow" },
-    stepSelectionTowardsEarliest: { key: "rightArrow" },
-    stepAllTowardsNow: { key: "leftArrow", shift: true },
-    stepAllTowardsEarliest: { key: "rightArrow", shift: true },
-    toggleDaySpeed: { input: "d" },
-    toggleWeekSpeed: { input: "w" },
-    playScript: { input: "p" },
-};
-
-// An override value of undefined removes that command from the file.
+// The overrides change the key entry of the global box whose action is the command name. An override value of undefined removes that entry.
 function writeKeymapFile(t: TestContext, overrides: Record<string, unknown>): Path {
     const keymapFolder = mkdtempSync(join(tmpdir(), "engineV3-tui-keymap-"));
     t.after(() => rmSync(keymapFolder, { recursive: true, force: true }));
-    const keymapContent: Record<string, unknown> = { ...VALID_KEYMAP };
+    const keymapContent = JSON.parse(readFileSync(DEFAULT_KEYMAP_FILE.value, "utf8"));
+    const globalKeys: Record<string, Record<string, unknown>> = keymapContent.globalHotKeysBox.keys;
     for (const [commandName, binding] of Object.entries(overrides)) {
+        const keyId = Object.keys(globalKeys).find((candidateId) => globalKeys[candidateId]!.action === commandName)!;
         if (binding === undefined) {
-            delete keymapContent[commandName];
+            delete globalKeys[keyId];
         } else {
-            keymapContent[commandName] = binding;
+            globalKeys[keyId] = { ...globalKeys[keyId], input: undefined, key: undefined, shift: undefined, ...(binding as object) };
         }
     }
     const keymapFile = join(keymapFolder, "keymap.json");
@@ -75,9 +61,10 @@ function makeKey(overrides: Partial<Key>): Key {
 test("test_loadKeymap_reads_the_default_file", () => {
     // Load the committed default keymap file.
     const keymap = loadKeymap(DEFAULT_KEYMAP_FILE);
-    // Every TuiCommand has a binding.
+    // Every TuiCommand has a binding in at least one box.
     for (const command of Object.values(TuiCommand)) {
-        assert.ok(keymap.has(command), `no binding for ${command}`);
+        const isBound = [KeyBox.Global, KeyBox.FileView, KeyBox.Console].some((box) => loadKeymap(DEFAULT_KEYMAP_FILE, box).has(command));
+        assert.ok(isBound, `no binding for ${command}`);
     }
     // The day and week speed commands are bound.
     assert.deepEqual(keymap.get(TuiCommand.ToggleDaySpeed), { input: "d" });

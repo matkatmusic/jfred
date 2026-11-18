@@ -5,6 +5,7 @@ import type { PlayOutcomeKind, ScriptAction, StepProcessOutcomeKind } from "../.
 import type { EarliestBoundary } from "../engineV3_earliest_boundary.ts";
 import type { FileEventType } from "../engineV3_replay_reverse_events.ts";
 import type { StepResultLine } from "../engineV3_step_start_at.ts";
+import type { EngineLog } from "./engineV3_tui_engine_log.ts";
 import type { FileRunState, WalkState } from "./engineV3_tui_walk_state.ts";
 
 // A --startAt walk of one file; isPassingStops adds --pass-stops.
@@ -30,6 +31,7 @@ export type SpawnSettings = {
     storeFolder: Path;
     earliestBoundary: EarliestBoundary | undefined;
     jfredFolder: Path;
+    engineLog?: EngineLog;   // every output line of the child goes to it
 };
 
 export type StepPoolOptions = {
@@ -67,6 +69,7 @@ export type HistoryWalkerOptions = {
     decideScriptAction: (file: Path, eventType: FileEventType, source: string | null) => ScriptAction;
     onStatusChange: (file: Path, runState: FileRunState) => void;
     playKeyName: string;   // display name of the play key from the keymap, named in the stop text
+    engineLog?: EngineLog;   // one summary line for each walk outcome and each play outcome
 };
 
 export type HistoryWalker = {

@@ -3,7 +3,8 @@
 import type { Path } from "../../src/structures/domain.ts";
 import type { InverseRepoFileWire } from "../../webapp/layer1-components/bars-view/layer1-bars-wire.ts";
 import type { ConsentAnswers, ConsentQuestion } from "./engineV3_tui_consent.ts";
-import type { Keymap } from "./engineV3_tui_keymap.ts";
+import type { EngineLog } from "./engineV3_tui_engine_log.ts";
+import type { KeyBox, KeyBoxSettings, Keymap } from "./engineV3_tui_keymap.ts";
 import type { FileEventCounts, ProjectEventEntry } from "./engineV3_tui_project_cache.ts";
 import type { WalkState } from "./engineV3_tui_walk_state.ts";
 import type { HistoryWalker, StepPool } from "./engineV3_tui_walk_types.ts";
@@ -17,6 +18,9 @@ export type AppProps = {
     events: ProjectEventEntry[];
     countsByFile: Map<string, FileEventCounts>;
     keymap: Keymap;
+    keyBoxes: Record<KeyBox, KeyBoxSettings>;
+    engineLog: EngineLog;
+    openLogFolder: () => void;
     walkState: WalkState;
     walker: HistoryWalker;
     pool: StepPool;

@@ -9,6 +9,15 @@ export const INK_KEY_NAMES = ["upArrow", "downArrow", "leftArrow", "rightArrow",
 export type KeyBinding = { input?: string; key?: (typeof INK_KEY_NAMES)[number]; shift?: boolean };
 export type Keymap = Map<TuiCommand, KeyBinding>;
 
+// The name of a box in keymap.json that has keys.
+export enum KeyBox {
+    Global = "globalHotKeysBox",
+    FileView = "fileViewHotKeysBox",
+    Console = "consoleHotKeysBox",
+}
+export type KeyEntry = KeyBinding & { action: TuiCommand; text: string; customColor: string | null };
+export type KeyBoxSettings = { defaultKeyColor: string; defaultLabelColor: string; borderColor: string; keys: Record<string, KeyEntry> };
+
 const KEY_DISPLAY_NAMES: Record<(typeof INK_KEY_NAMES)[number], string> = {
     upArrow: "Up",
     downArrow: "Down",
@@ -47,28 +56,64 @@ function buildBindingSignature(binding: KeyBinding): string {
     return JSON.stringify([binding.input ?? null, binding.key ?? null, binding.shift ?? false]);
 }
 
-export function loadKeymap(keymapFile: Path): Keymap {
-    const keymapEntries: Record<string, KeyBinding> = JSON.parse(readFileSync(keymapFile.value, "utf8"));
+// The same binding may repeat in two boxes, never inside one box.
+export function loadKeyBox(keymapFile: Path, box: KeyBox): KeyBoxSettings {
+    const keyBox: KeyBoxSettings = JSON.parse(readFileSync(keymapFile.value, "utf8"))[box];
     const validCommands: string[] = Object.values(TuiCommand);
-    const keymap: Keymap = new Map();
-    const commandNameBySignature = new Map<string, string>();
-    for (const [commandName, binding] of Object.entries(keymapEntries)) {
-        if (!validCommands.includes(commandName)) {
-            throw new Error(`keymap entry ${commandName} is not a TuiCommand`);
+    const keyIdBySignature = new Map<string, string>();
+    for (const [keyId, entry] of Object.entries(keyBox.keys)) {
+        if (!validCommands.includes(entry.action)) {
+            throw new Error(`keymap entry ${box}.${keyId} is not a TuiCommand: ${entry.action}`);
         }
-        validateKeyBinding(commandName, binding);
-        const signature = buildBindingSignature(binding);
-        const otherCommandName = commandNameBySignature.get(signature);
-        if (otherCommandName !== undefined) {
-            throw new Error(`keymap commands ${otherCommandName} and ${commandName} have the same binding`);
+        validateKeyBinding(`${box}.${keyId}`, entry);
+        const signature = buildBindingSignature(entry);
+        const otherKeyId = keyIdBySignature.get(signature);
+        if (otherKeyId !== undefined) {
+            throw new Error(`keymap keys ${otherKeyId} and ${keyId} of ${box} have the same binding`);
         }
-        commandNameBySignature.set(signature, commandName);
-        keymap.set(commandName as TuiCommand, binding);
+        keyIdBySignature.set(signature, keyId);
+    }
+    return keyBox;
+}
+
+export function loadKeyBoxes(keymapFile: Path): Record<KeyBox, KeyBoxSettings> {
+    return Object.fromEntries(Object.values(KeyBox).map((box) => [box, loadKeyBox(keymapFile, box)])) as Record<KeyBox, KeyBoxSettings>;
+}
+
+function buildBindingOfEntry(entry: KeyEntry): KeyBinding {
+    const binding: KeyBinding = {};
+    if (entry.input !== undefined) {
+        binding.input = entry.input;
+    }
+    if (entry.key !== undefined) {
+        binding.key = entry.key;
+    }
+    if (entry.shift !== undefined) {
+        binding.shift = entry.shift;
+    }
+    return binding;
+}
+
+// Every TuiCommand must have a key in at least one box.
+export function loadKeymap(keymapFile: Path, box: KeyBox = KeyBox.Global): Keymap {
+    const boundCommands = new Set<TuiCommand>();
+    for (const boxToCheck of Object.values(KeyBox)) {
+        for (const entry of Object.values(loadKeyBox(keymapFile, boxToCheck).keys)) {
+            boundCommands.add(entry.action);
+        }
     }
     for (const command of Object.values(TuiCommand)) {
-        if (!keymap.has(command)) {
+        if (!boundCommands.has(command)) {
             throw new Error(`keymap has no entry for ${command}`);
         }
+    }
+    return buildKeymapOfKeyBox(loadKeyBox(keymapFile, box));
+}
+
+export function buildKeymapOfKeyBox(keyBox: KeyBoxSettings): Keymap {
+    const keymap: Keymap = new Map();
+    for (const entry of Object.values(keyBox.keys)) {
+        keymap.set(entry.action, buildBindingOfEntry(entry));
     }
     return keymap;
 }

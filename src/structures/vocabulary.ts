@@ -194,6 +194,23 @@ export enum TuiCommand {
     ToggleDaySpeed = "toggleDaySpeed",
     ToggleWeekSpeed = "toggleWeekSpeed",
     PlayScript = "playScript",
+    SetEventSpeed = "setEventSpeed",
+    ViewFile = "viewFile",
+    OpenConsole = "openConsole",
+    ReconstructUntilEarliest = "reconstructUntilEarliest",
+    CloseBox = "closeBox",
+    ScrollUp = "scrollUp",
+    ScrollDown = "scrollDown",
+    OpenLogFolder = "openLogFolder",
+    ViewFileStepTowardsNow = "viewFileStepTowardsNow",
+    ViewFileStepTowardsEarliest = "viewFileStepTowardsEarliest",
+}
+
+// The box that is open between the info box and the hotkeys box; the keys act on that box.
+export enum AppBoxMode {
+    Browse = "browse",
+    ViewFile = "viewFile",
+    Console = "console",
 }
 
 export enum JumpSpeed {

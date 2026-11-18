@@ -17,7 +17,7 @@ import { buildOnDemandInverseReposForFiles, createProjectEventsLoader, getInvers
 import { buildTuiBarModels, describeBarInfo, listInverseRepoFileWire } from "../engineV3/tui/engineV3_tui_bars.ts";
 import type { FileEventCounts, ProjectEventEntry } from "../engineV3/tui/engineV3_tui_project_cache.ts";
 import { createWalkState, type FileRunState } from "../engineV3/tui/engineV3_tui_walk_state.ts";
-import { loadKeymap } from "../engineV3/tui/engineV3_tui_keymap.ts";
+import { loadKeyBoxes, loadKeymap } from "../engineV3/tui/engineV3_tui_keymap.ts";
 import { App } from "../engineV3/tui/engineV3_tui_app.tsx";
 import type { AppProps } from "../engineV3/tui/engineV3_tui_app_types.ts";
 import type { InverseCommitWire, InverseRepoFileWire } from "../webapp/layer1-components/bars-view/layer1-bars-wire.ts";
@@ -187,7 +187,8 @@ function makeZeroEventCounts(): FileEventCounts {
 // A screen whose walker says every time is covered and whose pool does nothing; the wires come from the real repo.
 function makeAppProps(project: Project, events: ProjectEventEntry[]): AppProps {
     return {
-        terminalRows: 20,
+        // terminalRows: 20,
+        terminalRows: 24,
         terminalColumns: 100,
         projectFolder: project.projectFolder,
         storeFolder: project.storeFolder,
@@ -195,6 +196,9 @@ function makeAppProps(project: Project, events: ProjectEventEntry[]): AppProps {
         events,
         countsByFile: new Map([[project.file.toString(), makeZeroEventCounts()]]),
         keymap: loadKeymap(DEFAULT_KEYMAP_FILE),
+        keyBoxes: loadKeyBoxes(DEFAULT_KEYMAP_FILE),
+        engineLog: { appendRawLine: () => {}, appendSummaryLine: () => {}, listLines: () => [] },
+        openLogFolder: () => {},
         walkState: createWalkState(),
         // walker: { walkHistoryTo: () => true, handleOutcome: async () => {} },
         walker: { walkHistoryTo: () => true, handleOutcome: async () => {}, playScript: throwBecauseNotExpected },

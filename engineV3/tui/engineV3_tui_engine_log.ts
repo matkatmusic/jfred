@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { spawn } from "node:child_process";
 import { Path } from "../../src/structures/domain.ts";
 import { PlayOutcomeKind, StepProcessOutcomeKind } from "../../src/structures/vocabulary.ts";
+import { getRelativePathInProject } from "../engineV3_inverse_repos_for_project.ts";
 import { getProjectCacheFile } from "./engineV3_tui_project_cache.ts";
 import { describeCrash } from "./engineV3_tui_walk_stop_text.ts";
 import type { PlayOutcome, StepProcessOutcome, StepRequest } from "./engineV3_tui_walk_types.ts";
@@ -24,6 +25,39 @@ export type EngineLog = {
     appendSummaryLine(text: string): void;
     listLines(): EngineLogLine[];
 };
+
+export type LogForwarder = { write: (chunk: string) => void; flush: () => void };
+const FORWARDER_THAT_DOES_NOTHING: LogForwarder = { write: () => {}, flush: () => {} };
+
+// Splits the chunks of one stream into lines (a line may span chunks) and gives each non-empty line to the engine log.
+// A carriage return ends a line too: the engine prints its progress as "\rC: 1/1 logs read".
+export function createLogForwarder(logFile: Path | undefined, engineLog: EngineLog | undefined): LogForwarder {
+    if (engineLog === undefined) {
+        return FORWARDER_THAT_DOES_NOTHING;
+    }
+    if (logFile === undefined) {
+        return FORWARDER_THAT_DOES_NOTHING;
+    }
+    let pendingText = "";
+    return {
+        write: (chunk) => {
+            const lines = (pendingText + chunk).split(/\r?\n|\r/);
+            pendingText = lines.pop()!;
+            lines.filter((line) => line !== "").forEach((line) => engineLog.appendRawLine(logFile, line));
+        },
+        flush: () => {
+            if (pendingText !== "") {
+                engineLog.appendRawLine(logFile, pendingText);
+            }
+            pendingText = "";
+        },
+    };
+}
+
+// The log names a file by its path relative to the project folder.
+export function getRelativeLogPath(projectFolder: Path, file: Path): Path {
+    return new Path(getRelativePathInProject(projectFolder, file));
+}
 
 export function getEngineLogFile(storeFolder: Path): Path {
     return new Path(join(dirname(getProjectCacheFile(storeFolder).toString()), ENGINE_LOG_FILE_NAME));

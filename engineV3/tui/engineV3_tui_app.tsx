@@ -1,36 +1,42 @@
 // The root component of the terminal UI: header, visible file rows, info row, menu row.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Box, Text, useInput } from "ink";
 import type { Path } from "../../src/structures/domain.ts";
-import { FileWalkStatus, JumpSpeed, MarkerDirection, TuiCommand } from "../../src/structures/vocabulary.ts";
+import { FileWalkStatus, JumpSpeed, MarkerDirection } from "../../src/structures/vocabulary.ts";
 import type { BarFileModel } from "../../webapp/layer1-components/bars-view/layer1-bars-model.ts";
-import { findRulerRowIndexForInstant } from "../../webapp/layer1-components/bars-view/layer1-bars-ruler.ts";
 import { getRelativePathInProject } from "../engineV3_inverse_repos_for_project.ts";
 import type { AppProps, FileTimes, SelectionState } from "./engineV3_tui_app_types.ts";
-import { describeRowState } from "./engineV3_tui_app_rows.ts";
-import { extendSelectionToCursor, moveCursor, toggleCursorFile } from "./engineV3_tui_app_selection.ts";
+import { useAppKeys } from "./engineV3_tui_app_keys.ts";
+import { AppLayout } from "./engineV3_tui_app_layout.tsx";
+import { buildFileRowElements } from "./engineV3_tui_app_row_elements.tsx";
 import { getMemoizedFileModel, stepProjectMarker, stepSelectedFiles, type FileModelMemo, type StepContext } from "./engineV3_tui_app_steps.ts";
-import { Barbershop } from "./engineV3_tui_barbershop.tsx";
 import { describeBarInfo } from "./engineV3_tui_bars.ts";
 import { chooseFileForPlayKey, getNextConsentQuestion } from "./engineV3_tui_consent.ts";
 import { ConsentPopup } from "./engineV3_tui_consent_popup.tsx";
-import { DetailsBox, KeyFooter, LegendBox, buildKeyFooterEntries, countBoxRows } from "./engineV3_tui_footer.tsx";
-import { buildBarLegendLines } from "./engineV3_tui_legend.ts";
+// import { countBoxRows } from "./engineV3_tui_footer.tsx";
+import { TUI_COLORS } from "./engineV3_tui_colors.ts";
+// import { countLinesBoxRows } from "./engineV3_tui_footer.tsx";
+import { useAppDrawer } from "./engineV3_tui_app_drawer.tsx";
+import { MarkerBox } from "./engineV3_tui_marker_box.tsx";
+import { computeMarkedPosition, listEventInstants } from "./engineV3_tui_marker_position.ts";
+import { useMarkerWindowStart } from "./engineV3_tui_marker_window.ts";
+// import { HOTKEYS_BOX_ROW_COUNT } from "./engineV3_tui_hotkeys_box.tsx";
+// import { KeyBox } from "./engineV3_tui_keymap.ts";
 import { LEGEND_ROW_COUNT, LegendFrame } from "./engineV3_tui_legend_frame.tsx";
-import { ROW_STATE_WIDTH, computeRowColumnWidths } from "./engineV3_tui_row_columns.ts";
-import { buildInfoEntries } from "./engineV3_tui_info_row.tsx";
-import { findCommandForKey } from "./engineV3_tui_keymap.ts";
+import { computeRowColumnWidths } from "./engineV3_tui_row_columns.ts";
+// import { buildInfoEntries } from "./engineV3_tui_info_row.tsx";
+import { buildInfoBoxLines } from "./engineV3_tui_info_row.tsx";
 import { NoEventsScreen } from "./engineV3_tui_no_events.tsx";
-import { Row } from "./engineV3_tui_row.tsx";
-import { foldEventsIntoRulerRows, toggleJumpSpeed, type TimeMarker } from "./engineV3_tui_time_marker.ts";
+import { useTerminalSize } from "./engineV3_tui_terminal_size.ts";
+import { foldEventsIntoRulerRows, listEventsOfFile, type TimeMarker } from "./engineV3_tui_time_marker.ts";
 import { getAvailableRowCount, getVisibleRowRange } from "./engineV3_tui_viewport.ts";
 import { getFileRunState } from "./engineV3_tui_walk_state.ts";
 
-const BAR_WIDTH = 30;
 const RULER_ROW_LIMIT = 200;
 
-export function App(props: AppProps) {
+export function App(startProps: AppProps) {
+    const terminalSize = useTerminalSize({ terminalRows: startProps.terminalRows, terminalColumns: startProps.terminalColumns });
+    const props: AppProps = { ...startProps, ...terminalSize };
     if (props.events.length === 0) {
         return <LegendFrame><NoEventsScreen terminalRows={props.terminalRows - LEGEND_ROW_COUNT} /></LegendFrame>;
     }
@@ -55,16 +61,28 @@ function LoadedApp(props: AppProps) {
     const getTimeOfFile = (file: Path): Date => fileTimes.get(file.value) ?? marker.instant;
     const getModelOfFile = (file: Path): BarFileModel => getMemoizedFileModel(modelMemo.current, props, rulerRows, file);
     const cursorRunState = getFileRunState(props.walkState, cursorFile);
-    const detailEntries = buildInfoEntries({
+    const infoInput = {
         fileName: getRelativePathInProject(props.projectFolder, cursorFile),
         barInfo: describeBarInfo(getModelOfFile(cursorFile), props.countsByFile.get(cursorFile.value)!, cursorRunState),
         runState: cursorRunState,
         ownTime: fileTimes.get(cursorFile.value),
         isTimeSpanned: props.isTimeSpannedForFile(cursorFile, getTimeOfFile(cursorFile)),
         scriptRefusalText: undefined,
-    });
-    const keyEntries = buildKeyFooterEntries(props.keymap, speed);
-    const footerRowCount = countBoxRows(detailEntries, props.terminalColumns) + countBoxRows(keyEntries, props.terminalColumns) + LEGEND_ROW_COUNT;
+    };
+    // const detailEntries = buildInfoEntries(infoInput);
+    const infoLines = buildInfoBoxLines(infoInput, props.terminalColumns);
+    // const eventInstants = listEventInstants(getModelOfFile(cursorFile).commits);
+    // const eventInstants = listEventInstants(listEventsOfFile(props.events, cursorFile));
+    const eventInstants = listEventInstants(listEventsOfFile(props.events, cursorFile), bounds.newest);
+    const markedPosition = computeMarkedPosition(eventInstants, getTimeOfFile(cursorFile), bounds.newest);
+    const windowStart = useMarkerWindowStart(cursorFile, eventInstants.length, markedPosition, props.terminalColumns);
+    const markerBox = <MarkerBox eventInstants={eventInstants} markedPosition={markedPosition} windowStart={windowStart} columns={props.terminalColumns} markedColor={TUI_COLORS.markerBox.markedColor} arrowColor={TUI_COLORS.markerBox.arrowColor} timeColor={TUI_COLORS.markerBox.timeColor} />;
+    // const keyEntries = buildKeyFooterEntries(props.keymap, speed);
+    // const footerRowCount = countBoxRows(detailEntries, props.terminalColumns) + countBoxRows(keyEntries, props.terminalColumns) + LEGEND_ROW_COUNT;
+    // const footerRowCount = countBoxRows(detailEntries, props.terminalColumns) + HOTKEYS_BOX_ROW_COUNT + LEGEND_ROW_COUNT;
+    // const footerRowCount = countLinesBoxRows(infoLines) + MARKER_BOX_ROW_COUNT + HOTKEYS_BOX_ROW_COUNT + LEGEND_ROW_COUNT;
+    const drawerState = useAppDrawer({ props, cursorFile, fileTime: getTimeOfFile(cursorFile), nowTime: bounds.newest, speed, infoLines, markedPosition, eventCount: eventInstants.length });
+    const footerRowCount = drawerState.footerRowCount;
     const longestNameLength = Math.max(...props.files.map((file) => getRelativePathInProject(props.projectFolder, file).length));
     const rowColumnWidths = computeRowColumnWidths(props.terminalColumns, longestNameLength);
     const range = getVisibleRowRange(props.files.length, selection.cursorIndex, previousTop.current, getAvailableRowCount(props.terminalRows, footerRowCount));
@@ -88,6 +106,18 @@ function LoadedApp(props: AppProps) {
         setMarker(stepProjectMarker(stepContext, direction));
         setFileTimes(new Map());
     };
+    const stepCursorFileInDirection = (direction: MarkerDirection): void => setFileTimes(stepSelectedFiles(stepContext, [cursorFile], fileTimes, direction));
+    // const reconstructCursorFile = (): void => void props.walker.walkHistoryTo(new Date(0), cursorFile, true);
+    const reconstructCursorFile = (): void => {
+        const runStatus = getFileRunState(props.walkState, cursorFile).status;
+        if (runStatus === FileWalkStatus.Running) {
+            return;
+        }
+        if (runStatus === FileWalkStatus.Queued) {
+            return;
+        }
+        void props.walker.walkHistoryTo(new Date(0), cursorFile, true);
+    };
     const playScriptOfCursorFile = (): void => {
         const file = chooseFileForPlayKey(cursorFile, selection.selectedFiles);
         if (getFileRunState(props.walkState, file).status === FileWalkStatus.Stopped) {
@@ -95,66 +125,21 @@ function LoadedApp(props: AppProps) {
             void props.onPlayScript(file, getTimeOfFile(file));
         }
     };
+    const refreshScreen = (): void => setRenderCount((renderCount) => renderCount + 1);
 
-    useInput((input, key) => {
-        if (consentQuestion !== undefined) {
-            if (input === "y") {
-                props.onConsentAnswered(consentQuestion.answerKey, true);
-            }
-            if (input === "n") {
-                props.onConsentAnswered(consentQuestion.answerKey, false);
-            }
-            setRenderCount((renderCount) => renderCount + 1);
-            return;
-        }
-        switch (findCommandForKey(props.keymap, input, key)) {
-            case TuiCommand.MoveSelectionUp: return setSelection(moveCursor(selection, props.files, -1));
-            case TuiCommand.MoveSelectionDown: return setSelection(moveCursor(selection, props.files, 1));
-            case TuiCommand.ToggleSelection: return setSelection(toggleCursorFile(selection, props.files));
-            case TuiCommand.ExtendSelection: return setSelection(extendSelectionToCursor(selection, props.files));
-            case TuiCommand.ToggleDaySpeed: return setSpeed(toggleJumpSpeed(speed, JumpSpeed.Day));
-            case TuiCommand.ToggleWeekSpeed: return setSpeed(toggleJumpSpeed(speed, JumpSpeed.Week));
-            case TuiCommand.StepSelectionTowardsNow: return stepSelectedFilesInDirection(MarkerDirection.TowardsNow);
-            case TuiCommand.StepSelectionTowardsEarliest: return stepSelectedFilesInDirection(MarkerDirection.TowardsEarliest);
-            case TuiCommand.StepAllTowardsNow: return stepProjectMarkerInDirection(MarkerDirection.TowardsNow);
-            case TuiCommand.StepAllTowardsEarliest: return stepProjectMarkerInDirection(MarkerDirection.TowardsEarliest);
-            case TuiCommand.ResetSelectedStores:
-                selectedOrCursorFiles.forEach((file) => modelMemo.current.delete(file.value));
-                return void props.onResetSelectedStores(selectedOrCursorFiles);
-            case TuiCommand.ResetAllStores:
-                modelMemo.current.clear();
-                return void props.onResetAllStores();
-            case TuiCommand.PlayScript: return playScriptOfCursorFile();
-        }
-    });
+    useAppKeys({ props, consentQuestion, selection, speed, selectedOrCursorFiles, modelMemo: modelMemo.current, setSelection, setSpeed, refreshScreen, stepSelectedFilesInDirection, stepProjectMarkerInDirection, playScriptOfCursorFile, boxMode: drawerState.boxMode, fileViewKeymap: drawerState.fileViewKeymap, openViewFile: drawerState.openViewFile, closeBox: drawerState.closeBox, scrollDrawer: drawerState.scrollDrawer, stepCursorFileInDirection, consoleKeymap: drawerState.consoleKeymap, openConsole: drawerState.openConsole, reconstructCursorFile });
 
-    const rows = visibleFiles.map((file, offset) => {
-        const model = getModelOfFile(file);
-        const markerRowIndex = findRulerRowIndexForInstant(rulerRows, getTimeOfFile(file).toISOString());
-        return <Row key={file.value} fileName={getRelativePathInProject(props.projectFolder, file)} model={model} status={getFileRunState(props.walkState, file).status} markerRowIndex={markerRowIndex} rulerRowCount={rulerRows.length} barWidth={rowColumnWidths.barWidth} nameWidth={rowColumnWidths.nameWidth} stateWidth={ROW_STATE_WIDTH} isCursor={range.top + offset === selection.cursorIndex} isSelected={selection.selectedFiles.some((selectedFile) => selectedFile.value === file.value)} stateText={describeRowState(model, getTimeOfFile(file), markerRowIndex)} />;
-    });
+    const rows = buildFileRowElements({ props, visibleFiles, rangeTop: range.top, selection, rulerRows, rowColumnWidths, getModelOfFile, getTimeOfFile });
     // const headerText = consentQuestion?.questionText ?? props.cacheStatusText ?? `marker ${marker.instant.toISOString()}`;
     const staleText = props.staleRepoCount > 0 ? `${props.staleRepoCount} repos are stale: press Shift-R` : undefined;
-    const headerText = consentQuestion?.questionText ?? staleText ?? props.cacheStatusText ?? `marker ${marker.instant.toISOString()}`;
+    // const headerText = consentQuestion?.questionText ?? staleText ?? props.cacheStatusText ?? `marker ${marker.instant.toISOString()}`;
+    const headerText = consentQuestion?.questionText ?? staleText ?? props.cacheStatusText ?? "";
     if (consentQuestion !== undefined) {
         const answerConsentQuestion = (answer: boolean): void => {
             props.onConsentAnswered(consentQuestion.answerKey, answer);
-            setRenderCount((renderCount) => renderCount + 1);
+            refreshScreen();
         };
         return <LegendFrame><ConsentPopup questionText={consentQuestion.questionText} terminalRows={props.terminalRows - LEGEND_ROW_COUNT} terminalColumns={props.terminalColumns} onAnswer={answerConsentQuestion} /></LegendFrame>;
     }
-    return (
-        <Box flexDirection="column" height={props.terminalRows}>
-            <LegendBox lines={buildBarLegendLines()} columns={props.terminalColumns} />
-            <Box gap={1}>
-                <Text wrap="truncate">{headerText}</Text>
-                {props.cacheStatusText !== undefined && <Barbershop width={BAR_WIDTH} />}
-            </Box>
-            <Box flexDirection="column" flexGrow={1}>{rows}</Box>
-            {/* <Box height={1}><Text wrap="truncate-end">{infoRowText}</Text></Box> */}
-            {/* <MenuRow keymap={props.keymap} speed={speed} /> */}
-            <DetailsBox entries={detailEntries} columns={props.terminalColumns} />
-            <KeyFooter entries={keyEntries} columns={props.terminalColumns} />
-        </Box>
-    );
+    return <AppLayout terminalRows={props.terminalRows} terminalColumns={props.terminalColumns} headerText={headerText} isCacheLoading={props.cacheStatusText !== undefined} rows={rows} markerBox={markerBox} infoLines={infoLines} keyBox={drawerState.keyBox} hotKeyRows={drawerState.hotKeyRows} drawer={drawerState.drawer} rowsHeight={drawerState.rowsHeight} />;
 }

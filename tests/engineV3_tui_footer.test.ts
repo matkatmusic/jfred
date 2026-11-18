@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { join } from "node:path";
 import { createElement } from "react";
 import { Path } from "../src/structures/domain.ts";
-import { FileWalkStatus, JumpSpeed, TuiCommand } from "../src/structures/vocabulary.ts";
+import { FileWalkStatus, JumpSpeed } from "../src/structures/vocabulary.ts";
 import { loadKeymap } from "../engineV3/tui/engineV3_tui_keymap.ts";
 
 // Dynamic imports: chalk reads FORCE_COLOR when it loads, so Ink must load after the line above.
@@ -45,8 +45,8 @@ test("test_the_key_footer_entries_have_one_entry_per_command_and_the_speed_last"
     const keymap = loadKeymap(KEYMAP_FILE);
     // build the entries.
     const entries = buildKeyFooterEntries(keymap, JumpSpeed.Day);
-    // one entry per command plus the speed entry.
-    assert.equal(entries.length, Object.values(TuiCommand).length + 1);
+    // one entry per key of the global box plus the speed entry.
+    assert.equal(entries.length, keymap.size + 1);
     // the toggle selection entry reads "s: (de)select".
     assert.ok(entries.some((entry) => entry.label === "s" && entry.value === "(de)select"));
     // the last entry shows the speed.

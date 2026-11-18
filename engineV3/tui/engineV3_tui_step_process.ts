@@ -1,38 +1,15 @@
 // The real child processes behind the terminal UI: spawn, read every chunk, map the result line, keep the live-child registry.
 
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn } from "node:child_process";
 import type { Path } from "../../src/structures/domain.ts";
 import { getRelativePathInProject } from "../engineV3_inverse_repos_for_project.ts";
-import { removeLockFileOfThisProcessAtExit, setLockFileToRemoveAtExit } from "./engineV3_tui_exit_lock.ts";
+import { createLogForwarder, getRelativeLogPath, type EngineLog } from "./engineV3_tui_engine_log.ts";
+import { ensureExitHandlerIsRegistered, liveChildren, type LiveChild } from "./engineV3_tui_live_children.ts";
 import { computePlayOutcome, computeStepOutcome, type ChildResult } from "./engineV3_tui_step_outcome.ts";
 import type { PlayOutcome, PlayRequest, SpawnPlayProcess, SpawnSettings, SpawnStepProcess, StepProcessOutcome, StepRequest } from "./engineV3_tui_walk_types.ts";
 
-type LiveChild = { child: ChildProcess; file: Path | undefined };
-
 const STANDARD_ERROR_TAIL_LINE_COUNT = 20;
 const PLAY_STANDARD_INPUT_TEXT = "f\nr\nq\n";
-
-const liveChildren = new Map<number, LiveChild>();
-let isExitHandlerRegistered = false;
-
-function endAllProcessGroupsAtExit(): void {
-    for (const childId of liveChildren.keys()) {
-        process.kill(-childId, "SIGTERM");
-    }
-    removeLockFileOfThisProcessAtExit();
-}
-
-function ensureExitHandlerIsRegistered(): void {
-    if (!isExitHandlerRegistered) {
-        process.on("exit", endAllProcessGroupsAtExit);
-        isExitHandlerRegistered = true;
-    }
-}
-
-export function registerLockFileForExit(lockFile: Path): void {
-    setLockFileToRemoveAtExit(lockFile);
-    ensureExitHandlerIsRegistered();
-}
 
 function isNonEmptyLine(line: string): boolean {
     return line !== "";
@@ -45,18 +22,22 @@ function listNonEmptyLines(text: string): string[] {
 // The exit code of the child already reports why the pipe broke.
 function ignoreBrokenStandardInput(): void {}
 
-function spawnChildProcess(command: string, args: string[], workingFolder: Path, standardInputText: string | undefined, file: Path | undefined): Promise<ChildResult> {
+function spawnChildProcess(command: string, args: string[], workingFolder: Path, standardInputText: string | undefined, file: Path | undefined, engineLog: EngineLog | undefined, logFile: Path | undefined): Promise<ChildResult> {
     const child = spawn(command, args, { cwd: workingFolder.toString(), detached: true, stdio: ["pipe", "pipe", "pipe"] });
     const childId = child.pid!;
     liveChildren.set(childId, { child, file });
     ensureExitHandlerIsRegistered();
     let standardOutputText = "";
     let standardErrorText = "";
+    const standardOutputForwarder = createLogForwarder(logFile, engineLog);
+    const standardErrorForwarder = createLogForwarder(logFile, engineLog);
     function appendStandardOutput(chunk: string): void {
+        standardOutputForwarder.write(chunk);
         standardOutputText += chunk;
     }
     function appendStandardError(chunk: string): void {
-        standardErrorText = (standardErrorText + chunk).split("\n").slice(-(STANDARD_ERROR_TAIL_LINE_COUNT + 1)).join("\n");
+        standardErrorForwarder.write(chunk);
+        standardErrorText =(standardErrorText + chunk).split("\n").slice(-(STANDARD_ERROR_TAIL_LINE_COUNT + 1)).join("\n");
     }
     function forgetChild(): void {
         liveChildren.delete(childId);
@@ -70,6 +51,8 @@ function spawnChildProcess(command: string, args: string[], workingFolder: Path,
     child.stdin.end(standardInputText);
     function waitForClose(resolve: (result: ChildResult) => void): void {
         function resolveWithResult(exitCode: number | null, signal: NodeJS.Signals | null): void {
+            standardOutputForwarder.flush();
+            standardErrorForwarder.flush();
             const stderrTail = listNonEmptyLines(standardErrorText).slice(-STANDARD_ERROR_TAIL_LINE_COUNT).join("\n");
             resolve({ exitCode, signal, stdoutLines: listNonEmptyLines(standardOutputText), stderrTail });
         }
@@ -86,8 +69,8 @@ function buildChildArguments(settings: SpawnSettings, file: Path, modeArguments:
     return childArguments;
 }
 
-export async function runStepChild(command: string, args: string[], workingFolder: Path, file: Path | undefined = undefined): Promise<StepProcessOutcome> {
-    const result = await spawnChildProcess(command, args, workingFolder, undefined, file);
+export async function runStepChild(command: string, args: string[], workingFolder: Path, file: Path | undefined = undefined, engineLog: EngineLog | undefined = undefined, logFile: Path | undefined = undefined): Promise<StepProcessOutcome> {
+    const result = await spawnChildProcess(command, args, workingFolder, undefined, file, engineLog, logFile);
     return computeStepOutcome(result);
 }
 
@@ -97,7 +80,7 @@ export function createSpawnStepProcess(settings: SpawnSettings): SpawnStepProces
         if (request.isPassingStops) {
             modeArguments.push("--pass-stops");
         }
-        return runStepChild(process.execPath, buildChildArguments(settings, request.file, modeArguments), settings.jfredFolder, request.file);
+        return runStepChild(process.execPath, buildChildArguments(settings, request.file, modeArguments), settings.jfredFolder, request.file, settings.engineLog, getRelativeLogPath(settings.projectFolder, request.file));
     }
     return spawnStepProcess;
 }
@@ -105,7 +88,7 @@ export function createSpawnStepProcess(settings: SpawnSettings): SpawnStepProces
 export function createSpawnPlayProcess(settings: SpawnSettings): SpawnPlayProcess {
     async function spawnPlayProcess(request: PlayRequest): Promise<PlayOutcome> {
         const childArguments = buildChildArguments(settings, request.file, ["--no-walk-other-files"]);
-        const result = await spawnChildProcess(process.execPath, childArguments, settings.jfredFolder, PLAY_STANDARD_INPUT_TEXT, request.file);
+        const result = await spawnChildProcess(process.execPath, childArguments, settings.jfredFolder, PLAY_STANDARD_INPUT_TEXT, request.file, settings.engineLog, getRelativeLogPath(settings.projectFolder, request.file));
         return computePlayOutcome(result);
     }
     return spawnPlayProcess;

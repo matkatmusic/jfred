@@ -4,6 +4,7 @@ import { computeFillPercent, BarMarkKind, type BarFileModel } from "../../webapp
 import { computeBarPercent } from "../../webapp/layer1-components/bars-view/layer1-bars-ruler.ts";
 import { BarDotKind } from "../../webapp/layer1-components/bars-view/layer1-bars-wire.ts";
 import { Barbershop } from "./engineV3_tui_barbershop.tsx";
+import { TUI_COLORS } from "./engineV3_tui_colors.ts";
 import { ROW_MARK_WIDTH, ROW_PREFIX_WIDTH } from "./engineV3_tui_row_columns.ts";
 
 export const ROW_MARKS: Record<FileWalkStatus, string> = {
@@ -14,19 +15,21 @@ export const ROW_MARKS: Record<FileWalkStatus, string> = {
     [FileWalkStatus.Running]: "⠿",
 };
 
-export const DOT_COLORS: Record<BarDotKind, string> = {
-    [BarDotKind.commit]: "blue",
-    [BarDotKind.snapshot]: "green",
-    [BarDotKind.edit]: "yellow",
-    [BarDotKind.write]: "yellow",
-    [BarDotKind.read]: "gray",
-    [BarDotKind.script]: "magenta",
-    [BarDotKind.disk]: "white",
-    [BarDotKind.deleted]: "white",
-    [BarDotKind.created]: "white",
-};
+// export const DOT_COLORS: Record<BarDotKind, string> = {
+//     [BarDotKind.commit]: "blue",
+//     [BarDotKind.snapshot]: "green",
+//     [BarDotKind.edit]: "yellow",
+//     [BarDotKind.write]: "yellow",
+//     [BarDotKind.read]: "gray",
+//     [BarDotKind.script]: "magenta",
+//     [BarDotKind.disk]: "white",
+//     [BarDotKind.deleted]: "white",
+//     [BarDotKind.created]: "white",
+// };
+export const DOT_COLORS: Record<BarDotKind, string> = TUI_COLORS.barRows.dotColors;
 
-export const UNDONE_SO_FAR_COLOR = "cyan";
+// export const UNDONE_SO_FAR_COLOR = "cyan";
+export const UNDONE_SO_FAR_COLOR = TUI_COLORS.barRows.undoneSoFarColor;
 
 export type RowProps = {
     fileName: string;

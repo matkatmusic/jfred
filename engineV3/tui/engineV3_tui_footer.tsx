@@ -1,15 +1,21 @@
 // The TUI footer: a details box for the selected bar and a key command box, both drawn with round borders.
 import { Box, Text } from "ink";
 import { JumpSpeed, TuiCommand } from "../../src/structures/vocabulary.ts";
+import { TUI_COLORS } from "./engineV3_tui_colors.ts";
 import { formatKeyBinding, type Keymap } from "./engineV3_tui_keymap.ts";
 
 export type FooterEntry = { label: string; value: string; labelColor?: string };
 
-export const LABEL_COLOR = "cyan";
-export const VALUE_COLOR = "green";
-export const KEY_LABEL_COLOR = "#c0c0c0";
-const DETAILS_BORDER_COLOR = "blue";
-const KEYS_BORDER_COLOR = "gray";
+// export const LABEL_COLOR = "cyan";
+// export const VALUE_COLOR = "green";
+// export const KEY_LABEL_COLOR = "#c0c0c0";
+// const DETAILS_BORDER_COLOR = "blue";
+// const KEYS_BORDER_COLOR = "gray";
+export const LABEL_COLOR = TUI_COLORS.legendBox.defaultTextColor;
+export const VALUE_COLOR = TUI_COLORS.infoBox.valueColor;
+export const KEY_LABEL_COLOR = TUI_COLORS.infoBox.defaultKeyColor;
+const DETAILS_BORDER_COLOR = TUI_COLORS.infoBox.borderColor;
+const KEYS_BORDER_COLOR = TUI_COLORS.legendBox.borderColor;
 export const ENTRY_GAP_COLUMNS = 2;
 export const LABEL_VALUE_SEPARATOR = ": ";
 // the border takes one column on each side, the padding one more on each side
@@ -17,7 +23,7 @@ export const BOX_SIDE_COLUMNS = 4;
 const BOX_BORDER_ROWS = 2;
 export const INFO_BOX_ROW_COUNT = 5;
 
-const ACTION_TEXT_BY_COMMAND: Record<TuiCommand, string> = {
+const ACTION_TEXT_BY_COMMAND: Partial<Record<TuiCommand, string>> = {
     [TuiCommand.MoveSelectionUp]: "up",
     [TuiCommand.MoveSelectionDown]: "down",
     [TuiCommand.ToggleSelection]: "(de)select",
@@ -61,8 +67,11 @@ export function layoutEntriesIntoLines(entries: FooterEntry[], lineWidth: number
 
 export function buildKeyFooterEntries(keymap: Keymap, speed: JumpSpeed): FooterEntry[] {
     const entries: FooterEntry[] = [];
-    for (const command of Object.values(TuiCommand)) {
-        entries.push({ label: formatKeyBinding(keymap.get(command)!), value: ACTION_TEXT_BY_COMMAND[command] });
+    // for (const command of Object.values(TuiCommand)) {
+    //     entries.push({ label: formatKeyBinding(keymap.get(command)!), value: ACTION_TEXT_BY_COMMAND[command] });
+    // }
+    for (const [command, binding] of keymap) {
+        entries.push({ label: formatKeyBinding(binding), value: ACTION_TEXT_BY_COMMAND[command] ?? command });
     }
     entries.push({ label: "speed", value: speed });
     return entries;

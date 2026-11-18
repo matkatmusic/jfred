@@ -3,9 +3,9 @@
 import type { Path } from "../../src/structures/domain.ts";
 import { FileWalkStatus, PlayOutcomeKind, ScriptAction, StepProcessOutcomeKind } from "../../src/structures/vocabulary.ts";
 import { FileEventType } from "../engineV3_replay_reverse_events.ts";
-import { getInverseRepoFolderForFile } from "../engineV3_inverse_repos_for_project.ts";
-import { isInstantSpannedByWalkCoverage, readWalkCoverage } from "../engineV3_walk_coverage.ts";
-import { getFileRunState, setFileRunState, type FileRunState } from "./engineV3_tui_walk_state.ts";
+import { describePlaySummary, describeStepSummary, getRelativeLogPath } from "./engineV3_tui_engine_log.ts";
+import { getFileRunState } from "./engineV3_tui_walk_state.ts";
+import { isRepoSpanningInstant, writeRunState, writeStatus } from "./engineV3_tui_walk_write.ts";
 import type { HistoryWalker, HistoryWalkerOptions, PlayOutcome, StepProcessOutcome, StepRequest } from "./engineV3_tui_walk_types.ts";
 import type { StoppedWalk } from "./engineV3_tui_consent.ts";
 import { describeCrash, describeRefusedStop, formatShortSource } from "./engineV3_tui_walk_stop_text.ts";
@@ -13,25 +13,6 @@ import { isRepoWalkFinished, requestPlayOnce } from "./engineV3_tui_walk_play.ts
 
 // The caller of handleOutcome gives no visibility, so a walk requested again after an answer counts as visible.
 const IS_REWALK_VISIBLE = true;
-
-function isRepoSpanningInstant(options: HistoryWalkerOptions, file: Path, instant: Date): boolean {
-    const repoFolder = getInverseRepoFolderForFile(options.storeFolder, options.projectFolder, file);
-    const coverage = readWalkCoverage(repoFolder);
-    if (coverage === undefined) {
-        return false;
-    }
-    return isInstantSpannedByWalkCoverage(coverage, instant);
-}
-
-function writeRunState(options: HistoryWalkerOptions, file: Path, runState: FileRunState): void {
-    setFileRunState(options.walkState, file, runState);
-    options.onStatusChange(file, runState);
-}
-
-function writeStatus(options: HistoryWalkerOptions, file: Path, status: FileWalkStatus, reasonText: string | undefined): void {
-    const previousRunState = getFileRunState(options.walkState, file);
-    writeRunState(options, file, { status, reasonText, failedReplayCount: previousRunState.failedReplayCount });
-}
 
 function walkHistoryTo(options: HistoryWalkerOptions, currentTime: Date, file: Path, isVisible: boolean): boolean {
     if (isRepoSpanningInstant(options, file, currentTime)) {
@@ -53,6 +34,7 @@ function handleDoneOutcome(options: HistoryWalkerOptions, request: StepRequest, 
 }
 
 function writePlayOutcome(options: HistoryWalkerOptions, file: Path, startAt: Date, playOutcome: PlayOutcome): void {
+    options.engineLog?.appendSummaryLine(describePlaySummary(new Date(), getRelativeLogPath(options.projectFolder, file), playOutcome));
     if (playOutcome.kind === PlayOutcomeKind.Replayed) {
         writeStatus(options, file, FileWalkStatus.Idle, undefined);
         walkHistoryTo(options, startAt, file, IS_REWALK_VISIBLE);
@@ -108,6 +90,7 @@ async function handleScriptStop(options: HistoryWalkerOptions, playStartAtByFile
 }
 
 async function handleOutcome(options: HistoryWalkerOptions, lastStopByFileValue: Map<string, StoppedWalk>, playStartAtByFileValue: Map<string, Date>, request: StepRequest, outcome: StepProcessOutcome): Promise<void> {
+    options.engineLog?.appendSummaryLine(describeStepSummary(new Date(), { ...request, file: getRelativeLogPath(options.projectFolder, request.file) }, outcome));
     if (outcome.kind === StepProcessOutcomeKind.Covered) {
         handleDoneOutcome(options, request, outcome.kind);
         return;

@@ -13,7 +13,7 @@ import { App } from "../engineV3/tui/engineV3_tui_app.tsx";
 import type { AppProps } from "../engineV3/tui/engineV3_tui_app_types.ts";
 import { decideScriptAction, type ConsentAnswers } from "../engineV3/tui/engineV3_tui_consent.ts";
 import { createHistoryWalker } from "../engineV3/tui/engineV3_tui_walk.ts";
-import { formatKeyBinding, loadKeymap, type Keymap } from "../engineV3/tui/engineV3_tui_keymap.ts";
+import { KeyBox, formatKeyBinding, loadKeyBoxes, loadKeymap } from "../engineV3/tui/engineV3_tui_keymap.ts";
 import type { FileEventCounts, ProjectEventEntry } from "../engineV3/tui/engineV3_tui_project_cache.ts";
 import { ROW_MARKS } from "../engineV3/tui/engineV3_tui_row.tsx";
 import { createWalkState, getFileRunState, setFileRunState, type FileRunState, type WalkState } from "../engineV3/tui/engineV3_tui_walk_state.ts";
@@ -177,7 +177,8 @@ function makeAppProps(overrides: Partial<AppProps>): AppHarness {
         },
     };
     const props: AppProps = {
-        terminalRows: 20,
+        // terminalRows: 20,
+        terminalRows: 24,
         terminalColumns: 100,
         projectFolder: new Path(PROJECT_FOLDER_TEXT),
         storeFolder: new Path("/made-up-store-folder-for-tui-app-test"),
@@ -185,6 +186,9 @@ function makeAppProps(overrides: Partial<AppProps>): AppHarness {
         events: makeEvents(files),
         countsByFile: makeCountsByFile(files),
         keymap: loadKeymap(KEYMAP_FILE),
+        keyBoxes: loadKeyBoxes(KEYMAP_FILE),
+        engineLog: { appendRawLine: () => {}, appendSummaryLine: () => {}, listLines: () => [] },
+        openLogFolder: () => {},
         walkState,
         walker,
         pool: makeFailingPool(requestWalkCalls),
@@ -234,10 +238,15 @@ function findRowLine(lines: string[], fileName: string): string {
     return rowLine as string;
 }
 
-// The legend box is the first box of the frame: the header row is the line under its bottom border.
+// The legend box and the marker box are the first two boxes of the frame: the header (status) row is the line under the bottom border of the marker box.
+// function getHeaderRow(lines: string[]): string {
+//     const legendBottomBorderIndex = lines.findIndex((line) => line.startsWith("╰"));
+//     return lines[legendBottomBorderIndex + 1]!;
+// }
 function getHeaderRow(lines: string[]): string {
     const legendBottomBorderIndex = lines.findIndex((line) => line.startsWith("╰"));
-    return lines[legendBottomBorderIndex + 1]!;
+    const markerBottomBorderIndex = lines.findIndex((line, index) => index > legendBottomBorderIndex && line.startsWith("╰"));
+    return lines[markerBottomBorderIndex + 1]!;
 }
 
 // The text of each rounded box in the frame, top to bottom: the inner lines joined by one space.
@@ -271,10 +280,16 @@ function getMenuRow(lines: string[]): string {
     return boxTexts[boxTexts.length - 1]!;
 }
 
-function readMarkerInstantFromHeader(lines: string[]): Date {
-    const headerMatch = /marker (\d{4}-\d\d-\d\dT[\d:.]+Z)/.exec(getHeaderRow(lines));
-    assert.notEqual(headerMatch, null, `the header shows no marker time: ${getHeaderRow(lines)}`);
-    return new Date((headerMatch as RegExpExecArray)[1]!);
+// function readMarkerInstantFromHeader(lines: string[]): Date {
+//     const headerMatch = /marker (\d{4}-\d\d-\d\dT[\d:.]+Z)/.exec(getHeaderRow(lines));
+//     assert.notEqual(headerMatch, null, `the header shows no marker time: ${getHeaderRow(lines)}`);
+//     return new Date((headerMatch as RegExpExecArray)[1]!);
+// }
+// The header no longer shows the marker time. With no file spanned, every file without an own time is walked to the marker time: the last such walk request carries it.
+function readMarkerInstantFromWalkCalls(harness: AppHarness, ownTimeFile?: Path): Date {
+    const calls = harness.walkHistoryToCalls.filter((call) => call.file.value !== ownTimeFile?.value);
+    assert.ok(calls.length > 0, "the walker got no request");
+    return calls[calls.length - 1]!.currentTime;
 }
 
 function readOwnTimeFromInfoRow(lines: string[]): Date {
@@ -371,18 +386,19 @@ test("test_an_open_consent_question_shows_as_a_popup_instead_of_the_file_rows_an
 
 test("test_the_menu_row_shows_the_keys_of_the_keymap_file", async (t) => {
     // Scenario: the keymap file is loaded, then the key of PlayScript is changed to x in memory.
-    const keymap: Keymap = loadKeymap(KEYMAP_FILE);
-    keymap.set(TuiCommand.PlayScript, { input: "x" });
-    const harness = makeAppProps({ keymap });
+    // const keymap: Keymap = loadKeymap(KEYMAP_FILE);
+    // keymap.set(TuiCommand.PlayScript, { input: "x" });
+    const keyBoxes = loadKeyBoxes(KEYMAP_FILE);
+    keyBoxes[KeyBox.Global].keys["playScript"]!.input = "x";
+    const harness = makeAppProps({ keyBoxes });
     const screen = startScreen(t, harness.props);
     await settle();
     const menuRow = getMenuRow(screen.readFrameLines());
-    // The menu row shows x.
+    // The hotkeys box shows x.
     assert.ok(menuRow.includes("x"));
-    // The key footer shows every key of the keymap as "<key>: <action>".
-    // const keysText = [...keymap.values()].map(formatKeyBinding).join("  ");
-    for (const binding of keymap.values()) {
-        assert.ok(menuRow.includes(`${formatKeyBinding(binding)}: `), `menu row: ${menuRow}`);
+    // The hotkeys box shows every key of the global box as "<key>: <text>" in its rows.
+    for (const entry of Object.values(keyBoxes[KeyBox.Global].keys)) {
+        assert.ok(menuRow.includes(entry.text), `menu row: ${menuRow}`);
     }
     assert.ok(menuRow.includes("x: play script"), `menu row: ${menuRow}`);
 });
@@ -436,7 +452,7 @@ test("test_a_row_not_walked_to_the_marker_shows_not_walked_to_this_time", async 
 
 test("test_manual_shift_right_past_a_birth_shows_did_not_exist_yet", async (t) => {
     // Scenario: every file has one commit, its birth, at the newest event time. The marker starts at the newest event.
-    const harness = makeAppProps({});
+    const harness = makeAppProps({ isTimeSpannedForFile: () => false });
     const bornInstant = harness.props.events[0]!.instant;
     harness.props.loadFileWire = (file) => makeBornWire(file, bornInstant);
     const screen = startScreen(t, harness.props);
@@ -447,7 +463,7 @@ test("test_manual_shift_right_past_a_birth_shows_did_not_exist_yet", async (t) =
     screen.stdin.write(SHIFT_RIGHT_ARROW);
     await settle();
     const lines = screen.readFrameLines();
-    assert.ok(readMarkerInstantFromHeader(lines).getTime() < bornInstant.getTime());
+    assert.ok(readMarkerInstantFromWalkCalls(harness).getTime() < bornInstant.getTime());
     // The row text contains "did not exist yet".
     assert.ok(findRowLine(lines, makeFileName(0)).includes("did not exist yet"), `row: ${findRowLine(lines, makeFileName(0))}`);
 });
@@ -458,17 +474,50 @@ test("test_the_menu_row_shows_the_speed_and_the_d_key_toggles_day_on_and_off", a
     const screen = startScreen(t, harness.props);
     await settle();
     // The speed starts at event.
-    assert.ok(getMenuRow(screen.readFrameLines()).includes("speed: event"));
+    assert.ok(getMenuRow(screen.readFrameLines()).includes("Current: event"));
     // The d key turns the day speed on.
     screen.stdin.write("d");
     await settle();
-    assert.ok(getMenuRow(screen.readFrameLines()).includes("speed: day"));
+    assert.ok(getMenuRow(screen.readFrameLines()).includes("Current: day"));
     // The d key again turns it off: the speed is event again.
     screen.stdin.write("d");
     await settle();
     const menuRow = getMenuRow(screen.readFrameLines());
-    assert.ok(menuRow.includes("speed: event"));
-    assert.ok(!menuRow.includes("speed: day"));
+    assert.ok(menuRow.includes("Current: event"));
+    assert.ok(!menuRow.includes("Current: day"));
+});
+
+test("test_the_marker_box_marks_now_at_start_and_the_header_has_no_marker_time", async (t) => {
+    // Scenario: a fresh screen; the marker is at Now.
+    const harness = makeAppProps({});
+    const screen = startScreen(t, harness.props);
+    await settle();
+    const lines = screen.readFrameLines();
+    // the marker box marks Now.
+    assert.ok(lines.some((line) => line.includes("[now]")), `no marked Now: ${lines.join("\n")}`);
+    // the header row does not show the marker time.
+    assert.ok(!getHeaderRow(lines).includes("marker "));
+});
+
+test("test_the_e_key_sets_the_event_speed_from_day_and_from_week", async (t) => {
+    // Scenario: the day speed is on.
+    const harness = makeAppProps({});
+    const screen = startScreen(t, harness.props);
+    await settle();
+    screen.stdin.write("d");
+    await settle();
+    assert.ok(getMenuRow(screen.readFrameLines()).includes("Current: day"));
+    // The e key sets the event speed.
+    screen.stdin.write("e");
+    await settle();
+    assert.ok(getMenuRow(screen.readFrameLines()).includes("Current: event"));
+    // The week speed is on, then the e key sets the event speed again.
+    screen.stdin.write("w");
+    await settle();
+    assert.ok(getMenuRow(screen.readFrameLines()).includes("Current: week"));
+    screen.stdin.write("e");
+    await settle();
+    assert.ok(getMenuRow(screen.readFrameLines()).includes("Current: event"));
 });
 
 test("test_the_w_key_replaces_day_speed_by_week_speed", async (t) => {
@@ -478,40 +527,40 @@ test("test_the_w_key_replaces_day_speed_by_week_speed", async (t) => {
     await settle();
     screen.stdin.write("d");
     await settle();
-    assert.ok(getMenuRow(screen.readFrameLines()).includes("speed: day"));
+    assert.ok(getMenuRow(screen.readFrameLines()).includes("Current: day"));
     // The w key replaces it by the week speed.
     screen.stdin.write("w");
     await settle();
     const menuRow = getMenuRow(screen.readFrameLines());
-    assert.ok(menuRow.includes("speed: week"));
-    assert.ok(!menuRow.includes("speed: day"));
+    assert.ok(menuRow.includes("Current: week"));
+    assert.ok(!menuRow.includes("Current: day"));
     // The w key again turns the week speed off.
     screen.stdin.write("w");
     await settle();
-    assert.ok(getMenuRow(screen.readFrameLines()).includes("speed: event"));
+    assert.ok(getMenuRow(screen.readFrameLines()).includes("Current: event"));
 });
 
 test("test_shift_right_in_day_speed_moves_the_marker_time_by_one_day", async (t) => {
     // Scenario: the marker starts at the newest event (day 30). The day speed is on.
-    const harness = makeAppProps({});
+    const harness = makeAppProps({ isTimeSpannedForFile: () => false });
     const screen = startScreen(t, harness.props);
     await settle();
-    const markerBefore = readMarkerInstantFromHeader(screen.readFrameLines());
+    const markerBefore = harness.props.events[0]!.instant;
     assert.equal(markerBefore.toISOString(), makeInstant(NEWEST_EVENT_DAY * SECONDS_PER_DAY).toISOString());
     screen.stdin.write("d");
     await settle();
     // Shift-right moves the marker towards the earliest time.
     screen.stdin.write(SHIFT_RIGHT_ARROW);
     await settle();
-    // The header shows a time exactly one day older.
-    const markerAfter = readMarkerInstantFromHeader(screen.readFrameLines());
+    // The walk requests carry a time exactly one day older.
+    const markerAfter = readMarkerInstantFromWalkCalls(harness);
     assert.equal(markerBefore.getTime() - markerAfter.getTime(), MILLISECONDS_PER_DAY);
     assert.equal(markerAfter.toISOString(), makeInstant((NEWEST_EVENT_DAY - 1) * SECONDS_PER_DAY).toISOString());
 });
 
 test("test_left_in_week_speed_moves_the_selected_files_time_by_seven_days", async (t) => {
     // Scenario: the week speed is on and the marker moved two weeks older: day 30 to day 16.
-    const harness = makeAppProps({});
+    const harness = makeAppProps({ isTimeSpannedForFile: () => false });
     const screen = startScreen(t, harness.props);
     await settle();
     screen.stdin.write("w");
@@ -520,7 +569,7 @@ test("test_left_in_week_speed_moves_the_selected_files_time_by_seven_days", asyn
     await settle();
     screen.stdin.write(SHIFT_RIGHT_ARROW);
     await settle();
-    const markerInstant = readMarkerInstantFromHeader(screen.readFrameLines());
+    const markerInstant = readMarkerInstantFromWalkCalls(harness);
     assert.equal(markerInstant.toISOString(), makeInstant(16 * SECONDS_PER_DAY).toISOString());
     // Select the file under the cursor with the toggleSelection key.
     screen.stdin.write("s");
@@ -534,7 +583,7 @@ test("test_left_in_week_speed_moves_the_selected_files_time_by_seven_days", asyn
     assert.equal(ownTime.getTime() - markerInstant.getTime(), 7 * MILLISECONDS_PER_DAY);
     assert.equal(ownTime.toISOString(), makeInstant(23 * SECONDS_PER_DAY).toISOString());
     // The marker did not move.
-    assert.equal(readMarkerInstantFromHeader(lines).toISOString(), markerInstant.toISOString());
+    assert.equal(readMarkerInstantFromWalkCalls(harness, harness.files[0]!).toISOString(), markerInstant.toISOString());
 });
 
 test("test_day_speed_walks_every_file_that_does_not_cover_the_new_time", async (t) => {
@@ -549,7 +598,7 @@ test("test_day_speed_walks_every_file_that_does_not_cover_the_new_time", async (
     // Shift-right moves the marker one day older.
     screen.stdin.write(SHIFT_RIGHT_ARROW);
     await settle();
-    const newMarkerInstant = readMarkerInstantFromHeader(screen.readFrameLines());
+    const newMarkerInstant = readMarkerInstantFromWalkCalls(harness);
     const callsAfterMove = harness.walkHistoryToCalls.slice(callCountBefore);
     // The walker was asked to walk every one of the 50 files to the new marker time.
     const walkedFilePaths = new Set(callsAfterMove.map((call) => call.file.toString()));
@@ -612,39 +661,34 @@ function makeEventsWithSharedNewestInstant(files: Path[]): ProjectEventEntry[] {
 
 test("test_shift_right_in_event_speed_changes_the_header_time_when_the_newest_events_share_one_instant", async (t) => {
     // Scenario: the two newest events share one instant. The next events are ten days older.
-    const harness = makeAppProps({});
+    const harness = makeAppProps({ isTimeSpannedForFile: () => false });
     harness.props.events = makeEventsWithSharedNewestInstant(harness.files);
-    const newestIso = makeInstant(NEWEST_EVENT_DAY * SECONDS_PER_DAY).toISOString();
     const olderIso = makeInstant((NEWEST_EVENT_DAY - SHARED_INSTANT_GAP_DAYS) * SECONDS_PER_DAY).toISOString();
     const screen = startScreen(t, harness.props);
     await settle();
-    // The header shows the newest instant.
-    assert.equal(getHeaderRow(screen.readFrameLines()).trim(), `marker ${newestIso}`);
     // One Shift-Right press.
     screen.stdin.write(SHIFT_RIGHT_ARROW);
     await settle();
-    // The header shows the older instant, not the newest one.
-    const headerRow = getHeaderRow(screen.readFrameLines()).trim();
-    assert.equal(headerRow, `marker ${olderIso}`);
-    assert.ok(!headerRow.includes(newestIso));
+    // The walk requests carry the older instant, not the newest one.
+    assert.equal(readMarkerInstantFromWalkCalls(harness).toISOString(), olderIso);
 });
 
 test("test_shift_left_in_event_speed_returns_the_header_to_the_newest_time_after_shift_right", async (t) => {
     // Scenario: the two newest events share one instant. The next events are ten days older.
-    const harness = makeAppProps({});
+    const harness = makeAppProps({ isTimeSpannedForFile: () => false });
     harness.props.events = makeEventsWithSharedNewestInstant(harness.files);
     const newestIso = makeInstant(NEWEST_EVENT_DAY * SECONDS_PER_DAY).toISOString();
     const olderIso = makeInstant((NEWEST_EVENT_DAY - SHARED_INSTANT_GAP_DAYS) * SECONDS_PER_DAY).toISOString();
     const screen = startScreen(t, harness.props);
     await settle();
-    // One Shift-Right press: the header shows the older instant.
+    // One Shift-Right press: the walk requests carry the older instant.
     screen.stdin.write(SHIFT_RIGHT_ARROW);
     await settle();
-    assert.equal(getHeaderRow(screen.readFrameLines()).trim(), `marker ${olderIso}`);
-    // One Shift-Left press: the header shows the newest instant again.
+    assert.equal(readMarkerInstantFromWalkCalls(harness).toISOString(), olderIso);
+    // One Shift-Left press: the walk requests carry the newest instant again.
     screen.stdin.write(SHIFT_LEFT_ARROW);
     await settle();
-    assert.equal(getHeaderRow(screen.readFrameLines()).trim(), `marker ${newestIso}`);
+    assert.equal(readMarkerInstantFromWalkCalls(harness).toISOString(), newestIso);
 });
 
 type PlayScriptCall = { file: Path; startAt: Date };

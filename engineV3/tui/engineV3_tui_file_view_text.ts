@@ -5,6 +5,7 @@ import { basename } from "node:path";
 import type { Element, RootContent } from "hast";
 import { common, createLowlight } from "lowlight";
 import { Path } from "../../src/structures/domain.ts";
+import { TUI_COLORS } from "./engineV3_tui_colors.ts";
 import { getInverseCommitAtInstant } from "../engineV3_inverse_repo_read.ts";
 import { getInverseRepoFolderForFile } from "../engineV3_inverse_repos_for_project.ts";
 
@@ -12,17 +13,18 @@ import { getInverseRepoFolderForFile } from "../engineV3_inverse_repos_for_proje
 export type ColoredPiece = { text: string; color: string | undefined };
 export type FileViewLine = { lineNumber: number | undefined; pieces: ColoredPiece[] };
 
-export const HIGHLIGHT_COLOR_BY_TOKEN_CLASS: Record<string, string> = {
-    "hljs-keyword": "magenta",
-    "hljs-string": "green",
-    "hljs-comment": "gray",
-    "hljs-number": "yellow",
-    "hljs-literal": "yellow",
-    "hljs-title": "blue",
-    "hljs-built_in": "cyan",
-    "hljs-type": "cyan",
-    "hljs-attr": "cyan",
-};
+// export const HIGHLIGHT_COLOR_BY_TOKEN_CLASS: Record<string, string> = {
+//     "hljs-keyword": "magenta",
+//     "hljs-string": "green",
+//     "hljs-comment": "gray",
+//     "hljs-number": "yellow",
+//     "hljs-literal": "yellow",
+//     "hljs-title": "blue",
+//     "hljs-built_in": "cyan",
+//     "hljs-type": "cyan",
+//     "hljs-attr": "cyan",
+// };
+export const HIGHLIGHT_COLOR_BY_TOKEN_CLASS: Record<string, string> = TUI_COLORS.fileViewBox.tokenColors;
 
 const lowlight = createLowlight(common);
 

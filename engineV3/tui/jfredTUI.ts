@@ -2,35 +2,29 @@
 
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { render } from "ink";
 import { createElement } from "react";
 import { Path } from "../../src/structures/domain.ts";
 import { TuiCommand } from "../../src/structures/vocabulary.ts";
-import { readEarliestBoundary, type EarliestBoundary } from "../engineV3_earliest_boundary.ts";
 import { getInverseRepoFolderForFile, getLogFilesHash, listProjectFilesWithStaleInverseRepos } from "../engineV3_inverse_repos_for_project.ts";
-import { isInstantSpannedByWalkCoverage, readWalkCoverage } from "../engineV3_walk_coverage.ts";
+import { readWalkCoverage } from "../engineV3_walk_coverage.ts";
 import { App } from "./engineV3_tui_app.tsx";
+import { createAppProps } from "./engineV3_tui_app_props.ts";
 import type { AppProps } from "./engineV3_tui_app_types.ts";
 import { runAutoWalk } from "./engineV3_tui_auto.ts";
-import { listInverseRepoFileWire } from "./engineV3_tui_bars.ts";
-import { createLoadingScreen, runProjectCacheChild } from "./engineV3_tui_cache_child.ts";
 import { createConsentGate, decideScriptAction, type ConsentAnswers } from "./engineV3_tui_consent.ts";
-import { formatKeyBinding, loadKeymap } from "./engineV3_tui_keymap.ts";
+import { createEngineLog, getEngineLogFile, openFolderOfLogFile } from "./engineV3_tui_engine_log.ts";
+import { formatKeyBinding } from "./engineV3_tui_keymap.ts";
 import { createStepPool } from "./engineV3_tui_pool.ts";
-import { getProjectCacheFile, readProjectCache } from "./engineV3_tui_project_cache.ts";
 // import { acquireTuiLock, prepareTuiStore, readTuiSettings } from "./engineV3_tui_settings.ts";
-import { acquireTuiLock, prepareTuiStore, readTuiSettings, releaseTuiLock } from "./engineV3_tui_settings.ts";
-import { forceResetStoreFolder, isFullBuildRepoInStore } from "../engineV3_step_store_guard.ts";
-// import { clearTerminalScreen } from "./engineV3_tui_screen.ts";
-import { enterAlternateScreen, leaveAlternateScreen } from "./engineV3_tui_screen.ts";
-import { LegendFrame } from "./engineV3_tui_legend_frame.tsx";
-import { StoreAnswer, StoreQuestion } from "./engineV3_tui_store_question.ts";
+import { acquireTuiLock, readTuiSettings } from "./engineV3_tui_settings.ts";
 import { registerShutdownSignalHandlers, shutdownTui } from "./engineV3_tui_shutdown.ts";
+import { loadProjectForTui } from "./engineV3_tui_startup.ts";
 import { createSpawnPlayProcess, createSpawnStepProcess, endAllLiveChildren, endChildOfFile } from "./engineV3_tui_step_process.ts";
 import { createHistoryWalker } from "./engineV3_tui_walk.ts";
 import { createWalkState, getFileRunState } from "./engineV3_tui_walk_state.ts";
 import type { PlayRequest, StepProcessOutcome, StepRequest } from "./engineV3_tui_walk_types.ts";
 import { createResetHandlers, createStatusChangeWiring } from "./engineV3_tui_wiring.ts";
+import { leaveAlternateScreen } from "./engineV3_tui_screen.ts";
 
 const tuiFolder = dirname(fileURLToPath(import.meta.url));
 const jfredFolder = new Path(join(tuiFolder, "..", ".."));
@@ -40,33 +34,7 @@ async function main(): Promise<void> {
     const { projectFolder, storeFolder } = settings;
     // prepareTuiStore(storeFolder, projectFolder);
     acquireTuiLock(storeFolder);
-    const keymap = loadKeymap(new Path(join(tuiFolder, "keymap.json")));
-    // clearTerminalScreen(process.stdout);
-    enterAlternateScreen(process.stdout);
-    process.on("exit", () => leaveAlternateScreen(process.stdout));
-    const instance = render(createLoadingScreen("files done 0 of ?"));
-    await runProjectCacheChild(jfredFolder, (progressText) => instance.rerender(createLoadingScreen(progressText)));
-    const cache = readProjectCache(getProjectCacheFile(storeFolder));
-    let earliestBoundary: EarliestBoundary | undefined;
-    if (settings.repoFolder !== undefined) {
-        earliestBoundary = readEarliestBoundary(settings.repoFolder, settings.commit!);
-    }
-    const projectFiles = cache.projectFiles.map((file) => ({ file, transcriptFile: file }));
-    // Late on purpose: the real project file list exists only after the cache is loaded.
-    prepareTuiStore(storeFolder, projectFolder, projectFiles);
-    if (isFullBuildRepoInStore(storeFolder, projectFolder, projectFiles)) {
-        // instance.rerender(createLoadingScreen(STORE_QUESTION_TEXT));
-        // const storeAnswer = await readAbortOrResetAnswer(process.stdin);
-        const storeAnswer = await new Promise<StoreAnswer>((resolve) => instance.rerender(createElement(LegendFrame, null, createElement(StoreQuestion, { onAnswer: resolve }))));
-        if (storeAnswer === StoreAnswer.Abort) {
-            releaseTuiLock(storeFolder);
-            instance.unmount();
-            process.exit(0);
-        }
-        // resetStoreFolder(storeFolder);
-        forceResetStoreFolder(storeFolder);
-        instance.rerender(createLoadingScreen("the store is reset: the load continues"));
-    }
+    const { instance, keymap, keyBoxes, cache, earliestBoundary, projectFiles } = await loadProjectForTui(settings, tuiFolder, jfredFolder);
     // const staleFiles = listProjectFilesWithStaleInverseRepos(storeFolder, projectFolder, projectFiles, cache.transcriptsToParse, earliestBoundary);
     let staleRepoCount = listProjectFilesWithStaleInverseRepos(storeFolder, projectFolder, projectFiles, cache.transcriptsToParse, earliestBoundary).length;
     const refreshStaleRepoCount = (): void => {
@@ -75,7 +43,10 @@ async function main(): Promise<void> {
         instance.rerender(createElement(App, { ...appProps }));
     };
     const logFilesHashAtStart = getLogFilesHash(cache.transcriptsToParse);
-    const spawnSettings = { projectFolder, jsonlsFolders: settings.jsonlsFolders, fileHistoryFolders: settings.fileHistoryFolders, storeFolder, earliestBoundary, jfredFolder };
+    const engineLogFile = getEngineLogFile(storeFolder);
+    const engineLog = createEngineLog(engineLogFile);
+    // const spawnSettings = { projectFolder, jsonlsFolders: settings.jsonlsFolders, fileHistoryFolders: settings.fileHistoryFolders, storeFolder, earliestBoundary, jfredFolder };
+    const spawnSettings = { projectFolder, jsonlsFolders: settings.jsonlsFolders, fileHistoryFolders: settings.fileHistoryFolders, storeFolder, earliestBoundary, jfredFolder, engineLog };
     const walkState = createWalkState();
     const { handleStatusChange, clearRunStateOfFile, subscribeToStatusChanges } = createStatusChangeWiring(walkState);
     const consentAnswers: ConsentAnswers = { runScripts: undefined, runModifyingScriptsAutomatically: undefined };
@@ -111,43 +82,29 @@ async function main(): Promise<void> {
         decideScriptAction: (file, eventType, source) => decideScriptAction(consentAnswers, { file, eventType, source }),
         onStatusChange: handleStatusChange,
         playKeyName: formatKeyBinding(keymap.get(TuiCommand.PlayScript)!),
+        engineLog,
     });
     registerShutdownSignalHandlers(pool, storeFolder);
     const resetHandlers = createResetHandlers({ storeFolder, projectFolder, pool, walkState, clearRunStateOfFile, refreshStaleRepoCount });
-    const appProps: AppProps = {
-        terminalRows: process.stdout.rows,
-        terminalColumns: process.stdout.columns,
+    const appProps: AppProps = createAppProps({
         projectFolder,
         storeFolder,
-        files: cache.projectFiles,
-        events: cache.events,
-        countsByFile: cache.countsByFile,
         keymap,
+        keyBoxes,
+        engineLog,
+        openLogFolder: () => openFolderOfLogFile(engineLogFile),
         walkState,
         walker,
         pool,
-        scriptCounts: cache.scriptCounts,
         consentAnswers,
         staleRepoCount,
-        cacheStatusText: undefined,
         subscribeToStatusChanges,
-        loadFileWire: (file) => listInverseRepoFileWire(storeFolder, projectFolder, file),
-        isTimeSpannedForFile: (file, instant) => {
-            const coverage = readCoverageOfFile(file);
-            if (coverage === undefined) {
-                return false;
-            }
-            return isInstantSpannedByWalkCoverage(coverage, instant);
-        },
-        onConsentAnswered: (answerKey, answer) => {
-            consentAnswers[answerKey] = answer;
-            consentGate.notifyAnswerGiven();
-        },
         onResetSelectedStores: resetHandlers.resetSelectedStores,
         onResetAllStores: resetHandlers.resetAllStoresOfProject,
-        // onPlayScript: (file) => pool.requestPlay({ file }, listWalkToEndFiles(file)),
-        onPlayScript: (file, startAt) => walker.playScript(file, startAt),
-    };
+        cache,
+        readCoverageOfFile,
+        consentGate,
+    });
     instance.rerender(createElement(App, appProps));
     if (settings.isAuto) {
         if (cache.events.length === 0) {

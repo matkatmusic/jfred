@@ -1,6 +1,7 @@
 // The Marker Box: one boxed row of event times with sticky "now" and "Earliest" columns and a [ ] marker.
 import type { ReactNode } from "react";
 import { Box, Text } from "ink";
+import { TUI_COLORS } from "./engineV3_tui_colors.ts";
 import {
     COLUMN_SEPARATOR,
     LEFT_STICKY_COLUMN_WIDTH,
@@ -13,7 +14,8 @@ import {
 } from "./engineV3_tui_marker_box_layout.ts";
 
 export const MARKER_BOX_ROW_COUNT = 3;
-const MARKER_BOX_BORDER_COLOR = "gray";
+// const MARKER_BOX_BORDER_COLOR = "gray";
+const MARKER_BOX_BORDER_COLOR = TUI_COLORS.markerBox.borderColor;
 
 export interface MarkerBoxProps {
     eventInstants: Date[];
