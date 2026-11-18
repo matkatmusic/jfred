@@ -12,7 +12,7 @@ import { getAllEventsForFileFrom, sortEventsNewestToOldest, FileEventType } from
 import { StateConfidence, listKnownStatesForFile, type FileKnownState } from "./engineV3_file_known_states.ts";
 import { buildInverseRepoByEventKind, listInverseCommits } from "./engineV3_inverse_repo.ts";
 import {
-    INVERSE_REPO_FORMAT_VERSION, buildInverseReposForFiles, getInverseRepoFolderForFile, listKnownStatesForProjectFiles, readInverseReposSettingsFromArguments,
+    INVERSE_REPO_FORMAT_VERSION, OUTSIDE_PROJECT_PREFIX, buildInverseReposForFiles, getInverseRepoFolderForFile, getRelativePathInProject, listKnownStatesForProjectFiles, readInverseReposSettingsFromArguments,
     type FileInverseRepoResult, type ProjectFile,
 } from "./engineV3_inverse_repos_for_project.ts";
 import { REPLAY_GAPS_FILE_NAME, isReplayGapsSidecarPresent } from "./engineV3_script_replay_gaps.ts";
@@ -390,13 +390,26 @@ test("test_a_repo_whose_stamp_has_the_current_format_version_is_reused", (t) => 
     assert.deepEqual(listInverseCommits(repoFolderOfA, "a.txt").map((commit) => commit.commitHash.toString()), commitHashesBefore);
 });
 
-test("test_a_file_outside_the_project_folder_throws", (t) => {
-    // Scenario: a file that is not in the project has no place in the store.
+// Commit 8fad904 replaced the throw by the OUTSIDE_PROJECT_PREFIX name on purpose.
+// test("test_a_file_outside_the_project_folder_throws", (t) => {
+//     // Scenario: a file that is not in the project has no place in the store.
+//     // A project is set and another file lies beside the project folder.
+//     const project = makeProject(t);
+//     const outsideFile = new Path(join(makeTempFolder(t), "outside.txt"));
+//     // Asking for the repo folder of that file throws.
+//     assert.throws(() => getInverseRepoFolderForFile(project.storeFolder, project.projectFolder, outsideFile), /outside/);
+// });
+
+test("test_a_file_outside_the_project_folder_gets_the_outside_project_name", (t) => {
+    // Scenario: a file that is not in the project is stored under the outside-project name.
     // A project is set and another file lies beside the project folder.
     const project = makeProject(t);
     const outsideFile = new Path(join(makeTempFolder(t), "outside.txt"));
-    // Asking for the repo folder of that file throws.
-    assert.throws(() => getInverseRepoFolderForFile(project.storeFolder, project.projectFolder, outsideFile), /outside/);
+    // The relative name is the prefix plus the absolute path without its leading slash.
+    assert.equal(getRelativePathInProject(project.projectFolder, outsideFile), OUTSIDE_PROJECT_PREFIX + outsideFile.toString().replace("/", ""));
+    // The repo folder of that file lies in the store under that name.
+    const repoFolder = getInverseRepoFolderForFile(project.storeFolder, project.projectFolder, outsideFile);
+    assert.equal(repoFolder.toString(), join(project.storeFolder.toString(), `${OUTSIDE_PROJECT_PREFIX}${outsideFile.toString().replace("/", "")}.git`));
 });
 
 test("test_the_write_and_edit_events_are_found_when_the_logs_name_the_files_under_another_root", (t) => {

@@ -106,6 +106,12 @@ export function describeStepSummary(now: Date, request: StepRequest, outcome: St
     }
 }
 
+export enum LoadStepPhase { Started = "started", Ended = "ended" }
+
+export function describeLoadStepSummary(now: Date, stepName: string, phase: LoadStepPhase): string {
+    return `${formatClock(now)} load  ${stepName}  ${phase}`;
+}
+
 export function describePlaySummary(now: Date, file: Path, outcome: PlayOutcome): string {
     const prefix = `${formatClock(now)} play  ${file}`;
     switch (outcome.kind) {

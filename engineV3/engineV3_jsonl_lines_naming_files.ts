@@ -8,6 +8,7 @@ import { parseRecord } from "../src/parse/parseRecord.ts";
 import { mergeRecordsByTimestamp } from "../src/reconstruction_multi_source.ts";
 import { listTranscriptFiles } from "../src/viewer_api_layer1_sources.ts";
 import type { JSONLLine } from "./engineV3.ts";
+import { printProgress } from "./layeredSearch/layeredSearch_ripgrep_helpers.ts";
 import { CWD_KEY_TEXT, KNOWN_RECORD_TYPE_SET, countNewlinesBefore, type LineSpan } from "./engineV3_replay_reverse.ts";
 
 export const ERRORED_RESULT_KEY_TEXT = '"is_error":true';
@@ -154,7 +155,9 @@ export function loadJSONLLinesNamingFiles(files: Path[], jsonlsFolders: Path[], 
     for (const fileKey of needleTextByFileKey.keys()) {
         recordListsByFileKey.set(fileKey, []);
     }
-    for (const transcriptFile of listTranscriptFiles(jsonlsFolders.map((jsonlsFolder) => jsonlsFolder.toString()))) {
+    // for (const transcriptFile of listTranscriptFiles(jsonlsFolders.map((jsonlsFolder) => jsonlsFolder.toString()))) {
+    const transcriptFiles = listTranscriptFiles(jsonlsFolders.map((jsonlsFolder) => jsonlsFolder.toString()));
+    for (const [transcriptIndex, transcriptFile] of transcriptFiles.entries()) {
         const transcriptBytes = readTranscriptBytes(transcriptFile);
         const spansByNeedleText = listLineSpansByNeedleText(transcriptBytes, distinctNeedleTexts);
         const lineNumberByStart = listLineNumbersByStart(transcriptBytes, spansByNeedleText);
@@ -165,7 +168,9 @@ export function loadJSONLLinesNamingFiles(files: Path[], jsonlsFolders: Path[], 
                 recordListsByFileKey.get(fileKey)!.push(records);
             }
         }
+        printProgress(`D: ${transcriptIndex + 1}/${transcriptFiles.length} logs scanned`);
     }
+    process.stderr.write("\n");
     const linesByFileKey = new Map<string, JSONLLine[]>();
     for (const [fileKey, recordLists] of recordListsByFileKey) {
         linesByFileKey.set(fileKey, mergeRecordsByTimestamp(recordLists));

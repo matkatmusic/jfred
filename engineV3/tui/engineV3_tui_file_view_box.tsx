@@ -2,6 +2,7 @@
 
 import { Box, Text } from "ink";
 import type { FileViewLine } from "./engineV3_tui_file_view_text.ts";
+import { TitledBox } from "./engineV3_tui_titled_box.tsx";
 
 const BORDER_ROW_COUNT = 2;
 
@@ -21,7 +22,8 @@ export function FileViewBox(props: FileViewBoxProps) {
     const lastLineNumber = props.lines.reduce((largest, line) => Math.max(largest, line.lineNumber ?? 0), 0);
     const lineNumberWidth = String(lastLineNumber).length;
     return (
-        <Box borderStyle="round" flexDirection="column" width={props.columns} height={props.rowCount}>
+        // <Box borderStyle="round" flexDirection="column" width={props.columns} height={props.rowCount}>
+        <TitledBox title="File Preview" flexDirection="column" columns={props.columns} height={props.rowCount}>
             {props.lines.length === 0 && <Text>{props.emptyText}</Text>}
             {visibleLines.map((line, index) => (
                 <Box key={props.scrollTop + index}>
@@ -31,6 +33,6 @@ export function FileViewBox(props: FileViewBoxProps) {
                     ))}
                 </Box>
             ))}
-        </Box>
+        </TitledBox>
     );
 }

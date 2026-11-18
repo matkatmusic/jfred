@@ -191,3 +191,19 @@ test("test_each_transcript_is_read_from_disk_one_time", (t) => {
     // Each transcript path appears exactly one time.
     assert.deepStrictEqual([...readPaths].sort(), [join(jsonlsFolder, "one.jsonl"), join(jsonlsFolder, "two.jsonl")]);
 });
+
+test("test_one_progress_line_per_transcript_is_written_to_standard_error_and_the_last_says_all_scanned", (t) => {
+    // Scenario: two transcripts name one file; standard error is recorded.
+    const jsonlsFolder = makeJsonlsFolder(t);
+    writeRecords(jsonlsFolder, "one.jsonl", [makeCallRecord("a1", ["/work/alpha.ts"], 1)]);
+    writeRecords(jsonlsFolder, "two.jsonl", [makeCallRecord("a2", ["/work/alpha.ts"], 2)]);
+    const standardErrorWrites: string[] = [];
+    t.mock.method(process.stderr, "write", (chunk: string | Uint8Array) => {
+        standardErrorWrites.push(String(chunk));
+        return true;
+    });
+    // Load the file.
+    loadJSONLLinesNamingFiles([new Path("/work/alpha.ts")], [new Path(jsonlsFolder)]);
+    // One D line per transcript starts with a carriage return, the last says 2/2, and one newline ends the loop.
+    assert.deepStrictEqual(standardErrorWrites, ["\rD: 1/2 logs scanned", "\rD: 2/2 logs scanned", "\n"]);
+});

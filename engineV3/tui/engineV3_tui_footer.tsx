@@ -3,6 +3,7 @@ import { Box, Text } from "ink";
 import { JumpSpeed, TuiCommand } from "../../src/structures/vocabulary.ts";
 import { TUI_COLORS } from "./engineV3_tui_colors.ts";
 import { formatKeyBinding, type Keymap } from "./engineV3_tui_keymap.ts";
+import { TitledBox } from "./engineV3_tui_titled_box.tsx";
 
 export type FooterEntry = { label: string; value: string; labelColor?: string };
 
@@ -87,13 +88,14 @@ export function countLinesBoxRows(lines: FooterEntry[][]): number {
     return lines.length + BOX_BORDER_ROWS;
 }
 
-function EntryBox({ entries, columns, borderColor, labelColor }: { entries: FooterEntry[]; columns: number; borderColor: string; labelColor: string }) {
-    return <LinesBox lines={layoutEntriesIntoLines(entries, columns - BOX_SIDE_COLUMNS)} columns={columns} borderColor={borderColor} labelColor={labelColor} />;
+function EntryBox({ title, entries, columns, borderColor, labelColor }: { title: string; entries: FooterEntry[]; columns: number; borderColor: string; labelColor: string }) {
+    return <LinesBox title={title} lines={layoutEntriesIntoLines(entries, columns - BOX_SIDE_COLUMNS)} columns={columns} borderColor={borderColor} labelColor={labelColor} />;
 }
 
-function LinesBox({ lines, columns, borderColor, labelColor }: { lines: FooterEntry[][]; columns: number; borderColor: string; labelColor: string }) {
+function LinesBox({ title, lines, columns, borderColor, labelColor }: { title: string; lines: FooterEntry[][]; columns: number; borderColor: string; labelColor: string }) {
     return (
-        <Box flexDirection="column" borderStyle="round" borderColor={borderColor} paddingX={1} width={columns}>
+        // <Box flexDirection="column" borderStyle="round" borderColor={borderColor} paddingX={1} width={columns}>
+        <TitledBox title={title} flexDirection="column" borderColor={borderColor} paddingX={1} columns={columns}>
             {lines.map((line, lineIndex) => (
                 <Box key={lineIndex} gap={ENTRY_GAP_COLUMNS}>
                     {line.length === 0 ? <Text> </Text> : null}
@@ -108,22 +110,22 @@ function LinesBox({ lines, columns, borderColor, labelColor }: { lines: FooterEn
                     ))}
                 </Box>
             ))}
-        </Box>
+        </TitledBox>
     );
 }
 
 export function DetailsBox({ entries, columns }: { entries: FooterEntry[]; columns: number }) {
-    return <EntryBox entries={entries} columns={columns} borderColor={DETAILS_BORDER_COLOR} labelColor={LABEL_COLOR} />;
+    return <EntryBox title="Details" entries={entries} columns={columns} borderColor={DETAILS_BORDER_COLOR} labelColor={LABEL_COLOR} />;
 }
 
 export function InfoBox({ lines, columns }: { lines: FooterEntry[][]; columns: number }) {
-    return <LinesBox lines={lines} columns={columns} borderColor={DETAILS_BORDER_COLOR} labelColor={KEY_LABEL_COLOR} />;
+    return <LinesBox title="File Info" lines={lines} columns={columns} borderColor={DETAILS_BORDER_COLOR} labelColor={KEY_LABEL_COLOR} />;
 }
 
 export function LegendBox({ lines, columns }: { lines: FooterEntry[][]; columns: number }) {
-    return <LinesBox lines={lines} columns={columns} borderColor={KEYS_BORDER_COLOR} labelColor={LABEL_COLOR} />;
+    return <LinesBox title="Legend" lines={lines} columns={columns} borderColor={KEYS_BORDER_COLOR} labelColor={LABEL_COLOR} />;
 }
 
 export function KeyFooter({ entries, columns }: { entries: FooterEntry[]; columns: number }) {
-    return <EntryBox entries={entries} columns={columns} borderColor={KEYS_BORDER_COLOR} labelColor={KEY_LABEL_COLOR} />;
+    return <EntryBox title="Keys" entries={entries} columns={columns} borderColor={KEYS_BORDER_COLOR} labelColor={KEY_LABEL_COLOR} />;
 }

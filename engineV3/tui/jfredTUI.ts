@@ -34,7 +34,10 @@ async function main(): Promise<void> {
     const { projectFolder, storeFolder } = settings;
     // prepareTuiStore(storeFolder, projectFolder);
     acquireTuiLock(storeFolder);
-    const { instance, keymap, keyBoxes, cache, earliestBoundary, projectFiles } = await loadProjectForTui(settings, tuiFolder, jfredFolder);
+    const engineLogFile = getEngineLogFile(storeFolder);
+    const engineLog = createEngineLog(engineLogFile);
+    // const { instance, keymap, keyBoxes, cache, earliestBoundary, projectFiles } = await loadProjectForTui(settings, tuiFolder, jfredFolder);
+    const { instance, keymap, keyBoxes, cache, earliestBoundary, projectFiles } = await loadProjectForTui(settings, tuiFolder, jfredFolder, engineLog);
     // const staleFiles = listProjectFilesWithStaleInverseRepos(storeFolder, projectFolder, projectFiles, cache.transcriptsToParse, earliestBoundary);
     let staleRepoCount = listProjectFilesWithStaleInverseRepos(storeFolder, projectFolder, projectFiles, cache.transcriptsToParse, earliestBoundary).length;
     const refreshStaleRepoCount = (): void => {
@@ -43,8 +46,8 @@ async function main(): Promise<void> {
         instance.rerender(createElement(App, { ...appProps }));
     };
     const logFilesHashAtStart = getLogFilesHash(cache.transcriptsToParse);
-    const engineLogFile = getEngineLogFile(storeFolder);
-    const engineLog = createEngineLog(engineLogFile);
+    // const engineLogFile = getEngineLogFile(storeFolder);
+    // const engineLog = createEngineLog(engineLogFile);
     // const spawnSettings = { projectFolder, jsonlsFolders: settings.jsonlsFolders, fileHistoryFolders: settings.fileHistoryFolders, storeFolder, earliestBoundary, jfredFolder };
     const spawnSettings = { projectFolder, jsonlsFolders: settings.jsonlsFolders, fileHistoryFolders: settings.fileHistoryFolders, storeFolder, earliestBoundary, jfredFolder, engineLog };
     const walkState = createWalkState();

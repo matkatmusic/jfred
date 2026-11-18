@@ -4,6 +4,7 @@ import { Box, Text } from "ink";
 import { TUI_COLORS } from "./engineV3_tui_colors.ts";
 import type { HotKeyRow } from "./engineV3_tui_hotkeys_rows.ts";
 import type { KeyBoxSettings } from "./engineV3_tui_keymap.ts";
+import { TitledBox } from "./engineV3_tui_titled_box.tsx";
 
 export const HOTKEYS_BOX_ROW_COUNT = 6;
 const BORDER_ROW_COUNT = 2;
@@ -14,7 +15,8 @@ export function countHotKeysBoxRows(rows: HotKeyRow[]): number {
 
 export function HotKeysBox({ rows, keyBox, columns }: { rows: HotKeyRow[]; keyBox: KeyBoxSettings; columns: number }) {
     return (
-        <Box flexDirection="column" borderStyle="round" borderColor={keyBox.borderColor} paddingX={1} width={columns}>
+        // <Box flexDirection="column" borderStyle="round" borderColor={keyBox.borderColor} paddingX={1} width={columns}>
+        <TitledBox title="Hotkeys" flexDirection="column" borderColor={keyBox.borderColor} paddingX={1} columns={columns}>
             {rows.map((row) => (
                 <Box key={row.name} justifyContent="space-between">
                     <Text wrap="truncate-end">
@@ -31,6 +33,6 @@ export function HotKeysBox({ rows, keyBox, columns }: { rows: HotKeyRow[]; keyBo
                     {row.rightText === undefined ? null : <Text color={TUI_COLORS.infoBox.valueColor}>{row.rightText}</Text>}
                 </Box>
             ))}
-        </Box>
+        </TitledBox>
     );
 }
