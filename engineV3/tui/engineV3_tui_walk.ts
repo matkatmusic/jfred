@@ -76,6 +76,10 @@ async function handleScriptStop(options: HistoryWalkerOptions, request: StepRequ
         return;
     }
     if (playOutcome.kind === PlayOutcomeKind.ReplayRefused) {
+        if (isRepoWalkFinished(options, request.file)) {
+            writeStatus(options, request.file, FileWalkStatus.Idle, undefined);
+            return;
+        }
         const previousRunState = getFileRunState(options.walkState, request.file);
         writeRunState(options, request.file, { status: FileWalkStatus.Stopped, reasonText: playOutcome.reasonText, failedReplayCount: previousRunState.failedReplayCount + 1 });
         return;

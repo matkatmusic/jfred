@@ -390,6 +390,28 @@ test("test_a_play_with_an_unfinished_other_file_does_not_start_the_play_child_an
     assert.equal(testPool.playedFiles.length, 0);
 });
 
+test("test_a_play_for_a_file_whose_walk_finished_during_the_pre_play_walks_spawns_no_play_child", async () => {
+    // Scenario: another play's pre-play walk finishes the repo of the played file, so its own play has nothing left to replay.
+    // Steps:
+    // neither the played file nor the other replay file is finished.
+    const testPool = makeTestPool({ maxProcesses: 4 });
+    const playedFile = makeFile("fileA.txt");
+    const otherFile = makeFile("fileB.txt");
+    // a play is requested for the played file with the other file in the walk-to-end list.
+    const playPromise = testPool.pool.requestPlay({ file: playedFile }, [otherFile]);
+    // the walk child of the other file opens.
+    await waitForCondition(() => testPool.held.hasOpenCallForFile(otherFile), WAIT_TIMEOUT_MILLISECONDS);
+    // the played file becomes finished (by another play's walk), and the walk child of the other file finishes.
+    testPool.finishedFileValues.add(playedFile.value);
+    testPool.finishedFileValues.add(otherFile.value);
+    testPool.held.resolveOpenCallOfFile(otherFile, makeFinishedOutcome());
+    const playOutcome = await playPromise;
+    // no play child started, and the answer is Replayed with no reason text.
+    assert.equal(testPool.playedFiles.length, 0);
+    assert.equal(playOutcome.kind, PlayOutcomeKind.Replayed);
+    assert.equal(playOutcome.reasonText, undefined);
+});
+
 test("test_a_play_for_a_replay_file_outside_the_layered_list_is_refused_before_any_child_starts", async () => {
     // Scenario: a replay file that the step program cannot walk refuses the play at once.
     // Steps:

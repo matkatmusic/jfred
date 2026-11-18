@@ -16,7 +16,7 @@ import { WALK_COVERAGE_FILE_NAME, readWalkCoverage } from "../engineV3/engineV3_
 import { createHistoryWalker } from "../engineV3/tui/engineV3_tui_walk.ts";
 import { createStepPool } from "../engineV3/tui/engineV3_tui_pool.ts";
 import { createSpawnStepProcess } from "../engineV3/tui/engineV3_tui_step_process.ts";
-import { createWalkState, getFileRunState, type FileRunState, type WalkState } from "../engineV3/tui/engineV3_tui_walk_state.ts";
+import { createWalkState, getFileRunState, setFileRunState, type FileRunState, type WalkState } from "../engineV3/tui/engineV3_tui_walk_state.ts";
 import type { HistoryWalker, HistoryWalkerOptions, PlayOutcome, SpawnSettings, StepPool, StepProcessOutcome, StepRequest } from "../engineV3/tui/engineV3_tui_walk_types.ts";
 import { PROJECT_FILE_NAME, makeInstant, makeWriteCreateRows, writeProject } from "./engineV3_step_test_projects.ts";
 
@@ -373,6 +373,103 @@ test("test_walkHistoryTo_stays_stopped_after_a_refused_script_replay_and_does_no
     assert.equal(readRunState(harness).failedReplayCount, 1);
     assert.equal(harness.requestedWalks.length, 1);
     assertLastStatusChangeIsTheWalkState(harness);
+});
+
+test("test_a_replay_refusal_for_a_file_whose_walk_finished_during_the_play_leaves_the_row_idle_with_no_failed_replay", async (t) => {
+    // Scenario: a script stop with RunNow; during the play the walk of the file finishes; then the play answers replay-refused.
+    const requestPlay = async (): Promise<PlayOutcome> => {
+        writeCoverageSidecar(harness, makeInstant(10), true);
+        return { kind: PlayOutcomeKind.ReplayRefused, reasonText: "the replay found no stop to pass" };
+    };
+    const harness = buildHarness(t, { decideScriptAction: () => ScriptAction.RunNow, requestPlay });
+    // At the stopped result the walk is not finished, so the stale-stop guard does not fire.
+    writeCoverageSidecar(harness, makeInstant(40), false);
+    await harness.walker.handleOutcome(makeRequest(harness), makeStoppedOutcome(FileEventType.ScriptMayWrite, SOURCE_TEXT));
+    // The row is Idle with no reason text, no failed replay is counted, and no walk was requested.
+    assert.equal(readRunState(harness).status, FileWalkStatus.Idle);
+    assert.equal(readRunState(harness).reasonText, undefined);
+    assert.equal(readRunState(harness).failedReplayCount, 0);
+    assert.equal(harness.requestedWalks.length, 0);
+    assertLastStatusChangeIsTheWalkState(harness);
+});
+
+test("test_a_replay_refusal_for_a_file_with_an_unfinished_walk_counts_a_failed_replay_and_stays_stopped", async (t) => {
+    // Scenario: a script stop with RunNow; the walk of the file stays unfinished; the play answers replay-refused.
+    const refusalReason = "the replay found no stop to pass";
+    const requestPlay = async (): Promise<PlayOutcome> => ({ kind: PlayOutcomeKind.ReplayRefused, reasonText: refusalReason });
+    const harness = buildHarness(t, { decideScriptAction: () => ScriptAction.RunNow, requestPlay });
+    writeCoverageSidecar(harness, makeInstant(40), false);
+    await harness.walker.handleOutcome(makeRequest(harness), makeStoppedOutcome(FileEventType.ScriptMayWrite, SOURCE_TEXT));
+    // The row stays Stopped with the play reason, and one failed replay is counted.
+    assert.equal(readRunState(harness).status, FileWalkStatus.Stopped);
+    assert.equal(readReasonText(harness), refusalReason);
+    assert.equal(readRunState(harness).failedReplayCount, 1);
+    assertLastStatusChangeIsTheWalkState(harness);
+});
+
+function writeCoverageSidecarOfFile(folders: Folders, file: Path, tipInstant: Date | null, isFinished: boolean): void {
+    const repoFolder = getInverseRepoFolderForFile(folders.storeFolder, folders.projectFolder, file);
+    mkdirSync(repoFolder.toString(), { recursive: true });
+    const tipInstantText = tipInstant === null ? null : tipInstant.toISOString();
+    writeFileSync(join(repoFolder.toString(), WALK_COVERAGE_FILE_NAME), JSON.stringify({ tipInstant: tipInstantText, isFinished }));
+}
+
+test("test_two_files_stopped_at_a_script_stop_get_one_play_child_when_the_first_pre_play_walk_finishes_the_second", async (t) => {
+    // Scenario: fileA and fileB stop at the same script stop; the session runs scripts now; the real pool and the real walker work together.
+    const folders = makeTemporaryFolders(t);
+    const fileA = new Path(join(folders.projectFolder.toString(), "fileA.txt"));
+    const fileB = new Path(join(folders.projectFolder.toString(), "fileB.txt"));
+    const walkState = createWalkState();
+    const playedFileTexts: string[] = [];
+    writeCoverageSidecarOfFile(folders, fileA, makeInstant(40), false);
+    writeCoverageSidecarOfFile(folders, fileB, makeInstant(40), false);
+    const getOtherFile = (file: Path): Path => (file.toString() === fileA.toString() ? fileB : fileA);
+    const pool = createStepPool({
+        maxProcesses: 4,
+        spawnStepProcess: async (request: StepRequest): Promise<StepProcessOutcome> => {
+            writeCoverageSidecarOfFile(folders, request.file, makeInstant(10), true);
+            return makeFinishedOutcome();
+        },
+        spawnPlayProcess: async (playRequest): Promise<PlayOutcome> => {
+            playedFileTexts.push(playRequest.file.toString());
+            writeCoverageSidecarOfFile(folders, playRequest.file, makeInstant(10), true);
+            return { kind: PlayOutcomeKind.Replayed, reasonText: undefined };
+        },
+        onOutcome: (request: StepRequest, outcome: StepProcessOutcome) => {
+            void walker.handleOutcome(request, outcome);
+        },
+        onStatusChange: () => {},
+        isFileWalkFinished: (file) => readWalkCoverage(getInverseRepoFolderForFile(folders.storeFolder, folders.projectFolder, file))?.isFinished === true,
+        isFileSteppable: () => true,
+        hasLogsGrown: () => false,
+        onLogsGrew: () => {},
+        endChildOfFile: async () => {},
+        endAllChildren: async () => {},
+    });
+    const walker = createHistoryWalker({
+        storeFolder: folders.storeFolder,
+        projectFolder: folders.projectFolder,
+        walkState,
+        requestWalk: pool.requestWalk,
+        requestPlay: (playRequest) => pool.requestPlay(playRequest, [getOtherFile(playRequest.file)]),
+        decideScriptAction: () => ScriptAction.RunNow,
+        onStatusChange: (file, runState) => setFileRunState(walkState, file, runState),
+    });
+    // Both files report the script stop; the answers are not awaited yet.
+    const requestOfFileA: StepRequest = { file: fileA, startAt: MARKER_TIME, isPassingStops: false };
+    const requestOfFileB: StepRequest = { file: fileB, startAt: MARKER_TIME, isPassingStops: false };
+    const handlingOfFileA = walker.handleOutcome(requestOfFileA, makeStoppedOutcome(FileEventType.ScriptMayWrite, SOURCE_TEXT));
+    const handlingOfFileB = walker.handleOutcome(requestOfFileB, makeStoppedOutcome(FileEventType.ScriptMayWrite, SOURCE_TEXT));
+    await handlingOfFileA;
+    await handlingOfFileB;
+    await pool.waitUntilIdle();
+    // The play child ran once, for the first requested file only.
+    assert.deepEqual(playedFileTexts, [fileA.toString()]);
+    // Both rows are Idle and no failed replay is counted.
+    assert.equal(getFileRunState(walkState, fileA).status, FileWalkStatus.Idle);
+    assert.equal(getFileRunState(walkState, fileB).status, FileWalkStatus.Idle);
+    assert.equal(getFileRunState(walkState, fileA).failedReplayCount, 0);
+    assert.equal(getFileRunState(walkState, fileB).failedReplayCount, 0);
 });
 
 test("test_the_answer_of_a_cancelled_child_is_dropped", async (t) => {

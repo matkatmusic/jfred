@@ -21,12 +21,19 @@ function makeRefusedOutcome(reasonText: string): PlayOutcome {
     return { kind: PlayOutcomeKind.ReplayRefused, reasonText };
 }
 
+function makeNothingToReplayOutcome(): PlayOutcome {
+    return { kind: PlayOutcomeKind.Replayed, reasonText: undefined };
+}
+
 function findUnfinishedFile(files: Path[], context: PlayContext): Path | undefined {
     return files.find((file) => !context.isFileWalkFinished(file));
 }
 
 export async function runPlayRequest(request: PlayRequest, walkToEndFiles: Path[], context: PlayContext): Promise<PlayOutcome> {
     await context.waitForConsent();
+    if (context.isFileWalkFinished(request.file)) {
+        return makeNothingToReplayOutcome();
+    }
     const unsteppableFile = walkToEndFiles.find((file) => !context.isFileSteppable(file));
     if (unsteppableFile !== undefined) {
         return makeRefusedOutcome(`the replay needs ${unsteppableFile.toString()}, which the step program cannot walk`);
@@ -39,6 +46,9 @@ export async function runPlayRequest(request: PlayRequest, walkToEndFiles: Path[
     do {
         await context.waitUntilIdle();
     } while (!context.isIdle());
+    if (context.isFileWalkFinished(request.file)) {
+        return makeNothingToReplayOutcome();
+    }
     const unfinishedFile = findUnfinishedFile(walkToEndFiles, context);
     if (unfinishedFile !== undefined) {
         return makeRefusedOutcome(`the repo of ${unfinishedFile.toString()} is not walked to its end: unknown`);
