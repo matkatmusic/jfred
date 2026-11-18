@@ -5,8 +5,8 @@ export interface VisibleRowRange {
     bottom: number;
 }
 
-export function getAvailableRowCount(terminalRows: number): number {
-    return terminalRows - HEADER_ROWS - 2;
+export function getAvailableRowCount(terminalRows: number, footerRowCount: number = 2): number {
+    return terminalRows - HEADER_ROWS - footerRowCount;
 }
 
 export function getVisibleRowRange(rowCount: number, cursorIndex: number, previousTop: number, availableHeight: number): VisibleRowRange {

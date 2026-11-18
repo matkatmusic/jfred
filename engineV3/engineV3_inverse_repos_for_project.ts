@@ -3,7 +3,8 @@
 import { createHash } from "node:crypto";
 import { createInterface } from "node:readline";
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { basename, join, relative, sep } from "node:path";
+// import { basename, join, relative, sep } from "node:path";
+import { basename, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 // import { Path } from "../src/structures/domain.ts";
 import { Path, Uuid } from "../src/structures/domain.ts";
@@ -356,7 +357,8 @@ function readRequiredFolderFlag(argumentList: string[], flag: string): { folder:
     if (value === undefined) {
         throw new Error(USAGE);
     }
-    return { folder: new Path(value), rest };
+    // return { folder: new Path(value), rest };
+    return { folder: new Path(resolve(value)), rest };
 }
 
 function readRequiredFolderListFlag(argumentList: string[], flag: string): { folders: Path[]; rest: string[] } {

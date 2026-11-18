@@ -17,6 +17,17 @@ export function assertStoreIsInsideCacheFolder(storeFolder: Path, cacheFolder: P
     }
 }
 
+export function isFullBuildRepoInStore(storeFolder: Path, projectFolder: Path, projectFiles: ProjectFile[]): boolean {
+    for (const { file } of projectFiles) {
+        const repoFolder = getInverseRepoFolderForFile(storeFolder, projectFolder, file);
+        if (existsSync(repoFolder.toString())) {
+            if (!isInverseRepoOnDemand(repoFolder)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
 export function assertStoreHasNoFullBuildRepos(storeFolder: Path, projectFolder: Path, projectFiles: ProjectFile[]): void {
     for (const { file } of projectFiles) {
         const repoFolder = getInverseRepoFolderForFile(storeFolder, projectFolder, file);
@@ -91,6 +102,13 @@ export function listRepoFoldersOfStore(storeFolder: Path): Path[] {
         return listRepoFoldersInFolder(storeFolder.toString());
     }
     return [];
+}
+
+// For the TUI start question: the user chose reset for a store that holds a full-build repo, which has no stamp, so the stamp check would refuse it.
+export function forceResetStoreFolder(storeFolder: Path): void {
+    for (const name of readdirSync(storeFolder.toString())) {
+        rmSync(join(storeFolder.toString(), name), { recursive: true, force: true });
+    }
 }
 
 // Checks the whole store first, then removes: a refused store loses nothing.

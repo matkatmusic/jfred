@@ -78,7 +78,7 @@ export function prepareTuiStore(storeFolder: Path, projectFolder: Path, projectF
     mkdirSync(storeFolder.toString(), { recursive: true });
     assertStoreIsInsideCacheFolder(storeFolder, new Path(INVERSE_REPOS_CACHE_FOLDER));
     // assertStoreHasNoFullBuildRepos(storeFolder, projectFolder, []);
-    assertStoreHasNoFullBuildRepos(storeFolder, projectFolder, projectFiles);
+    // assertStoreHasNoFullBuildRepos(storeFolder, projectFolder, projectFiles);
 }
 
 export function getTuiLockFile(storeFolder: Path): Path {

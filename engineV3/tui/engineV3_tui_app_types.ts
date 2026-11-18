@@ -10,6 +10,7 @@ import type { HistoryWalker, StepPool } from "./engineV3_tui_walk_types.ts";
 
 export type AppProps = {
     terminalRows: number;
+    terminalColumns: number;
     projectFolder: Path;
     storeFolder: Path;
     files: Path[];

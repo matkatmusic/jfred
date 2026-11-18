@@ -5,10 +5,11 @@ import { test, type TestContext } from "node:test";
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 import { INVERSE_REPOS_CACHE_FOLDER } from "../src/viewer_api_layer1_inverse_repos.ts";
 import { getInverseRepoFolderForFile } from "../engineV3/engineV3_inverse_repos_for_project.ts";
+import { isFullBuildRepoInStore } from "../engineV3/engineV3_step_store_guard.ts";
 import { getProjectCacheFile } from "../engineV3/tui/engineV3_tui_project_cache.ts";
 import { acquireTuiLock, getTuiLockFile, prepareTuiStore, readTuiSettings } from "../engineV3/tui/engineV3_tui_settings.ts";
 
@@ -47,16 +48,28 @@ test("test_start_accepts_a_store_folder_that_does_not_exist_yet_inside_the_cache
     assert.equal(existsSync(storeFolder.toString()), true);
 });
 
-test("test_start_refuses_a_store_that_holds_a_full_build_repo_of_a_project_file", (t) => {
-    // Scenario: the start check throws when the store holds a full-build repo of one of the project files.
+test("test_start_does_not_throw_for_a_store_that_holds_a_full_build_repo_and_the_store_check_reports_it", (t) => {
+    // Scenario: the start check does not throw when the store holds a full-build repo of one of the project files; the full-build check reports it, so the TUI can ask the user.
     // a store path inside the cache folder, a project folder, and one project file.
     const storeFolder = makeMissingStoreFolderInsideCacheFolder(t);
     const projectFolder = new Path(join(INVERSE_REPOS_CACHE_FOLDER, "jfred-test-project-" + randomUUID()));
     const file = new Path(join(projectFolder.toString(), "a.txt"));
     // the store holds a repo folder of that file without an on-demand stamp, so it is a full-build repo.
     mkdirSync(getInverseRepoFolderForFile(storeFolder, projectFolder, file).toString(), { recursive: true });
-    // the start check with that project file list throws and names the full-build repo.
-    assert.throws(() => prepareTuiStore(storeFolder, projectFolder, [{ file, transcriptFile: file }]), /full-build repo/);
+    // the start check with that project file list does not throw.
+    // assert.throws(() => prepareTuiStore(storeFolder, projectFolder, [{ file, transcriptFile: file }]), /full-build repo/);
+    assert.doesNotThrow(() => prepareTuiStore(storeFolder, projectFolder, [{ file, transcriptFile: file }]));
+    // the full-build check says the store holds a full-build repo.
+    assert.equal(isFullBuildRepoInStore(storeFolder, projectFolder, [{ file, transcriptFile: file }]), true);
+});
+test("test_the_full_build_check_says_false_for_a_store_without_repos", (t) => {
+    // Scenario: an empty store holds no full-build repo.
+    // an empty store folder and one project file.
+    const storeFolder = makeMissingStoreFolderInsideCacheFolder(t);
+    const projectFolder = new Path(join(INVERSE_REPOS_CACHE_FOLDER, "jfred-test-project-" + randomUUID()));
+    const file = new Path(join(projectFolder.toString(), "a.txt"));
+    // the full-build check says false.
+    assert.equal(isFullBuildRepoInStore(storeFolder, projectFolder, [{ file, transcriptFile: file }]), false);
 });
 
 test("test_the_lock_refuses_a_second_start_while_the_first_process_is_alive", (t) => {
@@ -96,6 +109,14 @@ test("test_processes_flag_above_four_throws", () => {
     assert.throws(() => readTuiSettings(argv));
 });
 
+test("test_readTuiSettings_makes_a_relative_store_folder_absolute", () => {
+    // Scenario: a relative --store becomes an absolute path, because jfred git refuses a relative repo path.
+    // an argument list has a relative store folder.
+    const argv = ["--project", "/tmp/project", "--jsonls", "/tmp/jsonls", "--file-history", "/tmp/history", "--store", ".cache/inverse-repos/relative-store"];
+    // reading the settings gives the store folder as an absolute path inside the current folder.
+    const settings = readTuiSettings(argv);
+    assert.equal(settings.storeFolder.toString(), resolve(".cache/inverse-repos/relative-store"));
+});
 test("test_readTuiSettings_reads_the_comma_lists_and_defaults", () => {
     // Scenario: the settings read both comma lists and fill the defaults for the optional flags.
     // an argument list has two jsonls folders and two file-history folders, and none of the optional flags.

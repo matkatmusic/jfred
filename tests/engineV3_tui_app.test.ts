@@ -177,7 +177,8 @@ function makeAppProps(overrides: Partial<AppProps>): AppHarness {
         },
     };
     const props: AppProps = {
-        terminalRows: 10,
+        terminalRows: 20,
+        terminalColumns: 100,
         projectFolder: new Path(PROJECT_FOLDER_TEXT),
         storeFolder: new Path("/made-up-store-folder-for-tui-app-test"),
         files,
@@ -237,12 +238,35 @@ function getHeaderRow(lines: string[]): string {
     return lines[0]!;
 }
 
-function getInfoRow(lines: string[]): string {
-    return lines[lines.length - 2]!;
+// The text of each rounded box in the frame, top to bottom: the inner lines joined by one space.
+// 20 terminal rows: 1 header row, the file rows, then the details box and the key footer with 100 columns.
+const VISIBLE_FILE_ROW_COUNT = 10;
+function readBoxTexts(lines: string[]): string[] {
+    const boxTexts: string[] = [];
+    let currentBoxLines: string[] | undefined;
+    for (const line of lines) {
+        if (line.startsWith("╭")) {
+            currentBoxLines = [];
+        } else if (line.startsWith("╰")) {
+            boxTexts.push(currentBoxLines!.join(" "));
+            currentBoxLines = undefined;
+        } else if (currentBoxLines !== undefined) {
+            currentBoxLines.push(line.replace(/^│\s*/, "").replace(/\s*│$/, ""));
+        }
+    }
+    return boxTexts;
 }
 
+// the details box above the key footer
+function getInfoRow(lines: string[]): string {
+    const boxTexts = readBoxTexts(lines);
+    return boxTexts[boxTexts.length - 2]!;
+}
+
+// the key footer, the last box
 function getMenuRow(lines: string[]): string {
-    return lines[lines.length - 1]!;
+    const boxTexts = readBoxTexts(lines);
+    return boxTexts[boxTexts.length - 1]!;
 }
 
 function readMarkerInstantFromHeader(lines: string[]): Date {
@@ -252,7 +276,7 @@ function readMarkerInstantFromHeader(lines: string[]): Date {
 }
 
 function readOwnTimeFromInfoRow(lines: string[]): Date {
-    const infoMatch = /own time (\d{4}-\d\d-\d\dT[\d:.]+Z)/.exec(getInfoRow(lines));
+    const infoMatch = /own time: (\d{4}-\d\d-\d\dT[\d:.]+Z)/.exec(getInfoRow(lines));
     assert.notEqual(infoMatch, null, `the info row shows no own time: ${getInfoRow(lines)}`);
     return new Date((infoMatch as RegExpExecArray)[1]!);
 }
@@ -265,11 +289,11 @@ test("test_screen_draws_only_the_visible_file_names", async (t) => {
     await settle();
     // The frame holds the names f00 to f06.
     const frameText = screen.readFrameLines().join("\n");
-    for (let index = 0; index < 7; index++) {
+    for (let index = 0; index < VISIBLE_FILE_ROW_COUNT; index++) {
         assert.ok(frameText.includes(makeFileName(index)), `${makeFileName(index)} is missing`);
     }
-    // The frame does not hold the 8th name, nor the last name.
-    assert.ok(!frameText.includes(makeFileName(7)));
+    // The frame does not hold the next name, nor the last name.
+    assert.ok(!frameText.includes(makeFileName(VISIBLE_FILE_ROW_COUNT)));
     assert.ok(!frameText.includes(makeFileName(49)));
 });
 
@@ -312,6 +336,25 @@ test("test_two_rows_can_show_the_barbershop_at_the_same_time", async (t) => {
     assert.ok(!idleRow.includes(ROW_MARKS[FileWalkStatus.Running]));
 });
 
+test("test_an_open_consent_question_shows_as_a_popup_instead_of_the_file_rows_and_down_enter_answers_no", async (t) => {
+    // Scenario: two script runs were found and nothing is answered yet.
+    const consentCalls: Array<[string, boolean]> = [];
+    const harness = makeAppProps({ scriptCounts: { mayWrite: 0, readOnly: 2 }, consentAnswers: { runScripts: undefined, runModifyingScriptsAutomatically: undefined }, onConsentAnswered: (answerKey, answer) => consentCalls.push([answerKey, answer]) });
+    const screen = startScreen(t, harness.props);
+    await settle();
+    // the frame holds the question and the picker, and no file row.
+    const frameText = screen.readFrameLines().join("\n");
+    assert.ok(frameText.includes("scripts in the docker container?"), frameText);
+    assert.ok(frameText.includes("> yes <"), frameText);
+    assert.ok(!frameText.includes(makeFileName(0)), frameText);
+    // Down then Enter answers no for the runScripts question.
+    screen.stdin.write(DOWN_ARROW);
+    await settle();
+    screen.stdin.write("\r");
+    await settle();
+    assert.deepEqual(consentCalls, [["runScripts", false]]);
+});
+
 test("test_the_menu_row_shows_the_keys_of_the_keymap_file", async (t) => {
     // Scenario: the keymap file is loaded, then the key of PlayScript is changed to x in memory.
     const keymap: Keymap = loadKeymap(KEYMAP_FILE);
@@ -322,9 +365,12 @@ test("test_the_menu_row_shows_the_keys_of_the_keymap_file", async (t) => {
     const menuRow = getMenuRow(screen.readFrameLines());
     // The menu row shows x.
     assert.ok(menuRow.includes("x"));
-    // The menu row shows every key of the keymap, joined by two spaces, in the order of the keymap.
-    const keysText = [...keymap.values()].map(formatKeyBinding).join("  ");
-    assert.ok(menuRow.includes(keysText), `menu row: ${menuRow}`);
+    // The key footer shows every key of the keymap as "<key>: <action>".
+    // const keysText = [...keymap.values()].map(formatKeyBinding).join("  ");
+    for (const binding of keymap.values()) {
+        assert.ok(menuRow.includes(`${formatKeyBinding(binding)}: `), `menu row: ${menuRow}`);
+    }
+    assert.ok(menuRow.includes("x: play script"), `menu row: ${menuRow}`);
 });
 
 test("test_the_info_row_shows_the_error_of_a_crashed_file", async (t) => {
@@ -636,7 +682,7 @@ test("test_a_long_info_row_text_keeps_the_file_name_at_its_start", async (t) => 
     await settle();
     // The info row starts with the file name.
     const infoRow = getInfoRow(screen.readFrameLines());
-    assert.ok(infoRow.startsWith(makeFileName(0)), `info row: ${infoRow}`);
+    assert.ok(infoRow.startsWith(`file: ${makeFileName(0)}`), `info row: ${infoRow}`);
     // The end of the long text is cut off.
     assert.ok(!infoRow.includes(endOfLongText), `info row: ${infoRow}`);
 });

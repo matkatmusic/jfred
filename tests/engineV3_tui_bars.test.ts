@@ -187,7 +187,8 @@ function makeZeroEventCounts(): FileEventCounts {
 // A screen whose walker says every time is covered and whose pool does nothing; the wires come from the real repo.
 function makeAppProps(project: Project, events: ProjectEventEntry[]): AppProps {
     return {
-        terminalRows: 10,
+        terminalRows: 20,
+        terminalColumns: 100,
         projectFolder: project.projectFolder,
         storeFolder: project.storeFolder,
         files: [project.file],

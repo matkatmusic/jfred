@@ -14,9 +14,10 @@ import { getMemoizedFileModel, stepProjectMarker, stepSelectedFiles, type FileMo
 import { Barbershop } from "./engineV3_tui_barbershop.tsx";
 import { describeBarInfo } from "./engineV3_tui_bars.ts";
 import { chooseFileForPlayKey, getNextConsentQuestion } from "./engineV3_tui_consent.ts";
-import { buildInfoRowText } from "./engineV3_tui_info_row.tsx";
+import { ConsentPopup } from "./engineV3_tui_consent_popup.tsx";
+import { DetailsBox, KeyFooter, buildKeyFooterEntries, countBoxRows } from "./engineV3_tui_footer.tsx";
+import { buildInfoEntries } from "./engineV3_tui_info_row.tsx";
 import { findCommandForKey } from "./engineV3_tui_keymap.ts";
-import { MenuRow } from "./engineV3_tui_menu_row.tsx";
 import { NoEventsScreen } from "./engineV3_tui_no_events.tsx";
 import { Row } from "./engineV3_tui_row.tsx";
 import { foldEventsIntoRulerRows, toggleJumpSpeed, type TimeMarker } from "./engineV3_tui_time_marker.ts";
@@ -44,14 +45,26 @@ function LoadedApp(props: AppProps) {
     const rulerRows = useMemo(() => foldEventsIntoRulerRows(props.events, RULER_ROW_LIMIT), [props.events]);
     const bounds = { newest: props.events[0]!.instant, oldest: props.events[props.events.length - 1]!.instant };
     const consentQuestion = getNextConsentQuestion(props.consentAnswers, props.scriptCounts);
-    const range = getVisibleRowRange(props.files.length, selection.cursorIndex, previousTop.current, getAvailableRowCount(props.terminalRows));
-    previousTop.current = range.top;
-    const visibleFiles = props.files.slice(range.top, range.bottom);
+    // const range = getVisibleRowRange(props.files.length, selection.cursorIndex, previousTop.current, getAvailableRowCount(props.terminalRows));
     const cursorFile = props.files[selection.cursorIndex]!;
     const selectedOrCursorFiles = selection.selectedFiles.length > 0 ? selection.selectedFiles : [cursorFile];
 
     const getTimeOfFile = (file: Path): Date => fileTimes.get(file.value) ?? marker.instant;
     const getModelOfFile = (file: Path): BarFileModel => getMemoizedFileModel(modelMemo.current, props, rulerRows, file);
+    const cursorRunState = getFileRunState(props.walkState, cursorFile);
+    const detailEntries = buildInfoEntries({
+        fileName: getRelativePathInProject(props.projectFolder, cursorFile),
+        barInfo: describeBarInfo(getModelOfFile(cursorFile), props.countsByFile.get(cursorFile.value)!, cursorRunState),
+        runState: cursorRunState,
+        ownTime: fileTimes.get(cursorFile.value),
+        isTimeSpanned: props.isTimeSpannedForFile(cursorFile, getTimeOfFile(cursorFile)),
+        scriptRefusalText: undefined,
+    });
+    const keyEntries = buildKeyFooterEntries(props.keymap, speed);
+    const footerRowCount = countBoxRows(detailEntries, props.terminalColumns) + countBoxRows(keyEntries, props.terminalColumns);
+    const range = getVisibleRowRange(props.files.length, selection.cursorIndex, previousTop.current, getAvailableRowCount(props.terminalRows, footerRowCount));
+    previousTop.current = range.top;
+    const visibleFiles = props.files.slice(range.top, range.bottom);
 
     useEffect(() => props.subscribeToStatusChanges(() => setRenderCount((renderCount) => renderCount + 1)), []);
     useEffect(() => {
@@ -115,18 +128,16 @@ function LoadedApp(props: AppProps) {
         const markerRowIndex = findRulerRowIndexForInstant(rulerRows, getTimeOfFile(file).toISOString());
         return <Row key={file.value} fileName={getRelativePathInProject(props.projectFolder, file)} model={model} status={getFileRunState(props.walkState, file).status} markerRowIndex={markerRowIndex} rulerRowCount={rulerRows.length} barWidth={BAR_WIDTH} isCursor={range.top + offset === selection.cursorIndex} isSelected={selection.selectedFiles.some((selectedFile) => selectedFile.value === file.value)} stateText={describeRowState(model, getTimeOfFile(file), markerRowIndex)} />;
     });
-    const cursorRunState = getFileRunState(props.walkState, cursorFile);
-    const infoRowText = buildInfoRowText({
-        fileName: getRelativePathInProject(props.projectFolder, cursorFile),
-        barInfo: describeBarInfo(getModelOfFile(cursorFile), props.countsByFile.get(cursorFile.value)!, cursorRunState),
-        runState: cursorRunState,
-        ownTime: fileTimes.get(cursorFile.value),
-        isTimeSpanned: props.isTimeSpannedForFile(cursorFile, getTimeOfFile(cursorFile)),
-        scriptRefusalText: undefined,
-    });
     // const headerText = consentQuestion?.questionText ?? props.cacheStatusText ?? `marker ${marker.instant.toISOString()}`;
     const staleText = props.staleRepoCount > 0 ? `${props.staleRepoCount} repos are stale: press Shift-R` : undefined;
     const headerText = consentQuestion?.questionText ?? staleText ?? props.cacheStatusText ?? `marker ${marker.instant.toISOString()}`;
+    if (consentQuestion !== undefined) {
+        const answerConsentQuestion = (answer: boolean): void => {
+            props.onConsentAnswered(consentQuestion.answerKey, answer);
+            setRenderCount((renderCount) => renderCount + 1);
+        };
+        return <ConsentPopup questionText={consentQuestion.questionText} terminalRows={props.terminalRows} terminalColumns={props.terminalColumns} onAnswer={answerConsentQuestion} />;
+    }
     return (
         <Box flexDirection="column" height={props.terminalRows}>
             <Box gap={1}>
@@ -134,9 +145,10 @@ function LoadedApp(props: AppProps) {
                 {props.cacheStatusText !== undefined && <Barbershop width={BAR_WIDTH} />}
             </Box>
             <Box flexDirection="column" flexGrow={1}>{rows}</Box>
-            {/* <Box height={1}><Text wrap="truncate-start">{infoRowText}</Text></Box> */}
-            <Box height={1}><Text wrap="truncate-end">{infoRowText}</Text></Box>
-            <MenuRow keymap={props.keymap} speed={speed} />
+            {/* <Box height={1}><Text wrap="truncate-end">{infoRowText}</Text></Box> */}
+            {/* <MenuRow keymap={props.keymap} speed={speed} /> */}
+            <DetailsBox entries={detailEntries} columns={props.terminalColumns} />
+            <KeyFooter entries={keyEntries} columns={props.terminalColumns} />
         </Box>
     );
 }

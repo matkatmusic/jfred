@@ -18,7 +18,11 @@ import { createConsentGate, decideScriptAction, type ConsentAnswers } from "./en
 import { formatKeyBinding, loadKeymap } from "./engineV3_tui_keymap.ts";
 import { createStepPool } from "./engineV3_tui_pool.ts";
 import { getProjectCacheFile, readProjectCache } from "./engineV3_tui_project_cache.ts";
-import { acquireTuiLock, prepareTuiStore, readTuiSettings } from "./engineV3_tui_settings.ts";
+// import { acquireTuiLock, prepareTuiStore, readTuiSettings } from "./engineV3_tui_settings.ts";
+import { acquireTuiLock, prepareTuiStore, readTuiSettings, releaseTuiLock } from "./engineV3_tui_settings.ts";
+import { forceResetStoreFolder, isFullBuildRepoInStore } from "../engineV3_step_store_guard.ts";
+import { clearTerminalScreen } from "./engineV3_tui_screen.ts";
+import { StoreAnswer, StoreQuestion } from "./engineV3_tui_store_question.ts";
 import { registerShutdownSignalHandlers, shutdownTui } from "./engineV3_tui_shutdown.ts";
 import { createSpawnPlayProcess, createSpawnStepProcess, endAllLiveChildren, endChildOfFile } from "./engineV3_tui_step_process.ts";
 import { createHistoryWalker } from "./engineV3_tui_walk.ts";
@@ -35,6 +39,7 @@ async function main(): Promise<void> {
     // prepareTuiStore(storeFolder, projectFolder);
     acquireTuiLock(storeFolder);
     const keymap = loadKeymap(new Path(join(tuiFolder, "keymap.json")));
+    clearTerminalScreen(process.stdout);
     const instance = render(createLoadingScreen("files done 0 of ?"));
     await runProjectCacheChild(jfredFolder, (progressText) => instance.rerender(createLoadingScreen(progressText)));
     const cache = readProjectCache(getProjectCacheFile(storeFolder));
@@ -45,6 +50,19 @@ async function main(): Promise<void> {
     const projectFiles = cache.projectFiles.map((file) => ({ file, transcriptFile: file }));
     // Late on purpose: the real project file list exists only after the cache is loaded.
     prepareTuiStore(storeFolder, projectFolder, projectFiles);
+    if (isFullBuildRepoInStore(storeFolder, projectFolder, projectFiles)) {
+        // instance.rerender(createLoadingScreen(STORE_QUESTION_TEXT));
+        // const storeAnswer = await readAbortOrResetAnswer(process.stdin);
+        const storeAnswer = await new Promise<StoreAnswer>((resolve) => instance.rerender(createElement(StoreQuestion, { onAnswer: resolve })));
+        if (storeAnswer === StoreAnswer.Abort) {
+            releaseTuiLock(storeFolder);
+            instance.unmount();
+            process.exit(0);
+        }
+        // resetStoreFolder(storeFolder);
+        forceResetStoreFolder(storeFolder);
+        instance.rerender(createLoadingScreen("the store is reset: the load continues"));
+    }
     // const staleFiles = listProjectFilesWithStaleInverseRepos(storeFolder, projectFolder, projectFiles, cache.transcriptsToParse, earliestBoundary);
     let staleRepoCount = listProjectFilesWithStaleInverseRepos(storeFolder, projectFolder, projectFiles, cache.transcriptsToParse, earliestBoundary).length;
     const refreshStaleRepoCount = (): void => {
@@ -94,6 +112,7 @@ async function main(): Promise<void> {
     const resetHandlers = createResetHandlers({ storeFolder, projectFolder, pool, walkState, clearRunStateOfFile, refreshStaleRepoCount });
     const appProps: AppProps = {
         terminalRows: process.stdout.rows,
+        terminalColumns: process.stdout.columns,
         projectFolder,
         storeFolder,
         files: cache.projectFiles,

@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
 // import { resetStoreFolder } from "../engineV3/engineV3_step_store_guard.ts";
-import { listRepoFoldersOfStore, resetStore, resetStoreFolder } from "../engineV3/engineV3_step_store_guard.ts";
+import { forceResetStoreFolder, listRepoFoldersOfStore, resetStore, resetStoreFolder } from "../engineV3/engineV3_step_store_guard.ts";
 
 const STAMP_FILE_NAME = "jfred-stamp.json";
 
@@ -114,6 +114,18 @@ test("test_symlink_under_the_store_throws_and_removes_nothing_and_target_is_unto
     assert.equal(readFileSync(join(targetFolder, "precious.txt"), "utf8"), "precious");
 });
 
+test("test_forceResetStoreFolder_empties_a_store_that_holds_a_git_folder_without_a_stamp", (t) => {
+    // Scenario: the user chose "reset the store" after the TUI found a full-build repo, which is a git folder without a stamp.
+    // the store holds a.ts.git without a stamp and src/b.ts.git with a stamp.
+    const storeFolder = join(makeTemporaryFolder(t), "store");
+    mkdirSync(join(storeFolder, "a.ts.git"), { recursive: true });
+    writeStampedRepo(join(storeFolder, "src", "b.ts.git"));
+    // the forced reset runs and does not throw.
+    forceResetStoreFolder(new Path(storeFolder));
+    // the store folder still exists and holds nothing.
+    assert.equal(existsSync(storeFolder), true);
+    assert.deepEqual(readdirSync(storeFolder), []);
+});
 test("test_resetStore_removes_one_repo_and_leaves_the_others", (t) => {
     // Scenario: resetStore removes exactly the repo folder it is given.
     // Steps:
