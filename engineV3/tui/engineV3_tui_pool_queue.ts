@@ -4,7 +4,7 @@ import type { StepRequest } from "./engineV3_tui_walk_types.ts";
 
 export type PoolEntry = { request: StepRequest; isVisible: boolean };
 
-// Keeps the older start time; the entry stays at its place in the map.
+// Keeps the older start time and the pass-stops flag; the entry stays at its place in the map.
 export function mergeEntry(entryByFileValue: Map<string, PoolEntry>, entry: PoolEntry): void {
     const fileValue = entry.request.file.value;
     const existingEntry = entryByFileValue.get(fileValue);
@@ -13,7 +13,10 @@ export function mergeEntry(entryByFileValue: Map<string, PoolEntry>, entry: Pool
         return;
     }
     const olderRequest = entry.request.startAt.getTime() < existingEntry.request.startAt.getTime() ? entry.request : existingEntry.request;
-    entryByFileValue.set(fileValue, { request: olderRequest, isVisible: existingEntry.isVisible || entry.isVisible });
+    const isPassingStops = existingEntry.request.isPassingStops || entry.request.isPassingStops;
+    const mergedRequest = { ...olderRequest, isPassingStops };
+    // entryByFileValue.set(fileValue, { request: olderRequest, isVisible: existingEntry.isVisible || entry.isVisible });
+    entryByFileValue.set(fileValue, { request: mergedRequest, isVisible: existingEntry.isVisible || entry.isVisible });
 }
 
 export function pickNextEntry(queueByFileValue: Map<string, PoolEntry>): PoolEntry {

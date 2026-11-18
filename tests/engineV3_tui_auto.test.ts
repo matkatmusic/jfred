@@ -1,18 +1,23 @@
 // The --auto walk of the terminal UI: jump to the oldest event and wait until every file is done.
 
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
-import { FileWalkStatus } from "../src/structures/vocabulary.ts";
+import { FileWalkStatus, InverseStepOutcome, PlayOutcomeKind, StepProcessOutcomeKind } from "../src/structures/vocabulary.ts";
+import { FileEventType } from "../engineV3/engineV3_replay_reverse_events.ts";
+import type { StepResultLine } from "../engineV3/engineV3_step_start_at.ts";
 import { getInverseRepoFolderForFile } from "../engineV3/engineV3_inverse_repos_for_project.ts";
-import { readWalkCoverage } from "../engineV3/engineV3_walk_coverage.ts";
+import { WALK_COVERAGE_FILE_NAME, readWalkCoverage } from "../engineV3/engineV3_walk_coverage.ts";
 import { runAutoWalk } from "../engineV3/tui/engineV3_tui_auto.ts";
+import { decideScriptAction, type ConsentAnswers } from "../engineV3/tui/engineV3_tui_consent.ts";
 import { createHistoryWalker } from "../engineV3/tui/engineV3_tui_walk.ts";
 import { createStepPool } from "../engineV3/tui/engineV3_tui_pool.ts";
 import { createSpawnStepProcess } from "../engineV3/tui/engineV3_tui_step_process.ts";
-import { createWalkState, getFileRunState, type FileRunState } from "../engineV3/tui/engineV3_tui_walk_state.ts";
-import type { HistoryWalker, SpawnSettings, StepPool, StepProcessOutcome, StepRequest } from "../engineV3/tui/engineV3_tui_walk_types.ts";
+import { createWalkState, getFileRunState, setFileRunState, type FileRunState } from "../engineV3/tui/engineV3_tui_walk_state.ts";
+import type { HistoryWalker, PlayOutcome, PlayRequest, SpawnSettings, StepPool, StepProcessOutcome, StepRequest } from "../engineV3/tui/engineV3_tui_walk_types.ts";
 import { makeEditRows, makeInstant, writeProjectFiles } from "./engineV3_step_test_projects.ts";
 
 const JFRED_FOLDER = new Path(join(import.meta.dirname, ".."));
@@ -191,4 +196,219 @@ test("test_auto_requests_no_walk_while_the_consent_gate_is_closed_and_walks_afte
     await autoWalk;
     // The file was requested at least one time.
     assert.ok(requestedInstants.length >= 1);
+});
+
+// The S25 shape: f1 f2 f3 stop at one script; f3 also has a stop after the script that only a pass-stops walk passes; f4 has no stop.
+const SCRIPT_STOP_SOURCE = "toolu_script";
+const SPAWN_DELAY_MILLISECONDS = 5;
+const SETTLE_DELAY_MILLISECONDS = 40;
+const SETTLE_UNCHANGED_ROUNDS_NEEDED = 3;
+const SETTLE_ROUND_LIMIT = 60;
+const STEP_SPAWN_LOOP_GUARD = 40;
+const STATEFUL_ENGINE_TIMEOUT_MILLISECONDS = 30000;
+const MAXIMUM_PROCESSES = 4;
+
+type StepSpawnRecord = { file: Path; isPassingStops: boolean };
+type StatefulEngineHarness = {
+    files: Path[];
+    storeFolder: Path;
+    projectFolder: Path;
+    walker: HistoryWalker;
+    pool: StepPool;
+    stepSpawns: StepSpawnRecord[];
+    playSpawns: Path[];
+    getRunState: (file: Path) => FileRunState;
+    isFileWalkFinished: (file: Path) => boolean;
+};
+
+function waitMilliseconds(milliseconds: number): Promise<void> {
+    return new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function writeFinishedSidecar(storeFolder: Path, projectFolder: Path, file: Path): void {
+    const repoFolder = getInverseRepoFolderForFile(storeFolder, projectFolder, file);
+    mkdirSync(repoFolder.toString(), { recursive: true });
+    writeFileSync(join(repoFolder.toString(), WALK_COVERAGE_FILE_NAME), JSON.stringify({ tipInstant: null, isFinished: true }));
+}
+
+function makeStepResultLine(eventType: FileEventType | null, source: string | null): StepResultLine {
+    return { startAt: new Date(0).toISOString(), outcome: InverseStepOutcome.UnknownOrRoadblock, commitsWritten: 0, position: 0, commit: "abc", eventType, source };
+}
+
+function makeStoppedOutcome(eventType: FileEventType, source: string | null): StepProcessOutcome {
+    return { kind: StepProcessOutcomeKind.Stopped, eventType, source, lastLine: makeStepResultLine(eventType, source) };
+}
+
+function makeFinishedOutcome(): StepProcessOutcome {
+    return { kind: StepProcessOutcomeKind.Finished, lastLine: makeStepResultLine(null, null) };
+}
+
+function makeLoopGuardCrashedOutcome(): StepProcessOutcome {
+    return { kind: StepProcessOutcomeKind.Crashed, exitCode: 1, signal: null, crashedAt: null, stderrTail: "test loop guard" };
+}
+
+// The real walker, the real pool and the real auto walk, over a fake engine that keeps the stops of each file in memory and the coverage sidecars on disk.
+function buildStatefulEngineHarness(t: TestContext, answers: ConsentAnswers): StatefulEngineHarness {
+    const rootFolder = mkdtempSync(join(realpathSync(tmpdir()), "engine-v3-tui-auto-"));
+    t.after(() => rmSync(rootFolder, { recursive: true, force: true }));
+    const storeFolder = new Path(join(rootFolder, "store"));
+    const projectFolder = new Path(join(rootFolder, "project"));
+    const files = ["f1.py", "f2.py", "f3.py", "f4.py"].map((fileName) => new Path(join(projectFolder.toString(), fileName)));
+    const unresolvedScriptStopFileValues = new Set<string>([files[0]!.value, files[1]!.value, files[2]!.value]);
+    const unresolvedUserEditStopFileValues = new Set<string>([files[2]!.value]);
+    const stepSpawns: StepSpawnRecord[] = [];
+    const playSpawns: Path[] = [];
+    const walkState = createWalkState();
+    const isFileWalkFinished = (file: Path): boolean => {
+        const repoFolder = getInverseRepoFolderForFile(storeFolder, projectFolder, file);
+        return readWalkCoverage(repoFolder)?.isFinished === true;
+    };
+    const decideStepOutcome = (request: StepRequest): StepProcessOutcome => {
+        if (stepSpawns.length > STEP_SPAWN_LOOP_GUARD) {
+            return makeLoopGuardCrashedOutcome();
+        }
+        const fileValue = request.file.value;
+        if (request.isPassingStops) {
+            unresolvedScriptStopFileValues.delete(fileValue);
+            unresolvedUserEditStopFileValues.delete(fileValue);
+            writeFinishedSidecar(storeFolder, projectFolder, request.file);
+            return makeFinishedOutcome();
+        }
+        if (unresolvedScriptStopFileValues.has(fileValue)) {
+            return makeStoppedOutcome(FileEventType.ScriptMayWrite, SCRIPT_STOP_SOURCE);
+        }
+        if (unresolvedUserEditStopFileValues.has(fileValue)) {
+            return makeStoppedOutcome(FileEventType.UserEditNotice, SCRIPT_STOP_SOURCE);
+        }
+        writeFinishedSidecar(storeFolder, projectFolder, request.file);
+        return makeFinishedOutcome();
+    };
+    const spawnStepProcess = async (request: StepRequest): Promise<StepProcessOutcome> => {
+        stepSpawns.push({ file: request.file, isPassingStops: request.isPassingStops });
+        const outcome = decideStepOutcome(request);
+        await waitMilliseconds(SPAWN_DELAY_MILLISECONDS);
+        return outcome;
+    };
+    const spawnPlayProcess = async (request: PlayRequest): Promise<PlayOutcome> => {
+        playSpawns.push(request.file);
+        unresolvedScriptStopFileValues.delete(request.file.value);
+        await waitMilliseconds(SPAWN_DELAY_MILLISECONDS);
+        return { kind: PlayOutcomeKind.Replayed, reasonText: undefined };
+    };
+    const walker = createHistoryWalker({
+        storeFolder,
+        projectFolder,
+        walkState,
+        requestWalk: (request, isVisible) => pool.requestWalk(request, isVisible),
+        requestPlay: (request) => pool.requestPlay(request, files.filter((file) => !file.equals(request.file))),
+        decideScriptAction: (file, eventType, source) => decideScriptAction(answers, { file, eventType, source }),
+        playKeyName: "p",
+        onStatusChange: () => {},
+    });
+    const pool = createStepPool({
+        maxProcesses: MAXIMUM_PROCESSES,
+        spawnStepProcess,
+        spawnPlayProcess,
+        onOutcome: (request, outcome) => {
+            void walker.handleOutcome(request, outcome);
+        },
+        onStatusChange: (file, runState) => setFileRunState(walkState, file, runState),
+        isFileWalkFinished,
+        isFileSteppable: () => true,
+        hasLogsGrown: () => false,
+        onLogsGrew: throwBecauseNotExpected,
+        endChildOfFile: throwBecauseNotExpected,
+        endAllChildren: throwBecauseNotExpected,
+    });
+    return { files, storeFolder, projectFolder, walker, pool, stepSpawns, playSpawns, getRunState: (file) => getFileRunState(walkState, file), isFileWalkFinished };
+}
+
+function runAutoWalkOfHarness(harness: StatefulEngineHarness): Promise<void> {
+    return runAutoWalk({
+        oldestInstant: new Date(0),
+        files: harness.files,
+        walker: harness.walker,
+        pool: harness.pool,
+        getRunState: harness.getRunState,
+        isFileWalkFinished: harness.isFileWalkFinished,
+        consentGate: Promise.resolve(),
+    });
+}
+
+// Loops until the step spawn count, the play spawn count and the running children stay the same for several rounds.
+async function waitUntilEverythingSettles(harness: StatefulEngineHarness): Promise<void> {
+    let lastSignature = "";
+    let unchangedRounds = 0;
+    for (let round = 0; round < SETTLE_ROUND_LIMIT; round++) {
+        await harness.pool.waitUntilIdle();
+        await waitMilliseconds(SETTLE_DELAY_MILLISECONDS);
+        const signature = `${harness.stepSpawns.length} ${harness.playSpawns.length} ${harness.pool.listRunningFiles().length}`;
+        if (signature === lastSignature) {
+            unchangedRounds += 1;
+        } else {
+            unchangedRounds = 0;
+            lastSignature = signature;
+        }
+        if (unchangedRounds >= SETTLE_UNCHANGED_ROUNDS_NEEDED) {
+            return;
+        }
+    }
+}
+
+function readReasonTextOfFile(harness: StatefulEngineHarness, file: Path): string {
+    const reasonText = harness.getRunState(file).reasonText;
+    assert.notEqual(reasonText, undefined, `${file.toString()} has no reason text`);
+    return reasonText!;
+}
+
+test("test_auto_with_both_answers_yes_ends_with_a_bounded_number_of_children", { timeout: STATEFUL_ENGINE_TIMEOUT_MILLISECONDS }, async (t) => {
+    // Scenario: four files; three stop at one script; one of the three has a second stop that only a pass-stops walk passes; both answers are yes.
+    const harness = buildStatefulEngineHarness(t, { runScripts: true, runModifyingScriptsAutomatically: true });
+    // Run the auto walk, then wait until no more children start.
+    await runAutoWalkOfHarness(harness);
+    await waitUntilEverythingSettles(harness);
+    // 7 step children: 4 first walks, 2 pre-play walks that pass the stops, 1 walk again of the played file.
+    assert.equal(harness.stepSpawns.length, 7);
+    assert.equal(harness.stepSpawns.filter((spawn) => spawn.isPassingStops).length, 2);
+    // Exactly one play child ran.
+    assert.equal(harness.playSpawns.length, 1);
+    // Every file is Idle or Stopped; none is Crashed, Running or Queued.
+    for (const file of harness.files) {
+        const status = harness.getRunState(file).status;
+        assert.ok(status === FileWalkStatus.Idle || status === FileWalkStatus.Stopped, `${file.toString()} has status ${status}`);
+    }
+    // No child runs and the pool is idle.
+    assert.deepEqual(harness.pool.listRunningFiles(), []);
+    await harness.pool.waitUntilIdle();
+    // All four sidecars say finished.
+    for (const file of harness.files) {
+        assert.equal(harness.isFileWalkFinished(file), true, `${file.toString()} is not finished`);
+    }
+});
+
+test("test_auto_with_the_first_answer_no_runs_no_play_and_the_play_key_runs_nothing", { timeout: STATEFUL_ENGINE_TIMEOUT_MILLISECONDS }, async (t) => {
+    // Scenario: the same four files; the first answer is no.
+    const harness = buildStatefulEngineHarness(t, { runScripts: false, runModifyingScriptsAutomatically: false });
+    const [firstFile, secondFile, thirdFile, fourthFile] = harness.files as [Path, Path, Path, Path];
+    // Run the auto walk, then wait until no more children start.
+    await runAutoWalkOfHarness(harness);
+    await waitUntilEverythingSettles(harness);
+    // Exactly the 4 first walks ran and no play child ran.
+    assert.equal(harness.stepSpawns.length, 4);
+    assert.equal(harness.playSpawns.length, 0);
+    // The three script files are Stopped with the refusal text; the file without a stop is Idle.
+    for (const file of [firstFile, secondFile, thirdFile]) {
+        assert.equal(harness.getRunState(file).status, FileWalkStatus.Stopped);
+        assert.match(readReasonTextOfFile(harness, file), /scripts are not allowed in this session/);
+    }
+    assert.equal(harness.getRunState(fourthFile).status, FileWalkStatus.Idle);
+    // Press the play key on the first file, then wait again.
+    const reasonTextBeforeKey = readReasonTextOfFile(harness, firstFile);
+    await harness.walker.playScript(firstFile, new Date(0));
+    await waitUntilEverythingSettles(harness);
+    // Still 4 step children and no play child; the first file is Stopped with the same text.
+    assert.equal(harness.stepSpawns.length, 4);
+    assert.equal(harness.playSpawns.length, 0);
+    assert.equal(harness.getRunState(firstFile).status, FileWalkStatus.Stopped);
+    assert.equal(readReasonTextOfFile(harness, firstFile), reasonTextBeforeKey);
 });

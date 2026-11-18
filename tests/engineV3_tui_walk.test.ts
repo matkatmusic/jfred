@@ -427,8 +427,12 @@ test("test_a_replay_refusal_for_a_file_with_an_unfinished_walk_counts_a_failed_r
     assertLastStatusChangeIsTheWalkState(harness);
 });
 
-function setStoppedRunState(harness: Harness): void {
-    setFileRunState(harness.walkState, harness.file, { status: FileWalkStatus.Stopped, reasonText: "stopped at ScriptMayWrite: press p to run the script (toolu_x)", failedReplayCount: 0 });
+// function setStoppedRunState(harness: Harness): void {
+//     setFileRunState(harness.walkState, harness.file, { status: FileWalkStatus.Stopped, reasonText: "stopped at ScriptMayWrite: press p to run the script (toolu_x)", failedReplayCount: 0 });
+// }
+
+async function giveWalkerAScriptStop(harness: Harness): Promise<void> {
+    await harness.walker.handleOutcome(makeRequest(harness), makeStoppedOutcome(FileEventType.ScriptMayWrite, SOURCE_TEXT));
 }
 
 test("test_playScript_with_a_replayed_answer_writes_idle_and_walks_to_the_start_time_again", async (t) => {
@@ -438,8 +442,9 @@ test("test_playScript_with_a_replayed_answer_writes_idle_and_walks_to_the_start_
         playRequests.push(playRequest);
         return { kind: PlayOutcomeKind.Replayed, reasonText: undefined };
     };
-    const harness = buildHarness(t, { requestPlay });
-    setStoppedRunState(harness);
+    const harness = buildHarness(t, { requestPlay, decideScriptAction: () => ScriptAction.WaitForKey });
+    // setStoppedRunState(harness);
+    await giveWalkerAScriptStop(harness);
     writeCoverageSidecar(harness, makeInstant(40), false);
     await harness.walker.playScript(harness.file, MARKER_TIME);
     // The play request named the file.
@@ -457,8 +462,9 @@ test("test_playScript_with_a_refused_answer_writes_stopped_with_the_reason_and_c
     // Scenario: the row is Stopped; the play answers replay-refused; the walk of the file is not finished.
     const refusalReason = "the replay found no stop to pass";
     const requestPlay: HistoryWalkerOptions["requestPlay"] = async () => ({ kind: PlayOutcomeKind.ReplayRefused, reasonText: refusalReason });
-    const harness = buildHarness(t, { requestPlay });
-    setStoppedRunState(harness);
+    const harness = buildHarness(t, { requestPlay, decideScriptAction: () => ScriptAction.WaitForKey });
+    // setStoppedRunState(harness);
+    await giveWalkerAScriptStop(harness);
     writeCoverageSidecar(harness, makeInstant(40), false);
     await harness.walker.playScript(harness.file, MARKER_TIME);
     // The row is Stopped with the play reason, one failed replay is counted, and no walk was requested.
@@ -472,8 +478,10 @@ test("test_playScript_with_a_refused_answer_writes_stopped_with_the_reason_and_c
 test("test_playScript_with_a_refused_answer_for_a_finished_file_writes_idle_with_no_failed_replay", async (t) => {
     // Scenario: the row is Stopped; the play answers replay-refused; the walk of the file is finished.
     const requestPlay: HistoryWalkerOptions["requestPlay"] = async () => ({ kind: PlayOutcomeKind.ReplayRefused, reasonText: "the replay found no stop to pass" });
-    const harness = buildHarness(t, { requestPlay });
-    setStoppedRunState(harness);
+    const harness = buildHarness(t, { requestPlay, decideScriptAction: () => ScriptAction.WaitForKey });
+    // setStoppedRunState(harness);
+    // The stop is given before the sidecar says finished, because a stop of a finished file is not remembered.
+    await giveWalkerAScriptStop(harness);
     writeCoverageSidecar(harness, makeInstant(10), true);
     await harness.walker.playScript(harness.file, MARKER_TIME);
     // The row is Idle with no reason text, no failed replay is counted, and no walk was requested.
@@ -488,13 +496,33 @@ test("test_playScript_with_a_crashed_answer_writes_crashed_with_the_reason", asy
     // Scenario: the row is Stopped; the play child crashes.
     const crashReason = "the play child exited with code 1";
     const requestPlay: HistoryWalkerOptions["requestPlay"] = async () => ({ kind: PlayOutcomeKind.Crashed, reasonText: crashReason });
-    const harness = buildHarness(t, { requestPlay });
-    setStoppedRunState(harness);
+    const harness = buildHarness(t, { requestPlay, decideScriptAction: () => ScriptAction.WaitForKey });
+    // setStoppedRunState(harness);
+    await giveWalkerAScriptStop(harness);
     await harness.walker.playScript(harness.file, MARKER_TIME);
     // The row is Crashed with the play reason, and no walk was requested.
     assert.equal(readRunState(harness).status, FileWalkStatus.Crashed);
     assert.equal(readReasonText(harness), crashReason);
     assert.equal(harness.requestedWalks.length, 0);
+    assertLastStatusChangeIsTheWalkState(harness);
+});
+
+test("test_playScript_with_a_refused_decision_starts_no_play_and_writes_the_not_allowed_text", async (t) => {
+    // Scenario: the file stopped at a script; the session now refuses scripts; the play key is pressed.
+    let playCallCount = 0;
+    const requestPlay: HistoryWalkerOptions["requestPlay"] = async () => {
+        playCallCount += 1;
+        assert.fail("the walker requested a play although the decision was Refuse");
+    };
+    let scriptAction = ScriptAction.WaitForKey;
+    const harness = buildHarness(t, { requestPlay, decideScriptAction: () => scriptAction });
+    await giveWalkerAScriptStop(harness);
+    scriptAction = ScriptAction.Refuse;
+    await harness.walker.playScript(harness.file, MARKER_TIME);
+    // No play was requested, the row is Stopped, and the reason text says scripts are not allowed.
+    assert.equal(playCallCount, 0);
+    assert.equal(readRunState(harness).status, FileWalkStatus.Stopped);
+    assert.ok(readReasonText(harness).includes("scripts are not allowed in this session"));
     assertLastStatusChangeIsTheWalkState(harness);
 });
 

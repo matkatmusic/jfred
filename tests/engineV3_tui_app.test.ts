@@ -6,15 +6,18 @@ import { test, type TestContext } from "node:test";
 import { createElement } from "react";
 import { render } from "ink-testing-library";
 import { Path } from "../src/structures/domain.ts";
-import { FileWalkStatus, TuiCommand } from "../src/structures/vocabulary.ts";
+import { FileWalkStatus, InverseStepOutcome, PlayOutcomeKind, StepProcessOutcomeKind, TuiCommand } from "../src/structures/vocabulary.ts";
 import { FileEventType } from "../engineV3/engineV3_replay_reverse_events.ts";
+import type { StepResultLine } from "../engineV3/engineV3_step_start_at.ts";
 import { App } from "../engineV3/tui/engineV3_tui_app.tsx";
 import type { AppProps } from "../engineV3/tui/engineV3_tui_app_types.ts";
+import { decideScriptAction, type ConsentAnswers } from "../engineV3/tui/engineV3_tui_consent.ts";
+import { createHistoryWalker } from "../engineV3/tui/engineV3_tui_walk.ts";
 import { formatKeyBinding, loadKeymap, type Keymap } from "../engineV3/tui/engineV3_tui_keymap.ts";
 import type { FileEventCounts, ProjectEventEntry } from "../engineV3/tui/engineV3_tui_project_cache.ts";
 import { ROW_MARKS } from "../engineV3/tui/engineV3_tui_row.tsx";
-import { createWalkState, setFileRunState, type FileRunState, type WalkState } from "../engineV3/tui/engineV3_tui_walk_state.ts";
-import type { HistoryWalker, StepPool, StepRequest } from "../engineV3/tui/engineV3_tui_walk_types.ts";
+import { createWalkState, getFileRunState, setFileRunState, type FileRunState, type WalkState } from "../engineV3/tui/engineV3_tui_walk_state.ts";
+import type { HistoryWalker, PlayRequest, StepPool, StepProcessOutcome, StepRequest } from "../engineV3/tui/engineV3_tui_walk_types.ts";
 import type { InverseCommitWire, InverseRepoFileWire } from "../webapp/layer1-components/bars-view/layer1-bars-wire.ts";
 import { makeInstant } from "./engineV3_step_test_projects.ts";
 
@@ -636,4 +639,75 @@ test("test_a_long_info_row_text_keeps_the_file_name_at_its_start", async (t) => 
     assert.ok(infoRow.startsWith(makeFileName(0)), `info row: ${infoRow}`);
     // The end of the long text is cut off.
     assert.ok(!infoRow.includes(endOfLongText), `info row: ${infoRow}`);
+});
+
+const SCRIPT_STOP_SOURCE = "/made-up/toolu_script";
+const SCRIPT_STOP_SHORT_SOURCE = "toolu_script";
+const SCRIPTS_NOT_ALLOWED_TEXT = "scripts are not allowed in this session";
+
+type WalkerPlayHarness = { harness: AppHarness; playRequests: PlayRequest[]; walker: HistoryWalker; stoppedRequest: StepRequest; stoppedOutcome: StepProcessOutcome };
+
+function makeScriptStopResultLine(startAt: Date): StepResultLine {
+    return { startAt: startAt.toISOString(), outcome: InverseStepOutcome.UnknownOrRoadblock, commitsWritten: 0, position: 0, commit: "abc", eventType: FileEventType.ScriptMayWrite, source: SCRIPT_STOP_SOURCE };
+}
+
+// The real walker and the real consent decision behind the App play key; the pool is replaced by recording functions.
+function makeWalkerPlayHarness(consentAnswers: ConsentAnswers): WalkerPlayHarness {
+    const harness = makeAppProps({ consentAnswers });
+    const playRequests: PlayRequest[] = [];
+    const walker = createHistoryWalker({
+        storeFolder: harness.props.storeFolder,
+        projectFolder: harness.props.projectFolder,
+        walkState: harness.walkState,
+        requestWalk: () => {},
+        requestPlay: (request) => {
+            playRequests.push(request);
+            return Promise.resolve({ kind: PlayOutcomeKind.ReplayRefused, reasonText: "test" });
+        },
+        decideScriptAction: (file, eventType, source) => decideScriptAction(consentAnswers, { file, eventType, source }),
+        onStatusChange: () => harness.notifyStatusChange(),
+        playKeyName: formatKeyBinding(harness.props.keymap.get(TuiCommand.PlayScript)!),
+    });
+    harness.props.walker = walker;
+    harness.props.onPlayScript = (file, startAt) => walker.playScript(file, startAt);
+    const startAt = harness.props.events[0]!.instant;
+    const stoppedRequest: StepRequest = { file: harness.files[0]!, startAt, isPassingStops: false };
+    const stoppedOutcome: StepProcessOutcome = { kind: StepProcessOutcomeKind.Stopped, eventType: FileEventType.ScriptMayWrite, source: SCRIPT_STOP_SOURCE, lastLine: makeScriptStopResultLine(startAt) };
+    return { harness, playRequests, walker, stoppedRequest, stoppedOutcome };
+}
+
+test("test_the_play_key_with_the_first_answer_no_starts_no_play_and_shows_the_refusal", async (t) => {
+    // Scenario: both consent answers are no. The cursor file f00 stopped at a script that may write.
+    const { harness, playRequests, walker, stoppedRequest, stoppedOutcome } = makeWalkerPlayHarness({ runScripts: false, runModifyingScriptsAutomatically: false });
+    await walker.handleOutcome(stoppedRequest, stoppedOutcome);
+    const screen = startScreen(t, harness.props);
+    await settle();
+    // Press p on the Stopped row.
+    screen.stdin.write("p");
+    await settle();
+    // No play was requested.
+    assert.equal(playRequests.length, 0);
+    // The row of f00 says that scripts are not allowed in this session.
+    const reasonText = getFileRunState(harness.walkState, harness.files[0]!).reasonText;
+    assert.ok(reasonText?.includes(SCRIPTS_NOT_ALLOWED_TEXT), `reason text: ${reasonText}`);
+});
+
+test("test_the_play_key_with_the_first_answer_yes_and_the_second_no_starts_the_play", async (t) => {
+    // Scenario: scripts are allowed but not automatically. The cursor file f00 stopped at a script that may write.
+    const { harness, playRequests, walker, stoppedRequest, stoppedOutcome } = makeWalkerPlayHarness({ runScripts: true, runModifyingScriptsAutomatically: false });
+    await walker.handleOutcome(stoppedRequest, stoppedOutcome);
+    // The row is Stopped and its text names the play key and the script.
+    const stoppedRunState = getFileRunState(harness.walkState, harness.files[0]!);
+    assert.equal(stoppedRunState.status, FileWalkStatus.Stopped);
+    const playKeyName = formatKeyBinding(harness.props.keymap.get(TuiCommand.PlayScript)!);
+    assert.ok(stoppedRunState.reasonText?.includes(`press ${playKeyName}`), `reason text: ${stoppedRunState.reasonText}`);
+    assert.ok(stoppedRunState.reasonText?.includes(SCRIPT_STOP_SHORT_SOURCE), `reason text: ${stoppedRunState.reasonText}`);
+    const screen = startScreen(t, harness.props);
+    await settle();
+    // Press p on the Stopped row.
+    screen.stdin.write("p");
+    await settle();
+    // Exactly one play was requested, for the cursor file.
+    assert.equal(playRequests.length, 1);
+    assert.equal(playRequests[0]!.file.value, harness.files[0]!.value);
 });

@@ -634,3 +634,49 @@ test("test_pool_starts_no_play_child_while_the_consent_gate_is_unresolved", asyn
     assert.equal(playOutcome?.kind, PlayOutcomeKind.Replayed);
     assert.equal(harness.playedFiles.length, 1);
 });
+
+test("test_a_pass_stops_walk_requested_while_the_file_runs_is_spawned_with_pass_stops", async () => {
+    // Scenario: a pass-stops walk request with the same start time arrives while a plain walk of the file runs.
+    // Steps:
+    // the pool has maxProcesses 4 and the fake child of file A stays open.
+    const testPool = makeTestPool({ maxProcesses: 4 });
+    const file = makeFile("A.txt");
+    testPool.pool.requestWalk({ file, startAt: new Date(0), isPassingStops: false }, true);
+    await waitForCondition(() => testPool.held.hasOpenCallForFile(file), WAIT_TIMEOUT_MILLISECONDS);
+    // while A runs, a plain walk request for A arrives and waits in the pending map.
+    testPool.pool.requestWalk({ file, startAt: new Date(0), isPassingStops: false }, true);
+    // while A still runs, a pass-stops walk request with the same start time is merged into the pending entry.
+    testPool.pool.requestWalk({ file, startAt: new Date(0), isPassingStops: true }, true);
+    // the first child exits.
+    testPool.held.resolveCallNumber(0, makeCoveredOutcome());
+    // the pool starts one more child for A.
+    await waitForCondition(() => testPool.held.getRequests().length === 2, WAIT_TIMEOUT_MILLISECONDS);
+    // the second request keeps isPassingStops true.
+    assert.equal(testPool.held.getRequests()[1]!.isPassingStops, true);
+    testPool.held.resolveCallNumber(1, makeCoveredOutcome());
+    await testPool.pool.waitUntilIdle();
+});
+
+test("test_a_pass_stops_walk_with_an_older_start_keeps_the_older_start_and_pass_stops", async () => {
+    // Scenario: a plain walk request with an older start time arrives while a pass-stops walk of the file runs.
+    // Steps:
+    // the pool has maxProcesses 4 and the fake child of file A (start second 9, plain walk) stays open.
+    const testPool = makeTestPool({ maxProcesses: 4 });
+    const file = makeFile("A.txt");
+    testPool.pool.requestWalk({ file, startAt: new Date(9000), isPassingStops: false }, true);
+    await waitForCondition(() => testPool.held.hasOpenCallForFile(file), WAIT_TIMEOUT_MILLISECONDS);
+    // while A runs, a pass-stops walk request with start second 5 waits in the pending map.
+    testPool.pool.requestWalk({ file, startAt: new Date(5000), isPassingStops: true }, true);
+    // while A still runs, a plain walk request with the older start time 0 is merged into the pending entry.
+    testPool.pool.requestWalk({ file, startAt: new Date(0), isPassingStops: false }, true);
+    // the first child exits.
+    testPool.held.resolveCallNumber(0, makeCoveredOutcome());
+    // the pool starts one more child for A.
+    await waitForCondition(() => testPool.held.getRequests().length === 2, WAIT_TIMEOUT_MILLISECONDS);
+    // the second request has the older start time and isPassingStops true.
+    const secondRequest = testPool.held.getRequests()[1]!;
+    assert.equal(secondRequest.startAt.getTime(), 0);
+    assert.equal(secondRequest.isPassingStops, true);
+    testPool.held.resolveCallNumber(1, makeCoveredOutcome());
+    await testPool.pool.waitUntilIdle();
+});
