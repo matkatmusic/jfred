@@ -1,4 +1,5 @@
-process.env.FORCE_COLOR = "1";
+// process.env.FORCE_COLOR = "1";
+process.env.FORCE_COLOR = "3";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { join } from "node:path";
@@ -9,12 +10,18 @@ import { loadKeymap } from "../engineV3/tui/engineV3_tui_keymap.ts";
 
 // Dynamic imports: chalk reads FORCE_COLOR when it loads, so Ink must load after the line above.
 const { render } = await import("ink-testing-library");
-const { DetailsBox, KeyFooter, buildKeyFooterEntries, layoutEntriesIntoLines } = await import("../engineV3/tui/engineV3_tui_footer.tsx");
-const { buildInfoEntries } = await import("../engineV3/tui/engineV3_tui_info_row.tsx");
+const { DetailsBox, INFO_BOX_ROW_COUNT, InfoBox, KEY_LABEL_COLOR, KeyFooter, buildKeyFooterEntries, layoutEntriesIntoLines } = await import("../engineV3/tui/engineV3_tui_footer.tsx");
+const { buildInfoBoxLines, buildInfoEntries } = await import("../engineV3/tui/engineV3_tui_info_row.tsx");
 
 const KEYMAP_FILE = new Path(join(import.meta.dirname, "..", "engineV3", "tui", "keymap.json"));
 const CYAN_START = "\x1b[36m";
 const GREEN_START = "\x1b[32m";
+const BLUE_START = "\x1b[34m";
+const LIGHT_GREY_START = "\x1b[38;2;192;192;192m";
+
+function makeInfoBoxInput(): Parameters<typeof buildInfoBoxLines>[0] {
+    return { fileName: "a.txt", barInfo: { commitCount: 3, modifyingEventCount: 4, snapshotCount: 5, scriptCount: 6, failedReplayCount: 1, stateText: "ok", errorText: undefined }, runState: { status: FileWalkStatus.Idle, reasonText: undefined, failedReplayCount: 0 }, ownTime: undefined, isTimeSpanned: true, scriptRefusalText: undefined };
+}
 
 test("test_entries_that_fit_share_one_line", () => {
     // Scenario: two short entries fit in a line of 40 columns.
@@ -68,6 +75,57 @@ test("test_the_details_box_colours_the_label_and_the_value_differently", () => {
     // the label has the cyan code before it, and the value has the green code before it.
     assert.ok(frame.includes(`${CYAN_START}commits`), JSON.stringify(frame));
     assert.ok(frame.includes(`${GREEN_START}7`), JSON.stringify(frame));
+});
+
+test("test_the_key_label_color_is_light_grey", () => {
+    // Scenario: the key labels use one constant color.
+    // The color is light grey.
+    assert.equal(KEY_LABEL_COLOR, "#c0c0c0");
+});
+
+test("test_the_key_footer_draws_the_key_labels_in_light_grey", () => {
+    // Scenario: the key footer shows the key "s" for select.
+    const entries = buildKeyFooterEntries(loadKeymap(KEYMAP_FILE), JumpSpeed.Event);
+    const { lastFrame, unmount } = render(createElement(KeyFooter, { entries, columns: 100 }));
+    const frame = lastFrame() ?? "";
+    unmount();
+    // The key label has the light grey code before it and not the cyan code.
+    assert.ok(frame.includes(`${LIGHT_GREY_START}s`), JSON.stringify(frame));
+    assert.ok(!frame.includes(`${CYAN_START}s`), JSON.stringify(frame));
+});
+
+test("test_the_info_box_draws_the_key_labels_in_light_grey_in_a_blue_round_box", () => {
+    // Scenario: the info box shows the file a.txt.
+    const lines = buildInfoBoxLines(makeInfoBoxInput(), 100);
+    const { lastFrame, unmount } = render(createElement(InfoBox, { lines, columns: 100 }));
+    const frame = lastFrame() ?? "";
+    unmount();
+    // The label "file" has the light grey code before it, the border is round and blue.
+    assert.ok(frame.includes(`${LIGHT_GREY_START}file`), JSON.stringify(frame));
+    assert.ok(frame.includes(`${BLUE_START}╭`), JSON.stringify(frame));
+});
+
+test("test_the_info_box_is_5_rows_tall_when_the_third_line_is_empty", () => {
+    // Scenario: a file with counts and no reason, so line 3 is empty.
+    const lines = buildInfoBoxLines(makeInfoBoxInput(), 100);
+    assert.deepEqual(lines[2], []);
+    const { lastFrame, unmount } = render(createElement(InfoBox, { lines, columns: 100 }));
+    const frame = lastFrame() ?? "";
+    unmount();
+    // The box has 5 rows and the constant says 5.
+    assert.equal(frame.split("\n").length, 5);
+    assert.equal(INFO_BOX_ROW_COUNT, 5);
+});
+
+test("test_the_info_box_is_5_rows_tall_when_the_third_line_has_a_reason", () => {
+    // Scenario: a crashed file with a reason, so line 3 has an entry.
+    const lines = buildInfoBoxLines({ ...makeInfoBoxInput(), runState: { status: FileWalkStatus.Crashed, reasonText: "boom", failedReplayCount: 0 } }, 100);
+    const { lastFrame, unmount } = render(createElement(InfoBox, { lines, columns: 100 }));
+    const frame = lastFrame() ?? "";
+    unmount();
+    // The box has 5 rows and shows the reason.
+    assert.equal(frame.split("\n").length, 5);
+    assert.ok(frame.replace(/\x1b\[[0-9;]*m/g, "").includes("reason: boom"), frame);
 });
 
 test("test_the_info_entries_give_a_label_and_a_value_for_each_fact", () => {

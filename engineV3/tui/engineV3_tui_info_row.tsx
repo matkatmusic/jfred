@@ -2,7 +2,7 @@
 
 import { Text } from "ink";
 import type { BarInfo } from "./engineV3_tui_bars.ts";
-import type { FooterEntry } from "./engineV3_tui_footer.tsx";
+import { BOX_SIDE_COLUMNS, ENTRY_GAP_COLUMNS, LABEL_VALUE_SEPARATOR, type FooterEntry } from "./engineV3_tui_footer.tsx";
 import type { FileRunState } from "./engineV3_tui_walk_state.ts";
 
 export type InfoRowInput = {
@@ -69,6 +69,47 @@ export function buildInfoEntries(input: InfoRowInput): FooterEntry[] {
     }
     return entries;
 }
+
+const COUNT_SLOT_WIDTH = 4;
+const THIRD_LINE_LABELS = ["reason", "script", "own time", "walk"];
+
+function cutOrPadText(text: string, width: number): string {
+    if (text.length > width) {
+        return text.slice(0, Math.max(width - 1, 0)) + "…";
+    }
+    return text.padEnd(width);
+}
+
+function buildCountValue(count: number | undefined): string {
+    if (count === undefined) {
+        return "".padEnd(COUNT_SLOT_WIDTH);
+    }
+    return String(count).padEnd(COUNT_SLOT_WIDTH);
+}
+
+export function buildInfoBoxLines(input: InfoRowInput, columns: number): FooterEntry[][] {
+    const innerWidth = columns - BOX_SIDE_COLUMNS;
+    const barInfo = input.barInfo;
+    let stateText = "";
+    if (barInfo !== undefined) {
+        stateText = barInfo.stateText;
+    }
+    const fixedWidth = "file".length + LABEL_VALUE_SEPARATOR.length + ENTRY_GAP_COLUMNS + "state".length + LABEL_VALUE_SEPARATOR.length + stateText.length;
+    const firstLine: FooterEntry[] = [
+        { label: "file", value: cutOrPadText(input.fileName, Math.max(innerWidth - fixedWidth, 0)) },
+        { label: "state", value: stateText },
+    ];
+    const secondLine: FooterEntry[] = [
+        { label: "commits", value: buildCountValue(barInfo?.commitCount) },
+        { label: "modifying events in the log", value: buildCountValue(barInfo?.modifyingEventCount) },
+        { label: "snapshots", value: buildCountValue(barInfo?.snapshotCount) },
+        { label: "scripts", value: buildCountValue(barInfo?.scriptCount) },
+        { label: "failed replays", value: buildCountValue(barInfo?.failedReplayCount) },
+    ];
+    const thirdLine = buildInfoEntries(input).filter((entry) => THIRD_LINE_LABELS.includes(entry.label));
+    return [firstLine, secondLine, thirdLine];
+}
+
 export function InfoRow({ text }: { text: string }) {
     return <Text>{text}</Text>;
 }

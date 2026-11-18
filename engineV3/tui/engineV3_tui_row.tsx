@@ -48,6 +48,16 @@ function computeCellIndexOfRow(rowIndex: number, rulerRowCount: number, barWidth
     return Math.round(computeBarPercent(rowIndex, rulerRowCount) / 100 * (barWidth - 1));
 }
 
+function getUndoneShade(alpha: number): string {
+    if (alpha >= 1) {
+        return "█";
+    }
+    if (alpha >= 0.75) {
+        return "▓";
+    }
+    return "▒";
+}
+
 export function listBarCells(model: BarFileModel, markerRowIndex: number, rulerRowCount: number, barWidth: number): BarCell[] {
     const cells: BarCell[] = Array.from({ length: barWidth }, () => ({ character: " ", color: undefined, isDim: false }));
     const startCell = computeCellIndexOfRow(model.startRowIndex, rulerRowCount, barWidth);
@@ -57,9 +67,22 @@ export function listBarCells(model: BarFileModel, markerRowIndex: number, rulerR
     }
     const fillPercent = Math.min(computeFillPercent(model, markerRowIndex), 100);
     const fillEndCell = Math.round(startCell + fillPercent / 100 * (bornCell - startCell));
+    const filledDots = model.dots.filter((dot) => {
+        const dotCell = computeCellIndexOfRow(dot.rowIndex, rulerRowCount, barWidth);
+        return dotCell >= startCell && dotCell <= fillEndCell;
+    });
     for (let cellIndex = startCell; cellIndex <= fillEndCell; cellIndex++) {
+        let shadeDot = filledDots.find((dot) => computeCellIndexOfRow(dot.rowIndex, rulerRowCount, barWidth) >= cellIndex);
+        if (shadeDot === undefined) {
+            shadeDot = filledDots[filledDots.length - 1];
+        }
+        let shadeAlpha = 1;
+        if (shadeDot !== undefined) {
+            shadeAlpha = shadeDot.alpha;
+        }
         // cells[cellIndex] = { character: "█", color: undefined, isDim: false };
-        cells[cellIndex] = { character: "█", color: UNDONE_SO_FAR_COLOR, isDim: false };
+        // cells[cellIndex] = { character: "█", color: UNDONE_SO_FAR_COLOR, isDim: false };
+        cells[cellIndex] = { character: getUndoneShade(shadeAlpha), color: UNDONE_SO_FAR_COLOR, isDim: false };
     }
     for (const dot of model.dots) {
         const dotCell = computeCellIndexOfRow(dot.rowIndex, rulerRowCount, barWidth);

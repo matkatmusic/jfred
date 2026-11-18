@@ -16,17 +16,30 @@ function buildDotEntries(): FooterEntry[] {
 
 export function buildBarLegendLines(): FooterEntry[][] {
     return [
+        // [
+        //     { label: "─", value: "the life of the file" },
+        //     { label: "█", value: "undone so far", labelColor: UNDONE_SO_FAR_COLOR },
+        //     { label: "│", value: "time marker" },
+        // ],
+        // [
+        //     { label: "+", value: "file born here" },
+        //     { label: "-", value: "file removed" },
+        //     { label: "←", value: "file moved away" },
+        // ],
+        // buildDotEntries(),
+        [{ label: "Events", value: "" }, ...buildDotEntries()],
         [
-            { label: "─", value: "the life of the file" },
-            // { label: "█", value: "undone so far" },
-            { label: "█", value: "undone so far", labelColor: UNDONE_SO_FAR_COLOR },
+            { label: "File", value: "" },
+            { label: "+", value: "born" },
+            { label: "-", value: "removed" },
+            { label: "←", value: "moved away" },
+        ],
+        [
+            { label: "Bar", value: "" },
+            { label: "─", value: "file's lifetime in project" },
             { label: "│", value: "time marker" },
+            { label: "█", value: "undone so far", labelColor: UNDONE_SO_FAR_COLOR },
+            { label: "█▓▒", value: "confidence (proven, confirmed, derived)", labelColor: UNDONE_SO_FAR_COLOR },
         ],
-        [
-            { label: "+", value: "file born here" },
-            { label: "-", value: "file removed" },
-            { label: "←", value: "file moved away" },
-        ],
-        buildDotEntries(),
     ];
 }
