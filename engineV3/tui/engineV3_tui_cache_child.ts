@@ -6,11 +6,12 @@ import { Box, Text } from "ink";
 import { createElement } from "react";
 import { Path } from "../../src/structures/domain.ts";
 import { Barbershop } from "./engineV3_tui_barbershop.tsx";
+import { LegendFrame } from "./engineV3_tui_legend_frame.tsx";
 
 export const BARBERSHOP_WIDTH = 30;
 
 export function createLoadingScreen(progressText: string) {
-    return createElement(Box, { gap: 1 }, createElement(Text, null, progressText), createElement(Barbershop, { width: BARBERSHOP_WIDTH }));
+    return createElement(LegendFrame, null, createElement(Box, { gap: 1 }, createElement(Text, null, progressText), createElement(Barbershop, { width: BARBERSHOP_WIDTH })));
 }
 
 export function runProjectCacheChild(jfredFolder: Path, showProgress: (progressText: string) => void): Promise<void> {

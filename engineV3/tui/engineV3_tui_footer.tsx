@@ -3,7 +3,7 @@ import { Box, Text } from "ink";
 import { JumpSpeed, TuiCommand } from "../../src/structures/vocabulary.ts";
 import { formatKeyBinding, type Keymap } from "./engineV3_tui_keymap.ts";
 
-export type FooterEntry = { label: string; value: string };
+export type FooterEntry = { label: string; value: string; labelColor?: string };
 
 export const LABEL_COLOR = "cyan";
 export const VALUE_COLOR = "green";
@@ -71,15 +71,23 @@ export function countBoxRows(entries: FooterEntry[], columns: number): number {
     return layoutEntriesIntoLines(entries, columns - BOX_SIDE_COLUMNS).length + BOX_BORDER_ROWS;
 }
 
+// The number of terminal rows a box with these fixed lines takes.
+export function countLinesBoxRows(lines: FooterEntry[][]): number {
+    return lines.length + BOX_BORDER_ROWS;
+}
+
 function EntryBox({ entries, columns, borderColor }: { entries: FooterEntry[]; columns: number; borderColor: string }) {
-    const lines = layoutEntriesIntoLines(entries, columns - BOX_SIDE_COLUMNS);
+    return <LinesBox lines={layoutEntriesIntoLines(entries, columns - BOX_SIDE_COLUMNS)} columns={columns} borderColor={borderColor} />;
+}
+
+function LinesBox({ lines, columns, borderColor }: { lines: FooterEntry[][]; columns: number; borderColor: string }) {
     return (
         <Box flexDirection="column" borderStyle="round" borderColor={borderColor} paddingX={1} width={columns}>
             {lines.map((line, lineIndex) => (
                 <Box key={lineIndex} gap={ENTRY_GAP_COLUMNS}>
                     {line.map((entry) => (
-                        <Text key={entry.label} wrap="truncate-end">
-                            <Text color={LABEL_COLOR}>{entry.label}</Text>
+                        <Text key={`${entry.label}${entry.value}`} wrap="truncate-end">
+                            <Text color={entry.labelColor ?? LABEL_COLOR}>{entry.label}</Text>
                             {LABEL_VALUE_SEPARATOR}
                             <Text color={VALUE_COLOR}>{entry.value}</Text>
                         </Text>
@@ -92,6 +100,10 @@ function EntryBox({ entries, columns, borderColor }: { entries: FooterEntry[]; c
 
 export function DetailsBox({ entries, columns }: { entries: FooterEntry[]; columns: number }) {
     return <EntryBox entries={entries} columns={columns} borderColor={DETAILS_BORDER_COLOR} />;
+}
+
+export function LegendBox({ lines, columns }: { lines: FooterEntry[][]; columns: number }) {
+    return <LinesBox lines={lines} columns={columns} borderColor={KEYS_BORDER_COLOR} />;
 }
 
 export function KeyFooter({ entries, columns }: { entries: FooterEntry[]; columns: number }) {

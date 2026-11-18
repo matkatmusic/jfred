@@ -4,6 +4,7 @@ import { computeFillPercent, BarMarkKind, type BarFileModel } from "../../webapp
 import { computeBarPercent } from "../../webapp/layer1-components/bars-view/layer1-bars-ruler.ts";
 import { BarDotKind } from "../../webapp/layer1-components/bars-view/layer1-bars-wire.ts";
 import { Barbershop } from "./engineV3_tui_barbershop.tsx";
+import { ROW_MARK_WIDTH, ROW_PREFIX_WIDTH } from "./engineV3_tui_row_columns.ts";
 
 export const ROW_MARKS: Record<FileWalkStatus, string> = {
     [FileWalkStatus.Idle]: "✔",
@@ -32,6 +33,8 @@ export type RowProps = {
     markerRowIndex: number;
     rulerRowCount: number;
     barWidth: number;
+    nameWidth: number;
+    stateWidth: number;
     isCursor: boolean;
     isSelected: boolean;
     stateText: string;
@@ -83,11 +86,11 @@ export function Row(props: RowProps) {
         ))}</Box>;
     return (
         <Box gap={1}>
-            <Text>{cursorPrefix}{selectionPrefix}</Text>
-            <Text>{props.fileName}</Text>
-            <Text>{ROW_MARKS[props.status]}</Text>
-            {barElement}
-            <Text>{props.stateText}</Text>
+            <Box width={ROW_PREFIX_WIDTH} flexShrink={0}><Text>{cursorPrefix}{selectionPrefix}</Text></Box>
+            <Box width={props.nameWidth} flexShrink={0}><Text wrap="truncate-end">{props.fileName}</Text></Box>
+            <Box width={ROW_MARK_WIDTH} flexShrink={0}><Text>{ROW_MARKS[props.status]}</Text></Box>
+            <Box width={props.barWidth} flexShrink={0}>{barElement}</Box>
+            <Box width={props.stateWidth} flexShrink={0}><Text wrap="truncate-end">{props.stateText}</Text></Box>
         </Box>
     );
 }

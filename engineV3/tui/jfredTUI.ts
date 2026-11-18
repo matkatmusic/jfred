@@ -21,7 +21,9 @@ import { getProjectCacheFile, readProjectCache } from "./engineV3_tui_project_ca
 // import { acquireTuiLock, prepareTuiStore, readTuiSettings } from "./engineV3_tui_settings.ts";
 import { acquireTuiLock, prepareTuiStore, readTuiSettings, releaseTuiLock } from "./engineV3_tui_settings.ts";
 import { forceResetStoreFolder, isFullBuildRepoInStore } from "../engineV3_step_store_guard.ts";
-import { clearTerminalScreen } from "./engineV3_tui_screen.ts";
+// import { clearTerminalScreen } from "./engineV3_tui_screen.ts";
+import { enterAlternateScreen, leaveAlternateScreen } from "./engineV3_tui_screen.ts";
+import { LegendFrame } from "./engineV3_tui_legend_frame.tsx";
 import { StoreAnswer, StoreQuestion } from "./engineV3_tui_store_question.ts";
 import { registerShutdownSignalHandlers, shutdownTui } from "./engineV3_tui_shutdown.ts";
 import { createSpawnPlayProcess, createSpawnStepProcess, endAllLiveChildren, endChildOfFile } from "./engineV3_tui_step_process.ts";
@@ -39,7 +41,9 @@ async function main(): Promise<void> {
     // prepareTuiStore(storeFolder, projectFolder);
     acquireTuiLock(storeFolder);
     const keymap = loadKeymap(new Path(join(tuiFolder, "keymap.json")));
-    clearTerminalScreen(process.stdout);
+    // clearTerminalScreen(process.stdout);
+    enterAlternateScreen(process.stdout);
+    process.on("exit", () => leaveAlternateScreen(process.stdout));
     const instance = render(createLoadingScreen("files done 0 of ?"));
     await runProjectCacheChild(jfredFolder, (progressText) => instance.rerender(createLoadingScreen(progressText)));
     const cache = readProjectCache(getProjectCacheFile(storeFolder));
@@ -53,7 +57,7 @@ async function main(): Promise<void> {
     if (isFullBuildRepoInStore(storeFolder, projectFolder, projectFiles)) {
         // instance.rerender(createLoadingScreen(STORE_QUESTION_TEXT));
         // const storeAnswer = await readAbortOrResetAnswer(process.stdin);
-        const storeAnswer = await new Promise<StoreAnswer>((resolve) => instance.rerender(createElement(StoreQuestion, { onAnswer: resolve })));
+        const storeAnswer = await new Promise<StoreAnswer>((resolve) => instance.rerender(createElement(LegendFrame, null, createElement(StoreQuestion, { onAnswer: resolve }))));
         if (storeAnswer === StoreAnswer.Abort) {
             releaseTuiLock(storeFolder);
             instance.unmount();
@@ -158,5 +162,9 @@ async function main(): Promise<void> {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]!).href) {
-    main();
+    // Leave the alternate screen first, so the error text stays on the normal screen.
+    main().catch((error) => {
+        leaveAlternateScreen(process.stdout);
+        throw error;
+    });
 }

@@ -15,7 +15,10 @@ import { Barbershop } from "./engineV3_tui_barbershop.tsx";
 import { describeBarInfo } from "./engineV3_tui_bars.ts";
 import { chooseFileForPlayKey, getNextConsentQuestion } from "./engineV3_tui_consent.ts";
 import { ConsentPopup } from "./engineV3_tui_consent_popup.tsx";
-import { DetailsBox, KeyFooter, buildKeyFooterEntries, countBoxRows } from "./engineV3_tui_footer.tsx";
+import { DetailsBox, KeyFooter, LegendBox, buildKeyFooterEntries, countBoxRows } from "./engineV3_tui_footer.tsx";
+import { buildBarLegendLines } from "./engineV3_tui_legend.ts";
+import { LEGEND_ROW_COUNT, LegendFrame } from "./engineV3_tui_legend_frame.tsx";
+import { ROW_STATE_WIDTH, computeRowColumnWidths } from "./engineV3_tui_row_columns.ts";
 import { buildInfoEntries } from "./engineV3_tui_info_row.tsx";
 import { findCommandForKey } from "./engineV3_tui_keymap.ts";
 import { NoEventsScreen } from "./engineV3_tui_no_events.tsx";
@@ -29,7 +32,7 @@ const RULER_ROW_LIMIT = 200;
 
 export function App(props: AppProps) {
     if (props.events.length === 0) {
-        return <NoEventsScreen terminalRows={props.terminalRows} />;
+        return <LegendFrame><NoEventsScreen terminalRows={props.terminalRows - LEGEND_ROW_COUNT} /></LegendFrame>;
     }
     return <LoadedApp {...props} />;
 }
@@ -61,7 +64,9 @@ function LoadedApp(props: AppProps) {
         scriptRefusalText: undefined,
     });
     const keyEntries = buildKeyFooterEntries(props.keymap, speed);
-    const footerRowCount = countBoxRows(detailEntries, props.terminalColumns) + countBoxRows(keyEntries, props.terminalColumns);
+    const footerRowCount = countBoxRows(detailEntries, props.terminalColumns) + countBoxRows(keyEntries, props.terminalColumns) + LEGEND_ROW_COUNT;
+    const longestNameLength = Math.max(...props.files.map((file) => getRelativePathInProject(props.projectFolder, file).length));
+    const rowColumnWidths = computeRowColumnWidths(props.terminalColumns, longestNameLength);
     const range = getVisibleRowRange(props.files.length, selection.cursorIndex, previousTop.current, getAvailableRowCount(props.terminalRows, footerRowCount));
     previousTop.current = range.top;
     const visibleFiles = props.files.slice(range.top, range.bottom);
@@ -126,7 +131,7 @@ function LoadedApp(props: AppProps) {
     const rows = visibleFiles.map((file, offset) => {
         const model = getModelOfFile(file);
         const markerRowIndex = findRulerRowIndexForInstant(rulerRows, getTimeOfFile(file).toISOString());
-        return <Row key={file.value} fileName={getRelativePathInProject(props.projectFolder, file)} model={model} status={getFileRunState(props.walkState, file).status} markerRowIndex={markerRowIndex} rulerRowCount={rulerRows.length} barWidth={BAR_WIDTH} isCursor={range.top + offset === selection.cursorIndex} isSelected={selection.selectedFiles.some((selectedFile) => selectedFile.value === file.value)} stateText={describeRowState(model, getTimeOfFile(file), markerRowIndex)} />;
+        return <Row key={file.value} fileName={getRelativePathInProject(props.projectFolder, file)} model={model} status={getFileRunState(props.walkState, file).status} markerRowIndex={markerRowIndex} rulerRowCount={rulerRows.length} barWidth={rowColumnWidths.barWidth} nameWidth={rowColumnWidths.nameWidth} stateWidth={ROW_STATE_WIDTH} isCursor={range.top + offset === selection.cursorIndex} isSelected={selection.selectedFiles.some((selectedFile) => selectedFile.value === file.value)} stateText={describeRowState(model, getTimeOfFile(file), markerRowIndex)} />;
     });
     // const headerText = consentQuestion?.questionText ?? props.cacheStatusText ?? `marker ${marker.instant.toISOString()}`;
     const staleText = props.staleRepoCount > 0 ? `${props.staleRepoCount} repos are stale: press Shift-R` : undefined;
@@ -136,10 +141,11 @@ function LoadedApp(props: AppProps) {
             props.onConsentAnswered(consentQuestion.answerKey, answer);
             setRenderCount((renderCount) => renderCount + 1);
         };
-        return <ConsentPopup questionText={consentQuestion.questionText} terminalRows={props.terminalRows} terminalColumns={props.terminalColumns} onAnswer={answerConsentQuestion} />;
+        return <LegendFrame><ConsentPopup questionText={consentQuestion.questionText} terminalRows={props.terminalRows - LEGEND_ROW_COUNT} terminalColumns={props.terminalColumns} onAnswer={answerConsentQuestion} /></LegendFrame>;
     }
     return (
         <Box flexDirection="column" height={props.terminalRows}>
+            <LegendBox lines={buildBarLegendLines()} columns={props.terminalColumns} />
             <Box gap={1}>
                 <Text wrap="truncate">{headerText}</Text>
                 {props.cacheStatusText !== undefined && <Barbershop width={BAR_WIDTH} />}

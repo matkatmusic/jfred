@@ -234,13 +234,15 @@ function findRowLine(lines: string[], fileName: string): string {
     return rowLine as string;
 }
 
+// The legend box is the first box of the frame: the header row is the line under its bottom border.
 function getHeaderRow(lines: string[]): string {
-    return lines[0]!;
+    const legendBottomBorderIndex = lines.findIndex((line) => line.startsWith("╰"));
+    return lines[legendBottomBorderIndex + 1]!;
 }
 
 // The text of each rounded box in the frame, top to bottom: the inner lines joined by one space.
-// 20 terminal rows: 1 header row, the file rows, then the details box and the key footer with 100 columns.
-const VISIBLE_FILE_ROW_COUNT = 10;
+// 20 terminal rows: the legend box (5 rows), 1 header row, the file rows, then the details box and the key footer with 100 columns.
+const VISIBLE_FILE_ROW_COUNT = 4;
 function readBoxTexts(lines: string[]): string[] {
     const boxTexts: string[] = [];
     let currentBoxLines: string[] | undefined;
@@ -295,6 +297,18 @@ test("test_screen_draws_only_the_visible_file_names", async (t) => {
     // The frame does not hold the next name, nor the last name.
     assert.ok(!frameText.includes(makeFileName(VISIBLE_FILE_ROW_COUNT)));
     assert.ok(!frameText.includes(makeFileName(49)));
+});
+
+test("test_the_legend_box_is_at_the_top_of_the_screen_above_the_header", async (t) => {
+    // Scenario: draw the screen.
+    const harness = makeAppProps({});
+    const screen = startScreen(t, harness.props);
+    await settle();
+    const lines = screen.readFrameLines();
+    // The first line is the top border of the legend box and a later line of the box names the time marker symbol.
+    assert.ok(lines[0]!.startsWith("╭"));
+    const headerIndex = lines.indexOf(getHeaderRow(lines));
+    assert.ok(lines.slice(0, headerIndex).join("\n").includes("time marker"));
 });
 
 test("test_a_running_row_shows_the_barbershop_and_a_finished_row_shows_its_dots", async (t) => {
