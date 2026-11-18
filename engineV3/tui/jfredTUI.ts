@@ -13,17 +13,17 @@ import type { AppProps } from "./engineV3_tui_app_types.ts";
 import { runAutoWalk } from "./engineV3_tui_auto.ts";
 import { listInverseRepoFileWire } from "./engineV3_tui_bars.ts";
 import { createLoadingScreen, runProjectCacheChild } from "./engineV3_tui_cache_child.ts";
-import { decideScriptAction, type ConsentAnswers } from "./engineV3_tui_consent.ts";
+import { createConsentGate, decideScriptAction, type ConsentAnswers } from "./engineV3_tui_consent.ts";
 import { loadKeymap } from "./engineV3_tui_keymap.ts";
 import { createStepPool } from "./engineV3_tui_pool.ts";
 import { getProjectCacheFile, readProjectCache } from "./engineV3_tui_project_cache.ts";
-import { resetAllStores, resetStoresOfFiles } from "./engineV3_tui_reset.ts";
 import { acquireTuiLock, prepareTuiStore, readTuiSettings } from "./engineV3_tui_settings.ts";
-import { shutdownTui } from "./engineV3_tui_shutdown.ts";
+import { registerShutdownSignalHandlers, shutdownTui } from "./engineV3_tui_shutdown.ts";
 import { createSpawnPlayProcess, createSpawnStepProcess, endAllLiveChildren, endChildOfFile } from "./engineV3_tui_step_process.ts";
 import { createHistoryWalker } from "./engineV3_tui_walk.ts";
-import { createWalkState, getFileRunState, type FileRunState } from "./engineV3_tui_walk_state.ts";
+import { createWalkState, getFileRunState } from "./engineV3_tui_walk_state.ts";
 import type { PlayRequest, StepProcessOutcome, StepRequest } from "./engineV3_tui_walk_types.ts";
+import { createResetHandlers, createStatusChangeWiring } from "./engineV3_tui_wiring.ts";
 
 const tuiFolder = dirname(fileURLToPath(import.meta.url));
 const jfredFolder = new Path(join(tuiFolder, "..", ".."));
@@ -54,20 +54,12 @@ async function main(): Promise<void> {
     const logFilesHashAtStart = getLogFilesHash(cache.transcriptsToParse);
     const spawnSettings = { projectFolder, jsonlsFolders: settings.jsonlsFolders, fileHistoryFolders: settings.fileHistoryFolders, storeFolder, earliestBoundary, jfredFolder };
     const walkState = createWalkState();
-    const statusListeners = new Set<() => void>();
+    const { handleStatusChange, clearRunStateOfFile, subscribeToStatusChanges } = createStatusChangeWiring(walkState);
     const consentAnswers: ConsentAnswers = { runScripts: undefined, runModifyingScriptsAutomatically: undefined };
+    const consentGate = createConsentGate(consentAnswers, cache.scriptCounts);
     const readCoverageOfFile = (file: Path) => readWalkCoverage(getInverseRepoFolderForFile(storeFolder, projectFolder, file));
     const isFileWalkFinished = (file: Path) => readCoverageOfFile(file)?.isFinished === true;
     const listWalkToEndFiles = (file: Path) => cache.replayFiles.filter((replayFile) => !replayFile.equals(file));
-    const notifyStatusListeners = () => statusListeners.forEach((statusListener) => statusListener());
-    const handleStatusChange = (file: Path, runState: FileRunState) => {
-        walkState.setRunState(file, runState);
-        notifyStatusListeners();
-    };
-    const clearRunStateOfFile = (file: Path) => {
-        walkState.clearRunState(file);
-        notifyStatusListeners();
-    };
     const pool = createStepPool({
         maxProcesses: settings.processes,
         spawnStepProcess: createSpawnStepProcess(spawnSettings),
@@ -94,6 +86,8 @@ async function main(): Promise<void> {
         decideScriptAction: (file, eventType, source) => decideScriptAction(consentAnswers, { file, eventType, source }),
         onStatusChange: handleStatusChange,
     });
+    registerShutdownSignalHandlers(pool, storeFolder);
+    const resetHandlers = createResetHandlers({ storeFolder, projectFolder, pool, walkState, clearRunStateOfFile, refreshStaleRepoCount });
     const appProps: AppProps = {
         terminalRows: process.stdout.rows,
         projectFolder,
@@ -109,12 +103,7 @@ async function main(): Promise<void> {
         consentAnswers,
         staleRepoCount,
         cacheStatusText: undefined,
-        subscribeToStatusChanges: (listener) => {
-            statusListeners.add(listener);
-            return () => {
-                statusListeners.delete(listener);
-            };
-        },
+        subscribeToStatusChanges,
         loadFileWire: (file) => listInverseRepoFileWire(storeFolder, projectFolder, file),
         isTimeSpannedForFile: (file, instant) => {
             const coverage = readCoverageOfFile(file);
@@ -125,22 +114,19 @@ async function main(): Promise<void> {
         },
         onConsentAnswered: (answerKey, answer) => {
             consentAnswers[answerKey] = answer;
+            consentGate.notifyAnswerGiven();
         },
-        // onResetSelectedStores: (files) => resetStoresOfFiles(storeFolder, files.map((file) => ({ file, repoFolder: getInverseRepoFolderForFile(storeFolder, projectFolder, file) })), pool.cancelFile, clearRunStateOfFile),
-        onResetSelectedStores: async (files) => {
-            await resetStoresOfFiles(storeFolder, files.map((file) => ({ file, repoFolder: getInverseRepoFolderForFile(storeFolder, projectFolder, file) })), pool.cancelFile, clearRunStateOfFile);
-            refreshStaleRepoCount();
-        },
-        // onResetAllStores: () => resetAllStores(storeFolder, pool.cancelAll, () => walkState.listFiles().forEach(clearRunStateOfFile)),
-        onResetAllStores: async () => {
-            await resetAllStores(storeFolder, pool.cancelAll, () => walkState.listFiles().forEach(clearRunStateOfFile));
-            refreshStaleRepoCount();
-        },
+        onResetSelectedStores: resetHandlers.resetSelectedStores,
+        onResetAllStores: resetHandlers.resetAllStoresOfProject,
         onPlayScript: (file) => pool.requestPlay({ file }, listWalkToEndFiles(file)),
     };
     instance.rerender(createElement(App, appProps));
     if (settings.isAuto) {
-        void runAutoWalk({ oldestInstant: new Date(0), files: cache.projectFiles, walker, pool, getRunState: (file) => getFileRunState(walkState, file), isFileWalkFinished });
+        if (cache.events.length === 0) {
+            instance.unmount();
+        } else {
+            void runAutoWalk({ oldestInstant: new Date(0), files: cache.projectFiles, walker, pool, getRunState: (file) => getFileRunState(walkState, file), isFileWalkFinished, consentGate: consentGate.whenAnswered });
+        }
     }
     await instance.waitUntilExit();
     await shutdownTui(pool, storeFolder);

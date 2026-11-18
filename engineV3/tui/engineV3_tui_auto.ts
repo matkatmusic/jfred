@@ -12,6 +12,8 @@ export type AutoWalkOptions = {
     pool: StepPool;
     getRunState: (file: Path) => FileRunState;
     isFileWalkFinished: (file: Path) => boolean;
+    // The walk starts only after this promise resolves: when every consent question has an answer.
+    consentGate: Promise<void>;
 };
 
 function listFilesNeedingWork(options: AutoWalkOptions): Path[] {
@@ -35,6 +37,7 @@ function listFilesNeedingWork(options: AutoWalkOptions): Path[] {
 }
 
 export async function runAutoWalk(options: AutoWalkOptions): Promise<void> {
+    await options.consentGate;
     while (true) {
         const filesNeedingWork = listFilesNeedingWork(options);
         if (filesNeedingWork.length === 0) {

@@ -8,16 +8,18 @@ import type { BarFileModel } from "../../webapp/layer1-components/bars-view/laye
 import { findRulerRowIndexForInstant } from "../../webapp/layer1-components/bars-view/layer1-bars-ruler.ts";
 import { getRelativePathInProject } from "../engineV3_inverse_repos_for_project.ts";
 import type { AppProps, FileTimes, SelectionState } from "./engineV3_tui_app_types.ts";
-import { describeRowState, listFilesWithOldestEventNewerThan } from "./engineV3_tui_app_rows.ts";
+import { describeRowState } from "./engineV3_tui_app_rows.ts";
 import { extendSelectionToCursor, moveCursor, toggleCursorFile } from "./engineV3_tui_app_selection.ts";
+import { getMemoizedFileModel, stepProjectMarker, stepSelectedFiles, type FileModelMemo, type StepContext } from "./engineV3_tui_app_steps.ts";
 import { Barbershop } from "./engineV3_tui_barbershop.tsx";
-import { buildTuiBarModels, describeBarInfo } from "./engineV3_tui_bars.ts";
+import { describeBarInfo } from "./engineV3_tui_bars.ts";
 import { chooseFileForPlayKey, getNextConsentQuestion } from "./engineV3_tui_consent.ts";
 import { buildInfoRowText } from "./engineV3_tui_info_row.tsx";
 import { findCommandForKey } from "./engineV3_tui_keymap.ts";
 import { MenuRow } from "./engineV3_tui_menu_row.tsx";
+import { NoEventsScreen } from "./engineV3_tui_no_events.tsx";
 import { Row } from "./engineV3_tui_row.tsx";
-import { computeNextMarker, foldEventsIntoRulerRows, listEventsOfFile, toggleJumpSpeed, type TimeMarker } from "./engineV3_tui_time_marker.ts";
+import { foldEventsIntoRulerRows, toggleJumpSpeed, type TimeMarker } from "./engineV3_tui_time_marker.ts";
 import { getAvailableRowCount, getVisibleRowRange } from "./engineV3_tui_viewport.ts";
 import { getFileRunState } from "./engineV3_tui_walk_state.ts";
 
@@ -25,13 +27,20 @@ const BAR_WIDTH = 30;
 const RULER_ROW_LIMIT = 200;
 
 export function App(props: AppProps) {
+    if (props.events.length === 0) {
+        return <NoEventsScreen terminalRows={props.terminalRows} />;
+    }
+    return <LoadedApp {...props} />;
+}
+
+function LoadedApp(props: AppProps) {
     const [marker, setMarker] = useState<TimeMarker>({ instant: props.events[0]!.instant, eventIndex: 0 });
     const [speed, setSpeed] = useState(JumpSpeed.Event);
     const [selection, setSelection] = useState<SelectionState>({ cursorIndex: 0, selectedFiles: [], lastToggledIndex: undefined });
     const [fileTimes, setFileTimes] = useState<FileTimes>(new Map());
     const [, setRenderCount] = useState(0);
     const previousTop = useRef(0);
-    const modelMemo = useRef(new Map<string, { status: FileWalkStatus; model: BarFileModel }>());
+    const modelMemo = useRef<FileModelMemo>(new Map());
     const rulerRows = useMemo(() => foldEventsIntoRulerRows(props.events, RULER_ROW_LIMIT), [props.events]);
     const bounds = { newest: props.events[0]!.instant, oldest: props.events[props.events.length - 1]!.instant };
     const consentQuestion = getNextConsentQuestion(props.consentAnswers, props.scriptCounts);
@@ -42,18 +51,7 @@ export function App(props: AppProps) {
     const selectedOrCursorFiles = selection.selectedFiles.length > 0 ? selection.selectedFiles : [cursorFile];
 
     const getTimeOfFile = (file: Path): Date => fileTimes.get(file.value) ?? marker.instant;
-    const getModelOfFile = (file: Path): BarFileModel => {
-        const status = getFileRunState(props.walkState, file).status;
-        const memoEntry = modelMemo.current.get(file.value);
-        if (memoEntry !== undefined) {
-            if (memoEntry.status === status) {
-                return memoEntry.model;
-            }
-        }
-        const model = buildTuiBarModels([props.loadFileWire(file)], rulerRows)[0]!;
-        modelMemo.current.set(file.value, { status, model });
-        return model;
-    };
+    const getModelOfFile = (file: Path): BarFileModel => getMemoizedFileModel(modelMemo.current, props, rulerRows, file);
 
     useEffect(() => props.subscribeToStatusChanges(() => setRenderCount((renderCount) => renderCount + 1)), []);
     useEffect(() => {
@@ -66,34 +64,11 @@ export function App(props: AppProps) {
         }
     }, [range.top, range.bottom, marker]);
 
-    const stepSelectedFiles = (direction: MarkerDirection): void => {
-        const nextFileTimes: FileTimes = new Map(fileTimes);
-        for (const file of selectedOrCursorFiles) {
-            const fileTime: TimeMarker = { instant: getTimeOfFile(file), eventIndex: undefined };
-            const move = computeNextMarker(speed, listEventsOfFile(props.events, file), bounds, fileTime, direction);
-            nextFileTimes.set(file.value, move.marker.instant);
-            props.walker.walkHistoryTo(move.marker.instant, file, true);
-        }
-        setFileTimes(nextFileTimes);
-    };
-    const stepProjectMarker = (direction: MarkerDirection): void => {
-        const move = computeNextMarker(speed, props.events, bounds, marker, direction);
-        const newTime = move.marker.instant;
-        setMarker(move.marker);
+    const stepContext: StepContext = { props, speed, marker, bounds, range, getTimeOfFile };
+    const stepSelectedFilesInDirection = (direction: MarkerDirection): void => setFileTimes(stepSelectedFiles(stepContext, selectedOrCursorFiles, fileTimes, direction));
+    const stepProjectMarkerInDirection = (direction: MarkerDirection): void => {
+        setMarker(stepProjectMarker(stepContext, direction));
         setFileTimes(new Map());
-        if (speed !== JumpSpeed.Event) {
-            for (const [index, file] of props.files.entries()) {
-                props.walker.walkHistoryTo(newTime, file, index >= range.top && index < range.bottom);
-            }
-        }
-        if (move.steppedFile !== undefined) {
-            props.walker.walkHistoryTo(newTime, move.steppedFile, true);
-            for (const file of listFilesWithOldestEventNewerThan(props.files, props.events, newTime)) {
-                if (!props.isTimeSpannedForFile(file, newTime)) {
-                    props.walker.walkHistoryTo(newTime, file, true);
-                }
-            }
-        }
     };
     const playScriptOfCursorFile = (): void => {
         const file = chooseFileForPlayKey(cursorFile, selection.selectedFiles);
@@ -120,10 +95,10 @@ export function App(props: AppProps) {
             case TuiCommand.ExtendSelection: return setSelection(extendSelectionToCursor(selection, props.files));
             case TuiCommand.ToggleDaySpeed: return setSpeed(toggleJumpSpeed(speed, JumpSpeed.Day));
             case TuiCommand.ToggleWeekSpeed: return setSpeed(toggleJumpSpeed(speed, JumpSpeed.Week));
-            case TuiCommand.StepSelectionTowardsNow: return stepSelectedFiles(MarkerDirection.TowardsNow);
-            case TuiCommand.StepSelectionTowardsEarliest: return stepSelectedFiles(MarkerDirection.TowardsEarliest);
-            case TuiCommand.StepAllTowardsNow: return stepProjectMarker(MarkerDirection.TowardsNow);
-            case TuiCommand.StepAllTowardsEarliest: return stepProjectMarker(MarkerDirection.TowardsEarliest);
+            case TuiCommand.StepSelectionTowardsNow: return stepSelectedFilesInDirection(MarkerDirection.TowardsNow);
+            case TuiCommand.StepSelectionTowardsEarliest: return stepSelectedFilesInDirection(MarkerDirection.TowardsEarliest);
+            case TuiCommand.StepAllTowardsNow: return stepProjectMarkerInDirection(MarkerDirection.TowardsNow);
+            case TuiCommand.StepAllTowardsEarliest: return stepProjectMarkerInDirection(MarkerDirection.TowardsEarliest);
             case TuiCommand.ResetSelectedStores:
                 selectedOrCursorFiles.forEach((file) => modelMemo.current.delete(file.value));
                 return void props.onResetSelectedStores(selectedOrCursorFiles);

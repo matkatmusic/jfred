@@ -1,11 +1,13 @@
 // Tests of the exit rule of the terminal viewer: no child process outlives the viewer, and the lock goes away.
 
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { test } from "node:test";
+import type { TestContext } from "node:test";
 import { pathToFileURL } from "node:url";
 import { createStepPool } from "../engineV3/tui/engineV3_tui_pool.ts";
 import { shutdownTui } from "../engineV3/tui/engineV3_tui_shutdown.ts";
@@ -163,4 +165,151 @@ test("test_the_lock_is_removed_by_the_shutdown", async (t) => {
     await shutdownTui(makePoolWithSpawn(async () => makeCrashedOutcome()), storeFolder);
     // the lock file is gone
     assert.equal(existsSync(getTuiLockFile(storeFolder).toString()), false);
+});
+
+test("test_the_lock_file_is_gone_after_the_process_ends_by_a_thrown_error", (t) => {
+    // Scenario: a process that takes the lock, starts no child, and then throws leaves no lock file.
+    const { storeFolder, removeLockAndStore } = makeStoreFolderForLock();
+    t.after(removeLockAndStore);
+    const settingsUrl = pathToFileURL(join(JFRED_FOLDER, "engineV3/tui/engineV3_tui_settings.ts")).href;
+    const domainUrl = pathToFileURL(join(JFRED_FOLDER, "src/structures/domain.ts")).href;
+    const crashingScript = [
+        `import { acquireTuiLock } from ${JSON.stringify(settingsUrl)};`,
+        `import { Path } from ${JSON.stringify(domainUrl)};`,
+        `acquireTuiLock(new Path(${JSON.stringify(storeFolder.toString())}));`,
+        `throw new Error("crash on purpose");`,
+    ].join("\n");
+    // a second process takes the lock and crashes
+    const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", crashingScript], { cwd: JFRED_FOLDER, encoding: "utf8" });
+    // the crash happened
+    assert.notEqual(result.status, 0);
+    // the lock file is gone
+    assert.equal(existsSync(getTuiLockFile(storeFolder).toString()), false, `stderr: ${result.stderr}`);
+});
+
+test("test_the_lock_file_stays_when_it_holds_another_process_number", (t) => {
+    // Scenario: a crashing process does not remove a lock file that holds the process number of another process.
+    const { storeFolder, removeLockAndStore } = makeStoreFolderForLock();
+    t.after(removeLockAndStore);
+    const settingsUrl = pathToFileURL(join(JFRED_FOLDER, "engineV3/tui/engineV3_tui_settings.ts")).href;
+    const domainUrl = pathToFileURL(join(JFRED_FOLDER, "src/structures/domain.ts")).href;
+    const lockFilePath = getTuiLockFile(storeFolder).toString();
+    const crashingScript = [
+        `import { writeFileSync } from "node:fs";`,
+        `import { acquireTuiLock, getTuiLockFile } from ${JSON.stringify(settingsUrl)};`,
+        `import { Path } from ${JSON.stringify(domainUrl)};`,
+        `const storeFolder = new Path(${JSON.stringify(storeFolder.toString())});`,
+        `acquireTuiLock(storeFolder);`,
+        `writeFileSync(getTuiLockFile(storeFolder).toString(), "1");`,
+        `throw new Error("crash on purpose");`,
+    ].join("\n");
+    // a second process takes the lock, overwrites it with the process number 1, and crashes
+    const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", crashingScript], { cwd: JFRED_FOLDER, encoding: "utf8" });
+    // the crash happened
+    assert.notEqual(result.status, 0);
+    // the lock file still exists and still holds 1
+    assert.equal(existsSync(lockFilePath), true, `stderr: ${result.stderr}`);
+    assert.equal(readFileSync(lockFilePath, "utf8"), "1");
+});
+
+function buildSignalProbeScript(storeFolder: Path): string {
+    const poolUrl = pathToFileURL(join(JFRED_FOLDER, "engineV3/tui/engineV3_tui_pool.ts")).href;
+    const settingsUrl = pathToFileURL(join(JFRED_FOLDER, "engineV3/tui/engineV3_tui_settings.ts")).href;
+    const shutdownUrl = pathToFileURL(join(JFRED_FOLDER, "engineV3/tui/engineV3_tui_shutdown.ts")).href;
+    const stepProcessUrl = pathToFileURL(join(JFRED_FOLDER, "engineV3/tui/engineV3_tui_step_process.ts")).href;
+    const domainUrl = pathToFileURL(join(JFRED_FOLDER, "src/structures/domain.ts")).href;
+    return [
+        `import { acquireTuiLock } from ${JSON.stringify(settingsUrl)};`,
+        `import { runStepChild, listLiveChildProcessIds } from ${JSON.stringify(stepProcessUrl)};`,
+        `import { createStepPool } from ${JSON.stringify(poolUrl)};`,
+        `import { registerShutdownSignalHandlers } from ${JSON.stringify(shutdownUrl)};`,
+        `import { Path } from ${JSON.stringify(domainUrl)};`,
+        `const throwIfCalled = async () => { throw new Error("the pool must not spawn in this script"); };`,
+        `const pool = createStepPool({`,
+        `    maxProcesses: 4,`,
+        `    spawnStepProcess: throwIfCalled,`,
+        `    spawnPlayProcess: throwIfCalled,`,
+        `    onOutcome: () => {},`,
+        `    onStatusChange: () => {},`,
+        `    isFileWalkFinished: () => false,`,
+        `    isFileSteppable: () => true,`,
+        `    hasLogsGrown: () => false,`,
+        `    onLogsGrew: () => {},`,
+        `    endChildOfFile: async () => {},`,
+        `    endAllChildren: async () => {},`,
+        `});`,
+        `const storeFolder = new Path(${JSON.stringify(storeFolder.toString())});`,
+        `acquireTuiLock(storeFolder);`,
+        `const workingFolder = new Path(process.cwd());`,
+        `runStepChild(process.execPath, ${JSON.stringify(SLEEPER_ARGUMENTS)}, workingFolder);`,
+        `runStepChild(process.execPath, ${JSON.stringify(SLEEPER_ARGUMENTS)}, workingFolder);`,
+        `registerShutdownSignalHandlers(pool, storeFolder);`,
+        `console.log(JSON.stringify(listLiveChildProcessIds()));`,
+        `setInterval(() => {}, 1000);`,
+    ].join("\n");
+}
+
+function readChildProcessIdsPrintedBy(scriptProcess: ChildProcess): Promise<number[]> {
+    return new Promise((resolve, reject) => {
+        let printedText = "";
+        const timer = setTimeout(() => reject(new Error(`no process id line within ${WAIT_TIMEOUT_MILLISECONDS} ms: ${printedText}`)), WAIT_TIMEOUT_MILLISECONDS);
+        scriptProcess.stdout!.on("data", (chunk) => {
+            printedText += chunk.toString();
+            const printedLine = printedText.split("\n").find((line) => line.startsWith("["));
+            if (printedLine !== undefined) {
+                clearTimeout(timer);
+                resolve(JSON.parse(printedLine));
+            }
+        });
+    });
+}
+
+function waitForExitCode(scriptProcess: ChildProcess): Promise<number | null> {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(`the script did not exit within ${WAIT_TIMEOUT_MILLISECONDS} ms`)), WAIT_TIMEOUT_MILLISECONDS);
+        scriptProcess.once("exit", (exitCode) => {
+            clearTimeout(timer);
+            resolve(exitCode);
+        });
+    });
+}
+
+async function verifySignalRunsTheShutdown(t: TestContext, signal: NodeJS.Signals): Promise<void> {
+    const { storeFolder, removeLockAndStore } = makeStoreFolderForLock();
+    t.after(removeLockAndStore);
+    // a second process takes the lock, starts two sleeper children, registers the signal handlers, and prints the child process ids
+    const scriptProcess = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "-e", buildSignalProbeScript(storeFolder)], { cwd: JFRED_FOLDER, stdio: ["ignore", "pipe", "pipe"] });
+    t.after(() => scriptProcess.kill("SIGKILL"));
+    const childProcessIdsPromise = readChildProcessIdsPrintedBy(scriptProcess);
+    const childProcessIds = await childProcessIdsPromise;
+    t.after(() => childProcessIds.forEach(killProcessGroupIfAlive));
+    // two children are alive and the lock file exists before the signal
+    assert.equal(childProcessIds.length, 2);
+    for (const childProcessId of childProcessIds) {
+        assert.equal(isProcessAlive(childProcessId), true);
+    }
+    assert.equal(existsSync(getTuiLockFile(storeFolder).toString()), true);
+    // the signal reaches the second process, and the test waits for that process to exit
+    const exitCodePromise = waitForExitCode(scriptProcess);
+    scriptProcess.kill(signal);
+    const exitCode = await exitCodePromise;
+    // the process ends with exit code 0
+    assert.equal(exitCode, 0);
+    // every child process is gone
+    await waitForCondition(() => childProcessIds.every((childProcessId) => !isProcessAlive(childProcessId)), WAIT_TIMEOUT_MILLISECONDS);
+    for (const childProcessId of childProcessIds) {
+        assert.equal(isProcessAlive(childProcessId), false);
+    }
+    // the lock file is gone
+    assert.equal(existsSync(getTuiLockFile(storeFolder).toString()), false);
+}
+
+test("test_a_sigterm_runs_the_shutdown_ends_every_child_and_removes_the_lock", async (t) => {
+    // Scenario: a SIGTERM sent to a viewer process runs the same shutdown as Ctrl-C, then the process exits with code 0.
+    await verifySignalRunsTheShutdown(t, "SIGTERM");
+});
+
+test("test_a_sighup_runs_the_shutdown_ends_every_child_and_removes_the_lock", async (t) => {
+    // Scenario: a SIGHUP sent to a viewer process runs the same shutdown as Ctrl-C, then the process exits with code 0.
+    await verifySignalRunsTheShutdown(t, "SIGHUP");
 });

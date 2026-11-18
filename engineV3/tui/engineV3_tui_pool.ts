@@ -2,19 +2,14 @@
 
 import type { Path } from "../../src/structures/domain.ts";
 import { FileWalkStatus, PlayOutcomeKind } from "../../src/structures/vocabulary.ts";
+import { cancelAll, cancelFile, type PoolCancelContext } from "./engineV3_tui_pool_cancel.ts";
+import { validateStepPoolOptions } from "./engineV3_tui_pool_options.ts";
 import { runPlayRequest } from "./engineV3_tui_pool_play.ts";
 import { mergeEntry, pickNextEntry, type PoolEntry } from "./engineV3_tui_pool_queue.ts";
 import type { PlayOutcome, PlayRequest, StepPool, StepPoolOptions, StepProcessOutcome, StepRequest } from "./engineV3_tui_walk_types.ts";
 
-const MAXIMUM_PROCESSES_ALLOWED = 4;
-
 export function createStepPool(options: StepPoolOptions): StepPool {
-    if (options.maxProcesses > MAXIMUM_PROCESSES_ALLOWED) {
-        throw new Error(`maxProcesses ${options.maxProcesses} is above the limit of ${MAXIMUM_PROCESSES_ALLOWED}`);
-    }
-    if (options.maxProcesses < 1) {
-        throw new Error(`maxProcesses ${options.maxProcesses} is below 1`);
-    }
+    validateStepPoolOptions(options);
     const queueByFileValue = new Map<string, PoolEntry>();
     const pendingByFileValue = new Map<string, PoolEntry>();
     const runningRequestByFileValue = new Map<string, StepRequest>();
@@ -26,6 +21,8 @@ export function createStepPool(options: StepPoolOptions): StepPool {
     function setStatus(file: Path, status: FileWalkStatus): void {
         options.onStatusChange(file, { status, reasonText: undefined, failedReplayCount: 0 });
     }
+
+    const cancelContext: PoolCancelContext = { queueByFileValue, pendingByFileValue, runningRequestByFileValue, cancelledFileValues, setStatus, options };
 
     function isIdle(): boolean {
         if (runningRequestByFileValue.size > 0) {
@@ -141,33 +138,9 @@ export function createStepPool(options: StepPoolOptions): StepPool {
         });
     }
 
-    async function cancelFile(file: Path): Promise<void> {
-        const fileValue = file.value;
-        pendingByFileValue.delete(fileValue);
-        if (queueByFileValue.delete(fileValue)) {
-            setStatus(file, FileWalkStatus.Idle);
-        }
-        if (runningRequestByFileValue.has(fileValue)) {
-            cancelledFileValues.add(fileValue);
-        }
-        await options.endChildOfFile(file);
-    }
-
-    async function cancelAll(): Promise<void> {
-        for (const fileValue of runningRequestByFileValue.keys()) {
-            cancelledFileValues.add(fileValue);
-        }
-        for (const entry of queueByFileValue.values()) {
-            setStatus(entry.request.file, FileWalkStatus.Idle);
-        }
-        queueByFileValue.clear();
-        pendingByFileValue.clear();
-        await options.endAllChildren();
-    }
-
     function listRunningFiles(): Path[] {
         return [...runningRequestByFileValue.values()].map((request) => request.file);
     }
 
-    return { requestWalk, requestPlay, cancelFile, cancelAll, stopStarting, waitUntilIdle, listRunningFiles };
+    return { requestWalk, requestPlay, cancelFile: (file) => cancelFile(cancelContext, file), cancelAll: () => cancelAll(cancelContext), stopStarting, waitUntilIdle, listRunningFiles };
 }

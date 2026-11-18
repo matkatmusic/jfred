@@ -42,6 +42,20 @@ export function getNextConsentQuestion(answers: ConsentAnswers, scriptCounts: Sc
     return undefined;
 }
 
+export function createConsentGate(answers: ConsentAnswers, scriptCounts: ScriptCounts): { whenAnswered: Promise<void>; notifyAnswerGiven: () => void } {
+    let openGate: () => void = () => {};
+    const whenAnswered = new Promise<void>((resolve) => {
+        openGate = resolve;
+    });
+    const notifyAnswerGiven = (): void => {
+        if (getNextConsentQuestion(answers, scriptCounts) === undefined) {
+            openGate();
+        }
+    };
+    notifyAnswerGiven();
+    return { whenAnswered, notifyAnswerGiven };
+}
+
 export function decideScriptAction(answers: ConsentAnswers, stop: StoppedWalk): ScriptAction {
     if (answers.runScripts !== true) {
         return ScriptAction.Refuse;

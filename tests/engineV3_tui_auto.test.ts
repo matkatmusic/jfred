@@ -110,7 +110,7 @@ test("test_auto_ends_with_every_file_finished_on_a_small_project", { timeout: RE
         endAllChildren: throwBecauseNotExpected,
     });
     // Run the auto walk to the oldest event.
-    await runAutoWalk({ oldestInstant: makeInstant(0), files, walker, pool, getRunState: (file) => getFileRunState(walkState, file), isFileWalkFinished });
+    await runAutoWalk({ oldestInstant: makeInstant(0), files, walker, pool, getRunState: (file) => getFileRunState(walkState, file), isFileWalkFinished, consentGate: Promise.resolve() });
     // Both files have a sidecar that says finished.
     for (const file of files) {
         assert.equal(isFileWalkFinished(file), true, `${file.toString()} is not finished`);
@@ -131,6 +131,7 @@ test("test_auto_leaves_a_stopped_file_stopped_and_still_ends", async () => {
         pool: createFakePool(),
         getRunState: (askedFile) => runStateByPathString.get(askedFile.toString()) ?? makeRunState(FileWalkStatus.Idle),
         isFileWalkFinished: () => false,
+        consentGate: Promise.resolve(),
     });
     // The file was requested one time, at the oldest instant, and is still Stopped.
     assert.equal(requestedInstants.length, 1);
@@ -155,8 +156,37 @@ test("test_auto_does_not_wait_for_a_crashed_file", async () => {
         pool: createFakePool(),
         getRunState: (askedFile) => runStateByPathString.get(askedFile.toString()) ?? makeRunState(FileWalkStatus.Idle),
         isFileWalkFinished: (askedFile) => finishedPathStrings.has(askedFile.toString()),
+        consentGate: Promise.resolve(),
     });
     // Each file was requested one time, and the crashed file is still Crashed.
     assert.equal(requestedInstants.length, 2);
     assert.equal(runStateByPathString.get(crashedFile.toString())!.status, FileWalkStatus.Crashed);
+});
+
+test("test_auto_requests_no_walk_while_the_consent_gate_is_closed_and_walks_after_it_opens", async () => {
+    // Scenario: the one file stops on its first walk request; the consent gate starts closed.
+    const file = new Path("/made-up/project/a.txt");
+    const runStateByPathString = new Map<string, FileRunState>();
+    const requestedInstants: { file: Path; instant: Date; isVisible: boolean }[] = [];
+    const walker = createFakeWalker(runStateByPathString, new Map([[file.toString(), FileWalkStatus.Stopped]]), requestedInstants);
+    let openGate: () => void = throwBecauseNotExpected;
+    const consentGate = new Promise<void>((resolve) => { openGate = resolve; });
+    // Start the auto walk without awaiting it.
+    const autoWalk = runAutoWalk({
+        oldestInstant: OLDEST_INSTANT,
+        files: [file],
+        walker,
+        pool: createFakePool(),
+        getRunState: (askedFile) => runStateByPathString.get(askedFile.toString()) ?? makeRunState(FileWalkStatus.Idle),
+        isFileWalkFinished: () => false,
+        consentGate,
+    });
+    // Wait 30 milliseconds; no walk was requested while the gate is closed.
+    await new Promise<void>((resolve) => setTimeout(resolve, 30));
+    assert.equal(requestedInstants.length, 0);
+    // Open the gate; the auto walk runs and returns.
+    openGate();
+    await autoWalk;
+    // The file was requested at least one time.
+    assert.ok(requestedInstants.length >= 1);
 });

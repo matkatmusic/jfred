@@ -8,3 +8,13 @@ export async function shutdownTui(pool: StepPool, storeFolder: Path): Promise<vo
     await endAllLiveChildren();
     releaseTuiLock(storeFolder);
 }
+
+const SHUTDOWN_SIGNALS: NodeJS.Signals[] = ["SIGTERM", "SIGHUP"];
+
+export function registerShutdownSignalHandlers(pool: StepPool, storeFolder: Path): void {
+    for (const signal of SHUTDOWN_SIGNALS) {
+        process.once(signal, () => {
+            shutdownTui(pool, storeFolder).then(() => process.exit(0));
+        });
+    }
+}

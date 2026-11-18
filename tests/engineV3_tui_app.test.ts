@@ -509,3 +509,23 @@ test("test_the_header_shows_the_stale_repo_count_and_the_reset_key", async (t) =
     const headerRow = getHeaderRow(staleScreen.readFrameLines());
     assert.ok(headerRow.includes("3 repos are stale: press Shift-R"), `the header shows no stale repo line: ${headerRow}`);
 });
+
+test("test_a_project_with_no_events_shows_the_header_and_the_no_events_line", async (t) => {
+    // Scenario: the project has no file events, no files, and no counts.
+    const harness = makeAppProps({ events: [], files: [], countsByFile: new Map() });
+    // Drawing the screen does not throw.
+    let screen: ScreenHandle | undefined;
+    assert.doesNotThrow(() => {
+        screen = startScreen(t, harness.props);
+    });
+    await settle();
+    const lines = (screen as ScreenHandle).readFrameLines();
+    // Some line of the frame says the project has no file events.
+    assert.ok(lines.some((line) => line.includes("This project has no file events.")), `no line says the project has no file events: ${lines.join("\n")}`);
+    // The first line is the header: it is not empty and it is not the no-events line.
+    const headerRow = getHeaderRow(lines);
+    assert.notEqual(headerRow.trim(), "");
+    assert.ok(!headerRow.includes("This project has no file events."));
+    // No line shows a file row.
+    assert.ok(!lines.some((line) => line.includes(".txt")), `a file row is drawn: ${lines.join("\n")}`);
+});

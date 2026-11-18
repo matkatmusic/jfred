@@ -9,6 +9,7 @@ import { INVERSE_REPOS_CACHE_FOLDER } from "../../src/viewer_api_layer1_inverse_
 import { readInverseReposSettingsFromArguments, type ProjectFile } from "../engineV3_inverse_repos_for_project.ts";
 import { assertStoreHasNoFullBuildRepos, assertStoreIsInsideCacheFolder } from "../engineV3_step_store_guard.ts";
 import { getProjectCacheFile } from "./engineV3_tui_project_cache.ts";
+import { registerLockFileForExit } from "./engineV3_tui_step_process.ts";
 
 // const USAGE = "usage: node --import tsx engineV3/tui/engineV3_tui_main.tsx --project <folder> --jsonls <folder>[,<folder>...] --file-history <folder>[,<folder>...] --store <folder> [--repo <folder> --commit <commit>] [--processes <1-4>] [--auto]";
 const USAGE = "usage: node --import tsx engineV3/tui/jfredTUI.ts --project <folder> --jsonls <folder>[,<folder>...] --file-history <folder>[,<folder>...] --store <folder> [--repo <folder> --commit <commit>] [--processes <1-4>] [--auto]";
@@ -95,6 +96,7 @@ export function acquireTuiLock(storeFolder: Path): void {
         }
     }
     writeFileSync(lockFile.toString(), String(process.pid));
+    registerLockFileForExit(lockFile);
 }
 
 export function releaseTuiLock(storeFolder: Path): void {

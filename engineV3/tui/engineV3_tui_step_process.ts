@@ -3,6 +3,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import type { Path } from "../../src/structures/domain.ts";
 import { getRelativePathInProject } from "../engineV3_inverse_repos_for_project.ts";
+import { removeLockFileOfThisProcessAtExit, setLockFileToRemoveAtExit } from "./engineV3_tui_exit_lock.ts";
 import { computePlayOutcome, computeStepOutcome, type ChildResult } from "./engineV3_tui_step_outcome.ts";
 import type { PlayOutcome, PlayRequest, SpawnPlayProcess, SpawnSettings, SpawnStepProcess, StepProcessOutcome, StepRequest } from "./engineV3_tui_walk_types.ts";
 
@@ -18,6 +19,19 @@ function endAllProcessGroupsAtExit(): void {
     for (const childId of liveChildren.keys()) {
         process.kill(-childId, "SIGTERM");
     }
+    removeLockFileOfThisProcessAtExit();
+}
+
+function ensureExitHandlerIsRegistered(): void {
+    if (!isExitHandlerRegistered) {
+        process.on("exit", endAllProcessGroupsAtExit);
+        isExitHandlerRegistered = true;
+    }
+}
+
+export function registerLockFileForExit(lockFile: Path): void {
+    setLockFileToRemoveAtExit(lockFile);
+    ensureExitHandlerIsRegistered();
 }
 
 function isNonEmptyLine(line: string): boolean {
@@ -35,10 +49,7 @@ function spawnChildProcess(command: string, args: string[], workingFolder: Path,
     const child = spawn(command, args, { cwd: workingFolder.toString(), detached: true, stdio: ["pipe", "pipe", "pipe"] });
     const childId = child.pid!;
     liveChildren.set(childId, { child, file });
-    if (!isExitHandlerRegistered) {
-        process.on("exit", endAllProcessGroupsAtExit);
-        isExitHandlerRegistered = true;
-    }
+    ensureExitHandlerIsRegistered();
     let standardOutputText = "";
     let standardErrorText = "";
     function appendStandardOutput(chunk: string): void {

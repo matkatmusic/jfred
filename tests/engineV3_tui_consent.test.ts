@@ -9,7 +9,7 @@ import { Path } from "../src/structures/domain.ts";
 import { FileWalkStatus, InverseStepOutcome, ScriptAction, StepProcessOutcomeKind } from "../src/structures/vocabulary.ts";
 import { FileEventType } from "../engineV3/engineV3_replay_reverse_events.ts";
 import type { StepResultLine } from "../engineV3/engineV3_step_start_at.ts";
-import { chooseFileForPlayKey, decideScriptAction, getNextConsentQuestion, type ConsentAnswers, type StoppedWalk } from "../engineV3/tui/engineV3_tui_consent.ts";
+import { chooseFileForPlayKey, createConsentGate, decideScriptAction, getNextConsentQuestion, type ConsentAnswers, type StoppedWalk } from "../engineV3/tui/engineV3_tui_consent.ts";
 import { createHistoryWalker } from "../engineV3/tui/engineV3_tui_walk.ts";
 import { createWalkState, getFileRunState } from "../engineV3/tui/engineV3_tui_walk_state.ts";
 import type { StepProcessOutcome, StepRequest } from "../engineV3/tui/engineV3_tui_walk_types.ts";
@@ -21,6 +21,18 @@ const SCRIPT_FILE = new Path("/project/script_target.txt");
 
 function makeAnswers(runScripts: boolean | undefined, runModifyingScriptsAutomatically: boolean | undefined): ConsentAnswers {
     return { runScripts, runModifyingScriptsAutomatically };
+}
+
+const GATE_WAIT_MILLISECONDS = 30;
+
+async function readGateIsResolved(whenAnswered: Promise<void>): Promise<boolean> {
+    const resolvedMarker = Symbol("resolved");
+    const timeoutMarker = Symbol("timeout");
+    const winner = await Promise.race([
+        whenAnswered.then(() => resolvedMarker),
+        new Promise<symbol>((resolve) => setTimeout(() => resolve(timeoutMarker), GATE_WAIT_MILLISECONDS)),
+    ]);
+    return winner === resolvedMarker;
 }
 
 function makeScriptMayWriteStop(): StoppedWalk {
@@ -143,4 +155,42 @@ test("test_the_play_key_acts_on_the_cursor_row_only", () => {
     assert.equal(chooseFileForPlayKey(cursorFile, selectedFiles).toString(), cursorFile.toString());
     // The play key chooses the cursor file when the selection is empty.
     assert.equal(chooseFileForPlayKey(cursorFile, []).toString(), cursorFile.toString());
+});
+
+test("test_gate_is_open_at_once_when_no_script_run_was_found", async () => {
+    // Scenario: the project cache counted no script runs, and no answer was given.
+    const answers = makeAnswers(undefined, undefined);
+    // Create the gate with zero scripts of both kinds.
+    const gate = createConsentGate(answers, { mayWrite: 0, readOnly: 0 });
+    // The gate is resolved without any answer.
+    assert.equal(await readGateIsResolved(gate.whenAnswered), true);
+});
+
+test("test_gate_stays_closed_while_a_question_is_open_and_opens_after_the_last_answer", async () => {
+    // Scenario: 1 script may write, and no answer was given.
+    const answers = makeAnswers(undefined, undefined);
+    const gate = createConsentGate(answers, { mayWrite: 1, readOnly: 0 });
+    // The gate is still pending, because question one is open.
+    assert.equal(await readGateIsResolved(gate.whenAnswered), false);
+    // The first answer is yes, and the caller tells the gate.
+    answers.runScripts = true;
+    gate.notifyAnswerGiven();
+    // The gate is still pending, because question two is open.
+    assert.equal(await readGateIsResolved(gate.whenAnswered), false);
+    // The second answer is no, and the caller tells the gate.
+    answers.runModifyingScriptsAutomatically = false;
+    gate.notifyAnswerGiven();
+    // The gate is resolved, because no question is open.
+    assert.equal(await readGateIsResolved(gate.whenAnswered), true);
+});
+
+test("test_gate_opens_after_a_no_to_the_first_question", async () => {
+    // Scenario: 1 script may write and 2 only read, and no answer was given.
+    const answers = makeAnswers(undefined, undefined);
+    const gate = createConsentGate(answers, { mayWrite: 1, readOnly: 2 });
+    // The first answer is no, and the caller tells the gate.
+    answers.runScripts = false;
+    gate.notifyAnswerGiven();
+    // The gate is resolved, because a no leaves no second question.
+    assert.equal(await readGateIsResolved(gate.whenAnswered), true);
 });
