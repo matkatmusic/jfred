@@ -18,17 +18,17 @@ const KEYMAP_FILE = new Path(join(import.meta.dirname, "..", "engineV3", "tui", 
 const COLOR_CODE_PATTERN = /\x1b\[[0-9;]*m/g;
 const LIGHT_GREY_START = "\x1b[38;2;192;192;192m";
 
-function drawBox(speed: JumpSpeed): string[] {
+function drawBox(speed: JumpSpeed, columns: number = 100): string[] {
     const keyBox = loadKeyBox(KEYMAP_FILE, KeyBox.Global);
-    const { lastFrame } = render(createElement(HotKeysBox, { rows: buildHotKeyRows(keyBox, speed), keyBox, columns: 100 }));
+    const { lastFrame } = render(createElement(HotKeysBox, { rows: buildHotKeyRows(keyBox, speed), keyBox, columns }));
     return lastFrame()!.split("\n");
 }
 
-test("test_the_navigation_row_names_the_six_navigation_keys", () => {
+test("test_the_navigation_row_names_the_eight_navigation_keys_with_what_each_does", () => {
     // Scenario: event speed.
     const rows = buildHotKeyRows(loadKeyBox(KEYMAP_FILE, KeyBox.Global), JumpSpeed.Event);
     // the first row is the Navigation row with the exact text.
-    assert.equal(formatHotKeyRowText(rows[0]!), "Navigation: up, down, +shift: page, left, right, shift-left, shift-right");
+    assert.equal(formatHotKeyRowText(rows[0]!), "Navigation: Up: prev row  Down: next row  Shift+Up: prev page  Shift+Down: next page  Left: toward newer  Right: toward older  Shift+Left: all toward newer  Shift+Right: all toward older");
 });
 
 test("test_the_selection_row_has_the_four_selection_keys", () => {
@@ -57,6 +57,8 @@ test("test_day_speed_adds_a_warning_to_the_navigation_row_and_event_speed_does_n
     assert.equal(buildHotKeyRows(keyBox, JumpSpeed.Event)[0]!.warningText, undefined);
     // at day speed the warning names the marker box.
     assert.match(buildHotKeyRows(keyBox, JumpSpeed.Day)[0]!.warningText!, /marker box/);
+    // the whole Navigation row text ends with the whole warning.
+    assert.match(formatHotKeyRowText(buildHotKeyRows(keyBox, JumpSpeed.Day)[0]!), /Shift\+Right: all toward older  ! left\/right: not in marker box$/);
 });
 
 test("test_a_key_label_has_the_default_key_color_and_a_custom_color_replaces_it", () => {
@@ -77,8 +79,8 @@ test("test_the_box_draws_four_rows_in_borders_with_the_current_speed_at_the_righ
     assert.equal(frameLines.length, 6);
     // the Speed row ends with the current speed, one padding column and the border.
     assert.match(frameLines[3]!, /Current: day │$/);
-    // the Navigation row holds the warning; "+shift: page" leaves room for only the start of it at 100 columns.
-    assert.match(frameLines[1]!, /! left\/right: not in/);
+    // the Navigation row is cut at the right edge: the border stays.
+    assert.match(frameLines[1]!, /^│ Navigation: Up: prev row.*│$/);
 });
 
 test("test_the_key_labels_are_drawn_in_light_grey", () => {

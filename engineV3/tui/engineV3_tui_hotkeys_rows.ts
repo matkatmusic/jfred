@@ -8,7 +8,7 @@ export type HotKeyRow = { name: string; itemSeparator: string; items: HotKeyItem
 
 const DAY_OR_WEEK_WARNING_TEXT = "! left/right: not in marker box";
 
-const NAVIGATION_COMMANDS = [TuiCommand.MoveSelectionUp, TuiCommand.MoveSelectionDown, TuiCommand.MoveSelectionPageUp, TuiCommand.StepSelectionTowardsNow, TuiCommand.StepSelectionTowardsEarliest, TuiCommand.StepAllTowardsNow, TuiCommand.StepAllTowardsEarliest];
+const NAVIGATION_COMMANDS = [TuiCommand.MoveSelectionUp, TuiCommand.MoveSelectionDown, TuiCommand.MoveSelectionPageUp, TuiCommand.MoveSelectionPageDown, TuiCommand.StepSelectionTowardsNow, TuiCommand.StepSelectionTowardsEarliest, TuiCommand.StepAllTowardsNow, TuiCommand.StepAllTowardsEarliest];
 const SELECTION_COMMANDS = [TuiCommand.ToggleSelection, TuiCommand.ExtendSelection, TuiCommand.ResetSelectedStores, TuiCommand.ResetAllStores];
 const SPEED_COMMANDS = [TuiCommand.SetEventSpeed, TuiCommand.ToggleDaySpeed, TuiCommand.ToggleWeekSpeed];
 const ACTION_COMMANDS = [TuiCommand.ViewFile, TuiCommand.ReconstructUntilEarliest, TuiCommand.OpenConsole, TuiCommand.PlayScript];
@@ -28,7 +28,7 @@ function buildKeyRow(keyBox: KeyBoxSettings, name: string, commands: TuiCommand[
 export function buildHotKeyRows(keyBox: KeyBoxSettings, speed: JumpSpeed, disabledCommands: TuiCommand[] = []): HotKeyRow[] {
     const isDayOrWeek = speed !== JumpSpeed.Event;
     return [
-        { name: "Navigation", itemSeparator: ", ", items: buildItems(keyBox, NAVIGATION_COMMANDS, false, disabledCommands), warningText: isDayOrWeek ? DAY_OR_WEEK_WARNING_TEXT : undefined, rightText: undefined },
+        { name: "Navigation", itemSeparator: "  ", items: buildItems(keyBox, NAVIGATION_COMMANDS, false, disabledCommands), warningText: isDayOrWeek ? DAY_OR_WEEK_WARNING_TEXT : undefined, rightText: undefined },
         buildKeyRow(keyBox, "selection", SELECTION_COMMANDS, disabledCommands),
         { ...buildKeyRow(keyBox, "Speed", SPEED_COMMANDS, disabledCommands), rightText: `Current: ${speed}` },
         { ...buildKeyRow(keyBox, "Actions", ACTION_COMMANDS, disabledCommands), itemSeparator: "  " },
