@@ -5,6 +5,7 @@ import { Box, Text } from "ink";
 
 const TITLE_BORDER_ROWS = 1;
 const CORNER_COLUMNS = 2;
+const TITLE_SPACE_COLUMNS = 2;
 
 export type TitledBoxProps = {
     title: string;
@@ -17,7 +18,10 @@ export type TitledBoxProps = {
 };
 
 export function buildTopBorderText(title: string, columns: number): string {
-    const titleField = ` ${title} `;
+    // const titleField = ` ${title} `;
+    const titleLetterCount = columns - CORNER_COLUMNS - TITLE_SPACE_COLUMNS;
+    const shownTitle = title.length > titleLetterCount ? `${title.slice(0, titleLetterCount - 1)}…` : title;
+    const titleField = ` ${shownTitle} `;
     const dashCount = columns - CORNER_COLUMNS - titleField.length;
     const leftDashCount = Math.floor(dashCount / 2);
     return `╭${"─".repeat(leftDashCount)}${titleField}${"─".repeat(dashCount - leftDashCount)}╮`;

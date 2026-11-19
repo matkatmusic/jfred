@@ -20,7 +20,7 @@ function makeTwelveLines(): FileViewLine[] {
 }
 
 function drawBox(lines: FileViewLine[], scrollTop: number, rowCount: number, emptyText: string = EMPTY_TEXT): string {
-    const { lastFrame } = render(createElement(FileViewBox, { lines, scrollTop, rowCount, columns: COLUMNS, lineNumberColor: "cyan", textColor: "green", emptyText }));
+    const { lastFrame } = render(createElement(FileViewBox, { fileName: "a.ts", lines, scrollTop, rowCount, columns: COLUMNS, lineNumberColor: "cyan", textColor: "green", emptyText }));
     return lastFrame()!;
 }
 
