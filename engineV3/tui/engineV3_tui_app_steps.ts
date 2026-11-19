@@ -40,8 +40,19 @@ export function stepSelectedFiles(context: StepContext, files: Path[], fileTimes
     for (const file of files) {
         const fileTime: TimeMarker = { instant: context.getTimeOfFile(file), eventIndex: undefined };
         const move = computeNextMarker(context.speed, listEventsOfFile(context.props.events, file), context.bounds, fileTime, direction);
-        nextFileTimes.set(file.value, move.marker.instant);
-        context.props.walker.walkHistoryTo(move.marker.instant, file, true);
+        // nextFileTimes.set(file.value, move.marker.instant);
+        // context.props.walker.walkHistoryTo(move.marker.instant, file, true);
+        let nextInstant = move.marker.instant;
+        if (direction === MarkerDirection.TowardsNow) {
+            if (context.speed === JumpSpeed.Event) {
+                // no newer event of this file: the next column towards Now is [now]
+                if (nextInstant.getTime() === fileTime.instant.getTime()) {
+                    nextInstant = context.bounds.newest;
+                }
+            }
+        }
+        nextFileTimes.set(file.value, nextInstant);
+        context.props.walker.walkHistoryTo(nextInstant, file, true);
     }
     return nextFileTimes;
 }
