@@ -74,6 +74,7 @@ export function makeAppProps(project: Project, overrides: Partial<AppProps> = {}
         files: [project.file],
         events,
         countsByFile: new Map([[project.file.toString(), makeZeroEventCounts()]]),
+        guessCategoryByFile: new Map(),
         keymap: loadKeymap(KEYMAP_FILE),
         keyBoxes: loadKeyBoxes(KEYMAP_FILE),
         walkState: createWalkState(),

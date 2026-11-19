@@ -6,7 +6,7 @@ import { test, type TestContext } from "node:test";
 import { createElement } from "react";
 import { render } from "ink-testing-library";
 import { Path } from "../src/structures/domain.ts";
-import { FileWalkStatus, InverseStepOutcome, PlayOutcomeKind, StepProcessOutcomeKind, TuiCommand } from "../src/structures/vocabulary.ts";
+import { FileWalkStatus, GuessCategory, InverseStepOutcome, PlayOutcomeKind, StepProcessOutcomeKind, TuiCommand } from "../src/structures/vocabulary.ts";
 import { FileEventType } from "../engineV3/engineV3_replay_reverse_events.ts";
 import type { StepResultLine } from "../engineV3/engineV3_step_start_at.ts";
 import { App } from "../engineV3/tui/engineV3_tui_app.tsx";
@@ -187,6 +187,7 @@ function makeAppProps(overrides: Partial<AppProps>): AppHarness {
         files,
         events: makeEvents(files),
         countsByFile: makeCountsByFile(files),
+        guessCategoryByFile: new Map(),
         keymap: loadKeymap(KEYMAP_FILE),
         keyBoxes: loadKeyBoxes(KEYMAP_FILE),
         engineLog: { appendRawLine: () => {}, appendSummaryLine: () => {}, listLines: () => [] },
@@ -453,6 +454,80 @@ test("test_a_row_not_walked_to_the_marker_shows_not_walked_to_this_time", async 
     screen.stdin.write(DOWN_ARROW);
     await settle();
     assert.ok(!getInfoRow(screen.readFrameLines()).includes("not walked to this time"));
+});
+
+function makeGuessCategoryMap(files: Path[], indexes: number[]): Map<string, GuessCategory> {
+    return new Map(indexes.map((index): [string, GuessCategory] => [files[index]!.toString(), GuessCategory.HasGuessSteps]));
+}
+
+test("test_the_h_key_shows_only_the_files_that_need_guesses_and_the_h_key_again_shows_all", async (t) => {
+    // Scenario: f03 and f07 need guesses.
+    const harness = makeAppProps({});
+    harness.props.guessCategoryByFile = makeGuessCategoryMap(harness.files, [3, 7]);
+    const screen = startScreen(t, harness.props);
+    await settle();
+    // Before the key: f00 is shown.
+    assert.ok(screen.readFrameLines().some((line) => line.includes(makeFileName(0))));
+    // The h key: f03 and f07 are shown, f00 and f04 are not.
+    screen.stdin.write("h");
+    await settle();
+    const filteredLines = screen.readFrameLines();
+    assert.ok(filteredLines.some((line) => line.includes(makeFileName(3))));
+    assert.ok(filteredLines.some((line) => line.includes(makeFileName(7))));
+    assert.ok(!filteredLines.some((line) => line.includes(makeFileName(0))));
+    assert.ok(!filteredLines.some((line) => line.includes(makeFileName(4))));
+    // The h key again: f00 is back.
+    screen.stdin.write("h");
+    await settle();
+    assert.ok(screen.readFrameLines().some((line) => line.includes(makeFileName(0))));
+});
+
+test("test_the_h_key_moves_the_cursor_to_the_first_shown_row_when_the_cursor_file_is_hidden", async (t) => {
+    // Scenario: f03 and f07 need guesses; the cursor is on f00.
+    const harness = makeAppProps({});
+    harness.props.guessCategoryByFile = makeGuessCategoryMap(harness.files, [3, 7]);
+    const screen = startScreen(t, harness.props);
+    await settle();
+    // The h key: the info box names f03.
+    screen.stdin.write("h");
+    await settle();
+    assert.ok(getInfoRow(screen.readFrameLines()).includes(makeFileName(3)));
+    // The Down key moves to the next shown row: f07.
+    screen.stdin.write(DOWN_ARROW);
+    await settle();
+    assert.ok(getInfoRow(screen.readFrameLines()).includes(makeFileName(7)));
+});
+
+test("test_the_h_key_keeps_the_cursor_on_its_file_when_that_file_is_shown", async (t) => {
+    // Scenario: f03 and f07 need guesses; the cursor moves down to f03.
+    const harness = makeAppProps({});
+    harness.props.guessCategoryByFile = makeGuessCategoryMap(harness.files, [3, 7]);
+    const screen = startScreen(t, harness.props);
+    await settle();
+    for (let step = 0; step < 3; step++) {
+        screen.stdin.write(DOWN_ARROW);
+        await settle();
+    }
+    // The h key and the h key again: the info box still names f03.
+    screen.stdin.write("h");
+    await settle();
+    assert.ok(getInfoRow(screen.readFrameLines()).includes(makeFileName(3)));
+    screen.stdin.write("h");
+    await settle();
+    assert.ok(getInfoRow(screen.readFrameLines()).includes(makeFileName(3)));
+});
+
+test("test_the_h_key_does_nothing_when_no_file_needs_guesses", async (t) => {
+    // Scenario: no file needs guesses.
+    const harness = makeAppProps({});
+    const screen = startScreen(t, harness.props);
+    await settle();
+    // The h key: the rows stay and the info box still names f00.
+    screen.stdin.write("h");
+    await settle();
+    const lines = screen.readFrameLines();
+    assert.ok(lines.some((line) => line.includes(makeFileName(1))));
+    assert.ok(getInfoRow(lines).includes(makeFileName(0)));
 });
 
 // The a key shows all files; Left and Right then step every row.

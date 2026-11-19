@@ -1,6 +1,7 @@
 // Contract of the Ink root component (plan Stage B8). Types only.
 
 import type { Path } from "../../src/structures/domain.ts";
+import type { GuessCategory } from "../../src/structures/vocabulary.ts";
 import type { InverseRepoFileWire } from "../../webapp/layer1-components/bars-view/layer1-bars-wire.ts";
 import type { ConsentAnswers, ConsentQuestion } from "./engineV3_tui_consent.ts";
 import type { EngineLog } from "./engineV3_tui_engine_log.ts";
@@ -17,6 +18,8 @@ export type AppProps = {
     files: Path[];
     events: ProjectEventEntry[];
     countsByFile: Map<string, FileEventCounts>;
+    // only the files that need guesses are keys
+    guessCategoryByFile: Map<string, GuessCategory>;
     keymap: Keymap;
     keyBoxes: Record<KeyBox, KeyBoxSettings>;
     engineLog: EngineLog;

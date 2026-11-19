@@ -2,20 +2,24 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Path } from "../../src/structures/domain.ts";
+import type { GuessCategory } from "../../src/structures/vocabulary.ts";
 import type { EarliestBoundary } from "../engineV3_earliest_boundary.ts";
 import { isModifyingEventType } from "../engineV3_file_step.ts";
+import { assessFileGuesses, mapGuessCategoriesByFile, type GuessAssessment } from "../engineV3_guess_files_assess.ts";
+import type { JSONLLine } from "../engineV3.ts";
 import { createProjectEventsLoader, type ProjectFile } from "../engineV3_inverse_repos_for_project.ts";
 import { buildLineSourceIndex, getLineSourceIndexFile, writeLineSourceIndex, type LineSourceIndex } from "../engineV3_jsonl_lines_source_index.ts";
 import { listProjectFilesOnDiskAndInLogs } from "../engineV3_inverse_repos_project_files.ts";
 import { FileEventType } from "../engineV3_replay_reverse_events.ts";
 import { formatSourceText } from "../engineV3_step_replay_command.ts";
 import { getRepoFolderOfProject, listLayeredSearchProjectFiles } from "../layeredSearch/layeredSearch_project_files.ts";
-import { computeProjectCacheInputsHash } from "./engineV3_tui_project_cache_hash.ts";
+import { computeProjectCacheInputsHash, readProjectCacheInputsHash } from "./engineV3_tui_project_cache_hash.ts";
 
 export type TuiInput = { projectFolder: Path; jsonlsFolders: Path[]; fileHistoryFolders: Path[]; storeFolder: Path; earliestBoundary: EarliestBoundary | undefined };
 export type ProjectEventEntry = { instant: Date; file: Path; eventType: FileEventType; source: string | null };
 export type FileEventCounts = Record<FileEventType, number>;
-export type ProjectCache = { inputsHash: string; projectFiles: Path[]; replayFiles: Path[]; transcriptsToParse: Path[]; events: ProjectEventEntry[]; countsByFile: Map<string, FileEventCounts>; scriptCounts: { mayWrite: number; readOnly: number }; lineSourceIndex?: LineSourceIndex };
+// guessCategoryByFile holds only the files that need guesses; guessAssessments (the details for the report) is set by a build and is not stored.
+export type ProjectCache = { inputsHash: string; projectFiles: Path[]; replayFiles: Path[]; transcriptsToParse: Path[]; events: ProjectEventEntry[]; countsByFile: Map<string, FileEventCounts>; scriptCounts: { mayWrite: number; readOnly: number }; guessCategoryByFile: Map<string, GuessCategory>; guessAssessments?: GuessAssessment[]; lineSourceIndex?: LineSourceIndex };
 export type FileProgress = { file: Path; current: number; total: number };
 
 export type ProjectCacheJson = {
@@ -26,6 +30,7 @@ export type ProjectCacheJson = {
     events: { instant: string; file: string; eventType: FileEventType; source: string | null }[];
     countsByFile: Record<string, FileEventCounts>;
     scriptCounts: { mayWrite: number; readOnly: number };
+    guessCategoryByFile: Record<string, GuessCategory>;
 };
 
 function createEmptyEventCounts(): FileEventCounts {
@@ -44,14 +49,17 @@ function listProjectFilesOfInput(input: TuiInput): { projectFiles: ProjectFile[]
 function buildProjectCacheFromFileLists(input: TuiInput, inputsHash: string, projectFiles: ProjectFile[], transcriptsToParse: Path[], reportFileProgress?: (progress: FileProgress) => void): ProjectCache {
     const replayFiles = listProjectFilesOnDiskAndInLogs(input.projectFolder, input.jsonlsFolders).map((projectFile) => projectFile.file);
     let lineSourceIndex: LineSourceIndex | undefined;
-    const getEvents = createProjectEventsLoader(projectFiles, transcriptsToParse, input.fileHistoryFolders, input.earliestBoundary, (linesByFileKey) => { lineSourceIndex = buildLineSourceIndex(linesByFileKey); });
+    let loadedLines: Map<string, JSONLLine[]> | undefined;
+    const getEvents = createProjectEventsLoader(projectFiles, transcriptsToParse, input.fileHistoryFolders, input.earliestBoundary, (linesByFileKey) => { loadedLines = linesByFileKey; lineSourceIndex = buildLineSourceIndex(linesByFileKey); });
     const events: ProjectEventEntry[] = [];
+    const guessAssessments: GuessAssessment[] = [];
     const countsByFile = new Map<string, FileEventCounts>();
     const mayWriteSources = new Set<string>();
     const readOnlySources = new Set<string>();
     for (const [index, projectFile] of projectFiles.entries()) {
         const counts = createEmptyEventCounts();
-        for (const event of getEvents(index)) {
+        const fileEvents = getEvents(index);
+        for (const event of fileEvents) {
             counts[event.type] += 1;
             const source = formatSourceText(event.source);
             if (event.type === FileEventType.ScriptMayWrite) {
@@ -71,12 +79,13 @@ function buildProjectCacheFromFileLists(input: TuiInput, inputsHash: string, pro
             }
         }
         countsByFile.set(projectFile.file.toString(), counts);
+        guessAssessments.push(assessFileGuesses(projectFile.file, fileEvents, loadedLines!.get(projectFile.transcriptFile.toString())!, input.earliestBoundary));
         if (reportFileProgress !== undefined) {
             reportFileProgress({ file: projectFile.file, current: index + 1, total: projectFiles.length });
         }
     }
     events.sort((first, second) => second.instant.getTime() - first.instant.getTime());
-    return { inputsHash, projectFiles: projectFiles.map((projectFile) => projectFile.file), replayFiles, transcriptsToParse, events, countsByFile, scriptCounts: { mayWrite: mayWriteSources.size, readOnly: readOnlySources.size }, lineSourceIndex };
+    return { inputsHash, projectFiles: projectFiles.map((projectFile) => projectFile.file), replayFiles, transcriptsToParse, events, countsByFile, scriptCounts: { mayWrite: mayWriteSources.size, readOnly: readOnlySources.size }, guessCategoryByFile: mapGuessCategoriesByFile(guessAssessments), guessAssessments, lineSourceIndex };
 }
 
 export function buildProjectCache(input: TuiInput, reportFileProgress?: (progress: FileProgress) => void): ProjectCache {
@@ -94,6 +103,7 @@ export function writeProjectCache(cacheFile: Path, cache: ProjectCache): void {
         events: cache.events.map((event) => ({ instant: event.instant.toISOString(), file: event.file.toString(), eventType: event.eventType, source: event.source })),
         countsByFile: Object.fromEntries(cache.countsByFile),
         scriptCounts: cache.scriptCounts,
+        guessCategoryByFile: Object.fromEntries(cache.guessCategoryByFile),
     };
     const temporaryFile = `${cacheFile.toString()}.tmp`;
     mkdirSync(dirname(cacheFile.toString()), { recursive: true });
@@ -114,6 +124,7 @@ export function readProjectCache(cacheFile: Path): ProjectCache {
         events: json.events.map((event) => ({ instant: new Date(event.instant), file: new Path(event.file), eventType: event.eventType, source: event.source })),
         countsByFile: new Map(Object.entries(json.countsByFile)),
         scriptCounts: json.scriptCounts,
+        guessCategoryByFile: new Map(Object.entries(json.guessCategoryByFile)),
     };
 }
 
@@ -127,9 +138,9 @@ export function loadOrBuildProjectCache(input: TuiInput, cacheFile: Path, report
     const { projectFiles, transcriptsToParse } = listProjectFilesOfInput(input);
     const inputsHash = computeProjectCacheInputsHash(input, projectFiles.map((projectFile) => projectFile.file), transcriptsToParse);
     if (existsSync(cacheFile.toString())) {
-        const storedCache = readProjectCache(cacheFile);
-        if (storedCache.inputsHash === inputsHash) {
-            return { cache: storedCache, wasRebuilt: false };
+        // const storedCache = readProjectCache(cacheFile); if (storedCache.inputsHash === inputsHash) { return { cache: storedCache, wasRebuilt: false }; }  (the full read threw on a cache of an old format)
+        if (readProjectCacheInputsHash(cacheFile) === inputsHash) {
+            return { cache: readProjectCache(cacheFile), wasRebuilt: false };
         }
     }
     const cache = buildProjectCacheFromFileLists(input, inputsHash, projectFiles, transcriptsToParse, reportFileProgress);

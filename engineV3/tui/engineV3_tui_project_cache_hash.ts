@@ -1,13 +1,14 @@
 import { createHash } from "node:crypto";
-import { readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { Path } from "../../src/structures/domain.ts";
 import { executeGit } from "../engineV3.ts";
 import { getLogFilesHash } from "../engineV3_inverse_repos_for_project.ts";
 import type { TuiInput } from "./engineV3_tui_project_cache.ts";
 
-// Change this text when the cache gains a file a reader needs: caches stored before are rebuilt. "lines-index" = the line source index file.
-const PROJECT_CACHE_FORMAT = "lines-index";
+// Change this text when the cache gains a file or a field a reader needs: caches stored before are rebuilt. "lines-index" = the line source index file. "guess-categories" = the guessCategoryByFile field.
+// const PROJECT_CACHE_FORMAT = "lines-index";
+const PROJECT_CACHE_FORMAT = "guess-categories";
 function listFileHistoryFileLines(fileHistoryFolders: Path[]): string[] {
     const fileLines: string[] = [];
     for (const fileHistoryFolder of fileHistoryFolders) {
@@ -21,6 +22,11 @@ function listFileHistoryFileLines(fileHistoryFolders: Path[]): string[] {
         }
     }
     return fileLines.sort();
+}
+
+// Read before the whole cache: a cache stored in an old format is rebuilt, never read.
+export function readProjectCacheInputsHash(cacheFile: Path): string {
+    return (JSON.parse(readFileSync(cacheFile.toString(), "utf8")) as { inputsHash: string }).inputsHash;
 }
 
 export function computeProjectCacheInputsHash(input: TuiInput, projectFiles: Path[], transcriptsToParse: Path[]): string {

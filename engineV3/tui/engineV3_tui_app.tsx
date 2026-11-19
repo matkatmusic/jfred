@@ -18,6 +18,7 @@ import { ConsentPopup } from "./engineV3_tui_consent_popup.tsx";
 import { TUI_COLORS } from "./engineV3_tui_colors.ts";
 // import { countLinesBoxRows } from "./engineV3_tui_footer.tsx";
 import { useAppDrawer } from "./engineV3_tui_app_drawer.tsx";
+import { findCursorIndexOfFile, listShownFiles } from "./engineV3_tui_guess_filter.ts";
 import { MarkerBox } from "./engineV3_tui_marker_box.tsx";
 import { computeMarkedPosition, findNewerColumnTime, listEventInstants } from "./engineV3_tui_marker_position.ts";
 import { useMarkerWindowStart } from "./engineV3_tui_marker_window.ts";
@@ -49,6 +50,7 @@ function LoadedApp(props: AppProps) {
     const [marker, setMarker] = useState<TimeMarker>({ instant: props.events[0]!.instant, eventIndex: 0 });
     const [speed, setSpeed] = useState(JumpSpeed.Event);
     const [isMarkerBoxForAllFiles, setIsMarkerBoxForAllFiles] = useState(false);
+    const [isGuessFilterOn, setIsGuessFilterOn] = useState(false);
     const [selection, setSelection] = useState<SelectionState>({ cursorIndex: 0, selectedFiles: [], lastToggledIndex: undefined });
     const [fileTimes, setFileTimes] = useState<FileTimes>(new Map());
     const [, setRenderCount] = useState(0);
@@ -58,7 +60,9 @@ function LoadedApp(props: AppProps) {
     const bounds = { newest: props.events[0]!.instant, oldest: props.events[props.events.length - 1]!.instant };
     const consentQuestion = getNextConsentQuestion(props.consentAnswers, props.scriptCounts);
     // const range = getVisibleRowRange(props.files.length, selection.cursorIndex, previousTop.current, getAvailableRowCount(props.terminalRows));
-    const cursorFile = props.files[selection.cursorIndex]!;
+    const shownFiles = listShownFiles(props.files, props.guessCategoryByFile, isGuessFilterOn);
+    // const cursorFile = props.files[selection.cursorIndex]!;
+    const cursorFile = shownFiles[selection.cursorIndex]!;
     const selectedOrCursorFiles = selection.selectedFiles.length > 0 ? selection.selectedFiles : [cursorFile];
 
     const getTimeOfFile = (file: Path): Date => fileTimes.get(file.value) ?? marker.instant;
@@ -95,9 +99,11 @@ function LoadedApp(props: AppProps) {
     const footerRowCount = drawerState.footerRowCount;
     const longestNameLength = Math.max(...props.files.map((file) => getRelativePathInProject(props.projectFolder, file).length + buildRowCountText(countModifyingEvents(props.countsByFile.get(file.value)!)).length));
     const rowColumnWidths = computeRowColumnWidths(props.terminalColumns, longestNameLength);
-    const range = getVisibleRowRange(props.files.length, selection.cursorIndex, previousTop.current, getAvailableRowCount(props.terminalRows, footerRowCount));
+    // const range = getVisibleRowRange(props.files.length, selection.cursorIndex, previousTop.current, getAvailableRowCount(props.terminalRows, footerRowCount));
+    const range = getVisibleRowRange(shownFiles.length, selection.cursorIndex, previousTop.current, getAvailableRowCount(props.terminalRows, footerRowCount));
     previousTop.current = range.top;
-    const visibleFiles = props.files.slice(range.top, range.bottom);
+    // const visibleFiles = props.files.slice(range.top, range.bottom);
+    const visibleFiles = shownFiles.slice(range.top, range.bottom);
 
     useEffect(() => props.subscribeToStatusChanges(() => setRenderCount((renderCount) => renderCount + 1)), []);
     // Only the Left and Right keys walk a file: the load and the Up and Down keys walk nothing.
@@ -125,6 +131,14 @@ function LoadedApp(props: AppProps) {
         stepSelectedFilesInDirection(direction);
     };
     const toggleMarkerBoxScope = (): void => setIsMarkerBoxForAllFiles(!isMarkerBoxForAllFiles);
+    const toggleGuessFilter = (): void => {
+        const nextShownFiles = listShownFiles(props.files, props.guessCategoryByFile, !isGuessFilterOn);
+        if (nextShownFiles.length === 0) {
+            return;
+        }
+        setIsGuessFilterOn(!isGuessFilterOn);
+        setSelection({ cursorIndex: findCursorIndexOfFile(nextShownFiles, cursorFile), selectedFiles: [], lastToggledIndex: undefined });
+    };
     const stepCursorFileInDirection =(direction: MarkerDirection): void => setFileTimes(stepSelectedFiles(stepContext, [cursorFile], fileTimes, direction));
     // const reconstructCursorFile = (): void => void props.walker.walkHistoryTo(new Date(0), cursorFile, true);
     const reconstructCursorFile = (): void => {
@@ -145,9 +159,9 @@ function LoadedApp(props: AppProps) {
         }
     };
     const refreshScreen = (): void => setRenderCount((renderCount) => renderCount + 1);
-    const moveCursorByPage = (direction: 1 | -1): void => movePageInDirection({ previousTop, selection, files: props.files, pageRowCount: getAvailableRowCount(props.terminalRows, footerRowCount), direction, setSelection });
+    const moveCursorByPage = (direction: 1 | -1): void => movePageInDirection({ previousTop, selection, files: shownFiles, pageRowCount: getAvailableRowCount(props.terminalRows, footerRowCount), direction, setSelection });
 
-    useAppKeys({ props, consentQuestion, selection, speed, selectedOrCursorFiles, modelMemo: modelMemo.current, setSelection, setSpeed, refreshScreen, stepInDirection, toggleMarkerBoxScope, playScriptOfCursorFile, boxMode: drawerState.boxMode, fileViewKeymap: drawerState.fileViewKeymap, openViewFile: drawerState.openViewFile, closeBox: drawerState.closeBox, toggleDiff: drawerState.toggleDiff, scrollDrawer: drawerState.scrollDrawer, stepCursorFileInDirection, consoleKeymap: drawerState.consoleKeymap, openConsole: drawerState.openConsole, reconstructCursorFile, moveCursorByPage });
+    useAppKeys({ props, consentQuestion, selection, speed, selectedOrCursorFiles, modelMemo: modelMemo.current, setSelection, setSpeed, refreshScreen, stepInDirection, toggleMarkerBoxScope, toggleGuessFilter, shownFiles, playScriptOfCursorFile, boxMode: drawerState.boxMode, fileViewKeymap: drawerState.fileViewKeymap, openViewFile: drawerState.openViewFile, closeBox: drawerState.closeBox, toggleDiff: drawerState.toggleDiff, scrollDrawer: drawerState.scrollDrawer, stepCursorFileInDirection, consoleKeymap: drawerState.consoleKeymap, openConsole: drawerState.openConsole, reconstructCursorFile, moveCursorByPage });
 
     const rows = buildFileRowElements({ props, visibleFiles, rangeTop: range.top, selection, rulerRows, rowColumnWidths, getModelOfFile, getTimeOfFile });
     // const headerText = consentQuestion?.questionText ?? props.cacheStatusText ?? `marker ${marker.instant.toISOString()}`;

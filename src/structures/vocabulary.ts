@@ -180,6 +180,16 @@ export enum StepAllReplayKind {
     Failed = "failed",
 }
 
+// Why a file needs guesses in the reconstruction. A file with no category has a clear walk.
+export enum GuessCategory {
+    // OnlyReadEvents = "only-read-events",
+    NoChangingEvents = "no-changing-events",
+    AbsentAtStartCommit = "absent-at-start-commit",
+    LogNamesOtherPath = "log-names-other-path",
+    NoLogLines = "no-log-lines",
+    HasGuessSteps = "has-guess-steps",
+}
+
 export enum TuiCommand {
     MoveSelectionUp = "moveSelectionUp",
     MoveSelectionDown = "moveSelectionDown",
@@ -197,6 +207,7 @@ export enum TuiCommand {
     ToggleDaySpeed = "toggleDaySpeed",
     ToggleWeekSpeed = "toggleWeekSpeed",
     ToggleMarkerBoxScope = "toggleMarkerBoxScope",
+    ToggleGuessFilter = "toggleGuessFilter",
     PlayScript = "playScript",
     SetEventSpeed = "setEventSpeed",
     ViewFile = "viewFile",

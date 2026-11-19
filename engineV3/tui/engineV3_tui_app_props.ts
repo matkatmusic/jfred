@@ -21,6 +21,7 @@ export function createAppProps(input: AppPropsInput): AppProps {
         files: cache.projectFiles,
         events: cache.events,
         countsByFile: cache.countsByFile,
+        guessCategoryByFile: cache.guessCategoryByFile,
         scriptCounts: cache.scriptCounts,
         cacheStatusText: undefined,
         loadFileWire: (file) => listInverseRepoFileWire(input.storeFolder, input.projectFolder, file),

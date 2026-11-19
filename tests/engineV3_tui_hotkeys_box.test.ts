@@ -61,10 +61,18 @@ test("test_the_selection_row_has_the_four_selection_keys", () => {
 test("test_the_speed_row_has_three_speed_keys_and_the_current_speed_on_the_right", () => {
     // Scenario: week speed. The row also names the a key, which toggles the Marker Box between the cursor file and all files.
     const rows = buildHotKeyRows(loadKeyBox(KEYMAP_FILE, KeyBox.Global), JumpSpeed.Week);
-    // the Speed row lists e, d, w and a.
-    assert.equal(formatHotKeyRowText(rows[2]!), "Speed: e: Step by 1 event, d: Step by 1 Day, w: Step by 1 week, a: Marker scope");
+    // the Speed row lists e, d, w, a and h.
+    assert.equal(formatHotKeyRowText(rows[2]!), "Speed: e: 1 event, d: 1 day, w: 1 week, a: Marker scope, h: guess files only");
     // the right text names the current speed.
     assert.equal(rows[2]!.rightText, "Current: week");
+});
+
+test("test_the_speed_row_with_the_h_key_and_the_current_speed_fits_in_the_96_inner_columns_of_the_100_column_box", () => {
+    // Scenario: the longest current speed text, at 100 columns.
+    const frameLines = drawBox(JumpSpeed.Event).map((frameLine) => frameLine.replace(COLOR_CODE_PATTERN, ""));
+    // The Speed row is drawn whole: the h key text and the current speed are both in the line, with the border at the end.
+    assert.match(frameLines[3]!, /^│ Speed: .*h: guess files only +Current: event │$/);
+    assert.equal(frameLines[3]!.length, 100);
 });
 
 test("test_the_actions_row_ends_with_the_play_script_key", () => {

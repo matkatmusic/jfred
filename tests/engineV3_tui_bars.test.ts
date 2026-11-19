@@ -195,6 +195,7 @@ function makeAppProps(project: Project, events: ProjectEventEntry[]): AppProps {
         files: [project.file],
         events,
         countsByFile: new Map([[project.file.toString(), makeZeroEventCounts()]]),
+        guessCategoryByFile: new Map(),
         keymap: loadKeymap(DEFAULT_KEYMAP_FILE),
         keyBoxes: loadKeyBoxes(DEFAULT_KEYMAP_FILE),
         engineLog: { appendRawLine: () => {}, appendSummaryLine: () => {}, listLines: () => [] },

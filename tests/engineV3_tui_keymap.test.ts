@@ -115,6 +115,13 @@ test("test_findCommandForKey_finds_the_marker_box_scope_toggle_for_the_a_key", (
     assert.equal(findCommandForKey(keymap, "a", makeKey({})), TuiCommand.ToggleMarkerBoxScope);
 });
 
+test("test_findCommandForKey_finds_the_guess_filter_toggle_for_the_h_key", () => {
+    // Load the default keymap.
+    const keymap = loadKeymap(DEFAULT_KEYMAP_FILE);
+    // The input "h" finds the command that shows only the files that need guesses.
+    assert.equal(findCommandForKey(keymap, "h", makeKey({})), TuiCommand.ToggleGuessFilter);
+});
+
 test("test_findCommandForKey_matches_an_uppercase_letter_by_input", () => {
     // Load the default keymap.
     const keymap = loadKeymap(DEFAULT_KEYMAP_FILE);

@@ -60,7 +60,7 @@ test("test_a_key_box_gives_its_default_key_color_and_the_text_of_a_key", () => {
     // the default key color is light grey.
     assert.equal(keyBox.defaultKeyColor, "#c0c0c0");
     // the event speed key shows its text; a key without custom color has customColor null.
-    assert.equal(keyBox.keys["eventSpeed"]!.text, "Step by 1 event");
+    assert.equal(keyBox.keys["eventSpeed"]!.text, "1 event");
     assert.equal(keyBox.keys["eventSpeed"]!.customColor, null);
 });
 

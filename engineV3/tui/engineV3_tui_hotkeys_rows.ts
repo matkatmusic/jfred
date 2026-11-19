@@ -15,7 +15,7 @@ const STEP_ALL_TEXT_BY_COMMAND: Partial<Record<TuiCommand, string>> = {
     [TuiCommand.StepSelectionTowardsEarliest]: "step all rows towards older",
 };
 const SELECTION_COMMANDS = [TuiCommand.ToggleSelection, TuiCommand.ExtendSelection, TuiCommand.ResetSelectedStores, TuiCommand.ResetAllStores];
-const SPEED_COMMANDS = [TuiCommand.SetEventSpeed, TuiCommand.ToggleDaySpeed, TuiCommand.ToggleWeekSpeed, TuiCommand.ToggleMarkerBoxScope];
+const SPEED_COMMANDS = [TuiCommand.SetEventSpeed, TuiCommand.ToggleDaySpeed, TuiCommand.ToggleWeekSpeed, TuiCommand.ToggleMarkerBoxScope, TuiCommand.ToggleGuessFilter];
 const ACTION_COMMANDS = [TuiCommand.ViewFile, TuiCommand.ReconstructUntilEarliest, TuiCommand.OpenConsole, TuiCommand.PlayScript];
 
 function buildItems(keyBox: KeyBoxSettings, commands: TuiCommand[], showsKeyLabel: boolean, disabledCommands: TuiCommand[], textByCommand: Partial<Record<TuiCommand, string>> = {}): HotKeyItem[] {

@@ -22,6 +22,8 @@ export type AppKeyContext = {
     refreshScreen: () => void;
     stepInDirection: (direction: MarkerDirection) => void;
     toggleMarkerBoxScope: () => void;
+    toggleGuessFilter: () => void;
+    shownFiles: Path[];
     playScriptOfCursorFile: () => void;
     boxMode: AppBoxMode;
     fileViewKeymap: Keymap;
@@ -81,12 +83,12 @@ export function useAppKeys(context: AppKeyContext): void {
             case TuiCommand.ViewFile: return context.openViewFile();
             case TuiCommand.OpenConsole: return context.openConsole();
             case TuiCommand.ReconstructUntilEarliest: return context.reconstructCursorFile();
-            case TuiCommand.MoveSelectionUp: return context.setSelection(moveCursor(selection, props.files, -1));
-            case TuiCommand.MoveSelectionDown: return context.setSelection(moveCursor(selection, props.files, 1));
+            case TuiCommand.MoveSelectionUp: return context.setSelection(moveCursor(selection, context.shownFiles, -1));
+            case TuiCommand.MoveSelectionDown: return context.setSelection(moveCursor(selection, context.shownFiles, 1));
             case TuiCommand.MoveSelectionPageUp: return context.moveCursorByPage(-1);
             case TuiCommand.MoveSelectionPageDown: return context.moveCursorByPage(1);
-            case TuiCommand.ToggleSelection: return context.setSelection(toggleCursorFile(selection, props.files));
-            case TuiCommand.ExtendSelection: return context.setSelection(extendSelectionToCursor(selection, props.files));
+            case TuiCommand.ToggleSelection: return context.setSelection(toggleCursorFile(selection, context.shownFiles));
+            case TuiCommand.ExtendSelection: return context.setSelection(extendSelectionToCursor(selection, context.shownFiles));
             case TuiCommand.SetEventSpeed: return context.setSpeed(JumpSpeed.Event);
             case TuiCommand.ToggleDaySpeed: return context.setSpeed(toggleJumpSpeed(speed, JumpSpeed.Day));
             case TuiCommand.ToggleWeekSpeed: return context.setSpeed(toggleJumpSpeed(speed, JumpSpeed.Week));
@@ -96,6 +98,7 @@ export function useAppKeys(context: AppKeyContext): void {
             // case TuiCommand.StepAllTowardsNow: return context.stepProjectMarkerInDirection(MarkerDirection.TowardsNow);
             // case TuiCommand.StepAllTowardsEarliest: return context.stepProjectMarkerInDirection(MarkerDirection.TowardsEarliest);
             case TuiCommand.ToggleMarkerBoxScope: return context.toggleMarkerBoxScope();
+            case TuiCommand.ToggleGuessFilter: return context.toggleGuessFilter();
             case TuiCommand.ResetSelectedStores:
                 selectedOrCursorFiles.forEach((file) => modelMemo.delete(file.value));
                 return void props.onResetSelectedStores(selectedOrCursorFiles);

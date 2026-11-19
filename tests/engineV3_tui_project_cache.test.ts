@@ -2,10 +2,11 @@
 
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
-import { appendFileSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { appendFileSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, sep } from "node:path";
 import { Path, Uuid } from "../src/structures/domain.ts";
+import { GuessCategory } from "../src/structures/vocabulary.ts";
 import { readEarliestBoundary, type EarliestBoundary } from "../engineV3/engineV3_earliest_boundary.ts";
 import { FileEventType } from "../engineV3/engineV3_replay_reverse_events.ts";
 import { buildProjectCache, getProjectCacheFile, loadOrBuildProjectCache, type FileEventCounts, type ProjectCache, type ProjectEventEntry, type TuiInput } from "../engineV3/tui/engineV3_tui_project_cache.ts";
@@ -169,6 +170,48 @@ test("test_cache_file_is_not_inside_the_store_folder", () => {
     assert.equal(cacheFile.toString(), join(import.meta.dirname, "..", ".cache", "tui", "store", "project-cache.json"));
     // It is not inside the store folder.
     assert.equal(cacheFile.toString().startsWith(storeFolder.toString() + sep), false);
+});
+
+test("test_cache_gives_each_guess_file_its_category", (t) => {
+    // Scenario: a.txt is edited by two partial Edits (no older beacon), c.txt is on disk and no log line names it.
+    const project = writeProjectFiles(t, new Map([["a.txt", "a2\n"], ["c.txt", "c\n"]]), (projectFolder, filePathByFileName) => [
+        ...makeEditRows(projectFolder, "toolu_a1", filePathByFileName.get("a.txt")!, "a0", "a1", null, 10),
+        ...makeEditRows(projectFolder, "toolu_a2", filePathByFileName.get("a.txt")!, "a1", "a2", null, 40),
+    ]);
+    // Build the cache.
+    const cache = buildProjectCache(makeTuiInput(project, undefined));
+    // a.txt has guess steps and c.txt has no log lines.
+    assert.equal(cache.guessCategoryByFile.get(project.fileByName.get("a.txt")!.toString()), GuessCategory.HasGuessSteps);
+    assert.equal(cache.guessCategoryByFile.get(project.fileByName.get("c.txt")!.toString()), GuessCategory.NoLogLines);
+});
+
+test("test_cache_keeps_the_guess_categories_when_it_is_read_back_from_the_file", (t) => {
+    // Scenario: the cache was built and written once.
+    const project = writeProjectWithTwoEditedFiles(t);
+    const cacheFile = makeCacheFilePath(t);
+    const input = makeTuiInput(project, undefined);
+    const firstResult = loadOrBuildProjectCache(input, cacheFile);
+    // The second call reads the file.
+    const secondResult = loadOrBuildProjectCache(input, cacheFile);
+    assert.equal(secondResult.wasRebuilt, false);
+    // The categories are the same.
+    assert.deepEqual([...secondResult.cache.guessCategoryByFile], [...firstResult.cache.guessCategoryByFile]);
+});
+
+test("test_cache_stored_before_the_guess_categories_existed_is_rebuilt_and_not_read", (t) => {
+    // Scenario: a cache file without the guess categories and with another inputs hash.
+    const project = writeProjectWithTwoEditedFiles(t);
+    const cacheFile = makeCacheFilePath(t);
+    const input = makeTuiInput(project, undefined);
+    loadOrBuildProjectCache(input, cacheFile);
+    const oldJson = JSON.parse(readFileSync(cacheFile.toString(), "utf8"));
+    delete oldJson.guessCategoryByFile;
+    oldJson.inputsHash = "old-format-hash";
+    writeFileSync(cacheFile.toString(), JSON.stringify(oldJson));
+    // The next call rebuilds and does not throw.
+    const result = loadOrBuildProjectCache(input, cacheFile);
+    assert.equal(result.wasRebuilt, true);
+    assert.equal(result.cache.guessCategoryByFile.size > 0, true);
 });
 
 test("test_cache_lists_the_replay_files_and_the_project_files_separately", (t) => {
