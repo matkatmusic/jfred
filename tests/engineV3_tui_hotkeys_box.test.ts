@@ -28,7 +28,7 @@ test("test_the_navigation_row_names_the_six_navigation_keys", () => {
     // Scenario: event speed.
     const rows = buildHotKeyRows(loadKeyBox(KEYMAP_FILE, KeyBox.Global), JumpSpeed.Event);
     // the first row is the Navigation row with the exact text.
-    assert.equal(formatHotKeyRowText(rows[0]!), "Navigation: up, down, left, right, shift-left, shift-right");
+    assert.equal(formatHotKeyRowText(rows[0]!), "Navigation: up, down, +shift: page, left, right, shift-left, shift-right");
 });
 
 test("test_the_selection_row_has_the_four_selection_keys", () => {
@@ -77,8 +77,8 @@ test("test_the_box_draws_four_rows_in_borders_with_the_current_speed_at_the_righ
     assert.equal(frameLines.length, 6);
     // the Speed row ends with the current speed, one padding column and the border.
     assert.match(frameLines[3]!, /Current: day │$/);
-    // the Navigation row holds the warning.
-    assert.match(frameLines[1]!, /marker box/);
+    // the Navigation row holds the warning; "+shift: page" leaves room for only the start of it at 100 columns.
+    assert.match(frameLines[1]!, /! left\/right: not in/);
 });
 
 test("test_the_key_labels_are_drawn_in_light_grey", () => {

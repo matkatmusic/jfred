@@ -8,7 +8,7 @@ export type HotKeyRow = { name: string; itemSeparator: string; items: HotKeyItem
 
 const DAY_OR_WEEK_WARNING_TEXT = "! left/right: not in marker box";
 
-const NAVIGATION_COMMANDS = [TuiCommand.MoveSelectionUp, TuiCommand.MoveSelectionDown, TuiCommand.StepSelectionTowardsNow, TuiCommand.StepSelectionTowardsEarliest, TuiCommand.StepAllTowardsNow, TuiCommand.StepAllTowardsEarliest];
+const NAVIGATION_COMMANDS = [TuiCommand.MoveSelectionUp, TuiCommand.MoveSelectionDown, TuiCommand.MoveSelectionPageUp, TuiCommand.StepSelectionTowardsNow, TuiCommand.StepSelectionTowardsEarliest, TuiCommand.StepAllTowardsNow, TuiCommand.StepAllTowardsEarliest];
 const SELECTION_COMMANDS = [TuiCommand.ToggleSelection, TuiCommand.ExtendSelection, TuiCommand.ResetSelectedStores, TuiCommand.ResetAllStores];
 const SPEED_COMMANDS = [TuiCommand.SetEventSpeed, TuiCommand.ToggleDaySpeed, TuiCommand.ToggleWeekSpeed];
 const ACTION_COMMANDS = [TuiCommand.ViewFile, TuiCommand.ReconstructUntilEarliest, TuiCommand.OpenConsole, TuiCommand.PlayScript];

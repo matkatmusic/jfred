@@ -30,7 +30,7 @@ import { buildInfoBoxLines } from "./engineV3_tui_info_row.tsx";
 import { NoEventsScreen } from "./engineV3_tui_no_events.tsx";
 import { useTerminalSize } from "./engineV3_tui_terminal_size.ts";
 import { foldEventsIntoRulerRows, listEventsOfFile, type TimeMarker } from "./engineV3_tui_time_marker.ts";
-import { getAvailableRowCount, getVisibleRowRange } from "./engineV3_tui_viewport.ts";
+import { getAvailableRowCount, getVisibleRowRange, movePageInDirection } from "./engineV3_tui_viewport.ts";
 import { getFileRunState } from "./engineV3_tui_walk_state.ts";
 
 const RULER_ROW_LIMIT = 200;
@@ -129,8 +129,9 @@ function LoadedApp(props: AppProps) {
         }
     };
     const refreshScreen = (): void => setRenderCount((renderCount) => renderCount + 1);
+    const moveCursorByPage = (direction: 1 | -1): void => movePageInDirection({ previousTop, selection, files: props.files, pageRowCount: getAvailableRowCount(props.terminalRows, footerRowCount), direction, setSelection });
 
-    useAppKeys({ props, consentQuestion, selection, speed, selectedOrCursorFiles, modelMemo: modelMemo.current, setSelection, setSpeed, refreshScreen, stepSelectedFilesInDirection, stepProjectMarkerInDirection, playScriptOfCursorFile, boxMode: drawerState.boxMode, fileViewKeymap: drawerState.fileViewKeymap, openViewFile: drawerState.openViewFile, closeBox: drawerState.closeBox, toggleDiff: drawerState.toggleDiff, scrollDrawer: drawerState.scrollDrawer, stepCursorFileInDirection, consoleKeymap: drawerState.consoleKeymap, openConsole: drawerState.openConsole, reconstructCursorFile });
+    useAppKeys({ props, consentQuestion, selection, speed, selectedOrCursorFiles, modelMemo: modelMemo.current, setSelection, setSpeed, refreshScreen, stepSelectedFilesInDirection, stepProjectMarkerInDirection, playScriptOfCursorFile, boxMode: drawerState.boxMode, fileViewKeymap: drawerState.fileViewKeymap, openViewFile: drawerState.openViewFile, closeBox: drawerState.closeBox, toggleDiff: drawerState.toggleDiff, scrollDrawer: drawerState.scrollDrawer, stepCursorFileInDirection, consoleKeymap: drawerState.consoleKeymap, openConsole: drawerState.openConsole, reconstructCursorFile, moveCursorByPage });
 
     const rows = buildFileRowElements({ props, visibleFiles, rangeTop: range.top, selection, rulerRows, rowColumnWidths, getModelOfFile, getTimeOfFile });
     // const headerText = consentQuestion?.questionText ?? props.cacheStatusText ?? `marker ${marker.instant.toISOString()}`;

@@ -183,6 +183,8 @@ export enum StepAllReplayKind {
 export enum TuiCommand {
     MoveSelectionUp = "moveSelectionUp",
     MoveSelectionDown = "moveSelectionDown",
+    MoveSelectionPageUp = "moveSelectionPageUp",
+    MoveSelectionPageDown = "moveSelectionPageDown",
     ToggleSelection = "toggleSelection",
     ExtendSelection = "extendSelection",
     ResetSelectedStores = "resetSelectedStores",

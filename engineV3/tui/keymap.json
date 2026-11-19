@@ -40,6 +40,8 @@
         "keys": {
             "up": { "action": "moveSelectionUp", "key": "upArrow", "text": "up", "customColor": null },
             "down": { "action": "moveSelectionDown", "key": "downArrow", "text": "down", "customColor": null },
+            "shiftUp": { "action": "moveSelectionPageUp", "key": "upArrow", "shift": true, "text": "+shift: page", "customColor": null },
+            "shiftDown": { "action": "moveSelectionPageDown", "key": "downArrow", "shift": true, "text": "+shift: page", "customColor": null },
             "left": { "action": "stepSelectionTowardsNow", "key": "leftArrow", "text": "left", "customColor": null },
             "right": { "action": "stepSelectionTowardsEarliest", "key": "rightArrow", "text": "right", "customColor": null },
             "shiftLeft": { "action": "stepAllTowardsNow", "key": "leftArrow", "shift": true, "text": "shift-left", "customColor": null },

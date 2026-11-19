@@ -32,6 +32,8 @@ const DOWN_ARROW = "\x1b[B";
 const RIGHT_ARROW = "\x1b[C";
 const LEFT_ARROW = "\x1b[D";
 const SHIFT_RIGHT_ARROW = "\x1b[1;2C";
+const SHIFT_DOWN_ARROW = "\x1b[1;2B";
+const SHIFT_UP_ARROW = "\x1b[1;2A";
 const SHIFT_LEFT_ARROW = "\x1b[1;2D";
 const SHARED_INSTANT_GAP_DAYS = 10;
 
@@ -814,4 +816,24 @@ test("test_the_play_key_with_the_first_answer_yes_and_the_second_no_starts_the_p
     // Exactly one play was requested, for the cursor file.
     assert.equal(playRequests.length, 1);
     assert.equal(playRequests[0]!.file.value, harness.files[0]!.value);
+});
+
+test("test_shift_down_shows_the_next_page_of_rows_and_shift_up_shows_the_first_page_again", async (t) => {
+    // Scenario: 50 files, more than one page of rows; the first page starts at f00.
+    const harness = makeAppProps({});
+    const screen = startScreen(t, harness.props);
+    await settle();
+    const firstPageNames = screen.readFrameLines().filter((line) => /f\d\d\.txt/.test(line)).map((line) => /f\d\d\.txt/.exec(line)![0]);
+    assert.equal(firstPageNames[0], makeFileName(0));
+    // Shift-Down shows the next page: its rows are the next VISIBLE_FILE_ROW_COUNT files, and no row of the first page stays.
+    screen.stdin.write(SHIFT_DOWN_ARROW);
+    await settle();
+    const secondPageNames = screen.readFrameLines().filter((line) => /f\d\d\.txt/.test(line)).map((line) => /f\d\d\.txt/.exec(line)![0]);
+    assert.equal(secondPageNames[0], makeFileName(VISIBLE_FILE_ROW_COUNT));
+    assert.ok(secondPageNames.every((name) => !firstPageNames.slice(0, VISIBLE_FILE_ROW_COUNT).includes(name)), `second page: ${secondPageNames}`);
+    // Shift-Up shows the first page again.
+    screen.stdin.write(SHIFT_UP_ARROW);
+    await settle();
+    const backNames = screen.readFrameLines().filter((line) => /f\d\d\.txt/.test(line)).map((line) => /f\d\d\.txt/.exec(line)![0]);
+    assert.deepEqual(backNames, firstPageNames);
 });

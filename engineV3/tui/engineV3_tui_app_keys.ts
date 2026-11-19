@@ -33,6 +33,7 @@ export type AppKeyContext = {
     consoleKeymap: Keymap;
     openConsole: () => void;
     reconstructCursorFile: () => void;
+    moveCursorByPage: (direction: 1 | -1) => void;
 };
 
 function handleConsoleKey(context: AppKeyContext, input: string, key: Key): void {
@@ -82,6 +83,8 @@ export function useAppKeys(context: AppKeyContext): void {
             case TuiCommand.ReconstructUntilEarliest: return context.reconstructCursorFile();
             case TuiCommand.MoveSelectionUp: return context.setSelection(moveCursor(selection, props.files, -1));
             case TuiCommand.MoveSelectionDown: return context.setSelection(moveCursor(selection, props.files, 1));
+            case TuiCommand.MoveSelectionPageUp: return context.moveCursorByPage(-1);
+            case TuiCommand.MoveSelectionPageDown: return context.moveCursorByPage(1);
             case TuiCommand.ToggleSelection: return context.setSelection(toggleCursorFile(selection, props.files));
             case TuiCommand.ExtendSelection: return context.setSelection(extendSelectionToCursor(selection, props.files));
             case TuiCommand.SetEventSpeed: return context.setSpeed(JumpSpeed.Event);
