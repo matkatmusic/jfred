@@ -204,6 +204,21 @@ export enum TuiCommand {
     OpenLogFolder = "openLogFolder",
     ViewFileStepTowardsNow = "viewFileStepTowardsNow",
     ViewFileStepTowardsEarliest = "viewFileStepTowardsEarliest",
+    ToggleDiffView = "toggleDiffView",
+}
+
+// How one row of the side-by-side diff in the View File box compares its two sides.
+export enum DiffRowKind {
+    Same = "same",
+    Changed = "changed",
+    OnlyNewer = "onlyNewer",
+    OnlyMarker = "onlyMarker",
+}
+
+// The two sides of the side-by-side diff in the View File box.
+export enum DiffSideName {
+    Newer = "newer",
+    Marker = "marker",
 }
 
 // The box that is open between the info box and the hotkeys box; the keys act on that box.

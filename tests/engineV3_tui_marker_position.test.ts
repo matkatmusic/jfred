@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { MarkerDirection, JumpSpeed } from "../src/structures/vocabulary.ts";
 import { Path } from "../src/structures/domain.ts";
 import { FileEventType } from "../engineV3/engineV3_replay_reverse_events.ts";
-import { computeMarkedPosition, listEventInstants } from "../engineV3/tui/engineV3_tui_marker_position.ts";
+import { computeMarkedPosition, findNewerColumnTime, listEventInstants } from "../engineV3/tui/engineV3_tui_marker_position.ts";
 import type { ProjectEventEntry } from "../engineV3/tui/engineV3_tui_project_cache.ts";
 import { computeNextMarker, listEventsOfFile } from "../engineV3/tui/engineV3_tui_time_marker.ts";
 import { makeInstant } from "./engineV3_step_test_projects.ts";
@@ -98,4 +98,26 @@ test("test_a_time_newer_than_the_newest_event_but_not_now_marks_position_1", () 
 test("test_a_time_older_than_the_oldest_event_marks_the_last_position", () => {
     // second 5 is before the oldest event: the marked position is the event count, 3.
     assert.equal(computeMarkedPosition(EVENT_INSTANTS, makeInstant(5), NOW_INSTANT), 3);
+});
+
+test("test_the_newer_column_of_position_0_does_not_exist", () => {
+    // Scenario: the mark is at Now, the newest column.
+    // there is no newer column.
+    assert.equal(findNewerColumnTime(EVENT_INSTANTS, 0, NOW_INSTANT), undefined);
+});
+
+test("test_the_newer_column_of_position_1_is_now", () => {
+    // Scenario: the mark is on the newest event (second 30); the column to its left is [now].
+    // the newer column time is Now (second 40).
+    assert.deepEqual(findNewerColumnTime(EVENT_INSTANTS, 1, NOW_INSTANT), NOW_INSTANT);
+});
+
+test("test_the_newer_column_of_position_2_is_the_newest_event", () => {
+    // Scenario: the mark is on the second event (second 20); the column to its left is the newest event (second 30).
+    assert.deepEqual(findNewerColumnTime(EVENT_INSTANTS, 2, NOW_INSTANT), makeInstant(30));
+});
+
+test("test_the_newer_column_of_the_last_position_is_the_event_before_it", () => {
+    // Scenario: the mark is on the oldest event (second 10) at position 3; the column to its left is second 20.
+    assert.deepEqual(findNewerColumnTime(EVENT_INSTANTS, 3, NOW_INSTANT), makeInstant(20));
 });

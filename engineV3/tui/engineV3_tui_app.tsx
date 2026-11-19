@@ -9,6 +9,7 @@ import type { AppProps, FileTimes, SelectionState } from "./engineV3_tui_app_typ
 import { useAppKeys } from "./engineV3_tui_app_keys.ts";
 import { AppLayout } from "./engineV3_tui_app_layout.tsx";
 import { buildFileRowElements } from "./engineV3_tui_app_row_elements.tsx";
+import { getLoadingStatusText } from "./engineV3_tui_app_rows.ts";
 import { getMemoizedFileModel, stepProjectMarker, stepSelectedFiles, type FileModelMemo, type StepContext } from "./engineV3_tui_app_steps.ts";
 import { describeBarInfo } from "./engineV3_tui_bars.ts";
 import { chooseFileForPlayKey, getNextConsentQuestion } from "./engineV3_tui_consent.ts";
@@ -18,7 +19,7 @@ import { TUI_COLORS } from "./engineV3_tui_colors.ts";
 // import { countLinesBoxRows } from "./engineV3_tui_footer.tsx";
 import { useAppDrawer } from "./engineV3_tui_app_drawer.tsx";
 import { MarkerBox } from "./engineV3_tui_marker_box.tsx";
-import { computeMarkedPosition, listEventInstants } from "./engineV3_tui_marker_position.ts";
+import { computeMarkedPosition, findNewerColumnTime, listEventInstants } from "./engineV3_tui_marker_position.ts";
 import { useMarkerWindowStart } from "./engineV3_tui_marker_window.ts";
 // import { HOTKEYS_BOX_ROW_COUNT } from "./engineV3_tui_hotkeys_box.tsx";
 // import { KeyBox } from "./engineV3_tui_keymap.ts";
@@ -81,7 +82,8 @@ function LoadedApp(props: AppProps) {
     // const footerRowCount = countBoxRows(detailEntries, props.terminalColumns) + countBoxRows(keyEntries, props.terminalColumns) + LEGEND_ROW_COUNT;
     // const footerRowCount = countBoxRows(detailEntries, props.terminalColumns) + HOTKEYS_BOX_ROW_COUNT + LEGEND_ROW_COUNT;
     // const footerRowCount = countLinesBoxRows(infoLines) + MARKER_BOX_ROW_COUNT + HOTKEYS_BOX_ROW_COUNT + LEGEND_ROW_COUNT;
-    const drawerState = useAppDrawer({ props, cursorFile, fileTime: getTimeOfFile(cursorFile), nowTime: bounds.newest, speed, infoLines, markedPosition, eventCount: eventInstants.length });
+    const newerTime = findNewerColumnTime(eventInstants, markedPosition, bounds.newest);
+    const drawerState = useAppDrawer({ props, cursorFile, fileTime: getTimeOfFile(cursorFile), nowTime: bounds.newest, newerTime, speed, infoLines, markedPosition, eventCount: eventInstants.length });
     const footerRowCount = drawerState.footerRowCount;
     const longestNameLength = Math.max(...props.files.map((file) => getRelativePathInProject(props.projectFolder, file).length));
     const rowColumnWidths = computeRowColumnWidths(props.terminalColumns, longestNameLength);
@@ -127,13 +129,14 @@ function LoadedApp(props: AppProps) {
     };
     const refreshScreen = (): void => setRenderCount((renderCount) => renderCount + 1);
 
-    useAppKeys({ props, consentQuestion, selection, speed, selectedOrCursorFiles, modelMemo: modelMemo.current, setSelection, setSpeed, refreshScreen, stepSelectedFilesInDirection, stepProjectMarkerInDirection, playScriptOfCursorFile, boxMode: drawerState.boxMode, fileViewKeymap: drawerState.fileViewKeymap, openViewFile: drawerState.openViewFile, closeBox: drawerState.closeBox, scrollDrawer: drawerState.scrollDrawer, stepCursorFileInDirection, consoleKeymap: drawerState.consoleKeymap, openConsole: drawerState.openConsole, reconstructCursorFile });
+    useAppKeys({ props, consentQuestion, selection, speed, selectedOrCursorFiles, modelMemo: modelMemo.current, setSelection, setSpeed, refreshScreen, stepSelectedFilesInDirection, stepProjectMarkerInDirection, playScriptOfCursorFile, boxMode: drawerState.boxMode, fileViewKeymap: drawerState.fileViewKeymap, openViewFile: drawerState.openViewFile, closeBox: drawerState.closeBox, toggleDiff: drawerState.toggleDiff, scrollDrawer: drawerState.scrollDrawer, stepCursorFileInDirection, consoleKeymap: drawerState.consoleKeymap, openConsole: drawerState.openConsole, reconstructCursorFile });
 
     const rows = buildFileRowElements({ props, visibleFiles, rangeTop: range.top, selection, rulerRows, rowColumnWidths, getModelOfFile, getTimeOfFile });
     // const headerText = consentQuestion?.questionText ?? props.cacheStatusText ?? `marker ${marker.instant.toISOString()}`;
     const staleText = props.staleRepoCount > 0 ? `${props.staleRepoCount} repos are stale: press Shift-R` : undefined;
     // const headerText = consentQuestion?.questionText ?? staleText ?? props.cacheStatusText ?? `marker ${marker.instant.toISOString()}`;
-    const headerText = consentQuestion?.questionText ?? staleText ?? props.cacheStatusText ?? "";
+    // const headerText = consentQuestion?.questionText ?? staleText ?? props.cacheStatusText ?? "";
+    const headerText = consentQuestion?.questionText ?? staleText ?? props.cacheStatusText ?? getLoadingStatusText(props.walkState, props.files) ?? "";
     if (consentQuestion !== undefined) {
         const answerConsentQuestion = (answer: boolean): void => {
             props.onConsentAnswered(consentQuestion.answerKey, answer);

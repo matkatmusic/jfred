@@ -27,6 +27,7 @@ export type AppKeyContext = {
     fileViewKeymap: Keymap;
     openViewFile: () => void;
     closeBox: () => void;
+    toggleDiff: () => void;
     scrollDrawer: (lineCountDelta: number) => void;
     stepCursorFileInDirection: (direction: MarkerDirection) => void;
     consoleKeymap: Keymap;
@@ -48,6 +49,7 @@ function handleViewFileKey(context: AppKeyContext, input: string, key: Key): voi
         case TuiCommand.ScrollUp: return context.scrollDrawer(-1);
         case TuiCommand.ScrollDown: return context.scrollDrawer(1);
         case TuiCommand.CloseBox: return context.closeBox();
+        case TuiCommand.ToggleDiffView: return context.toggleDiff();
         case TuiCommand.ViewFileStepTowardsEarliest: return context.stepCursorFileInDirection(MarkerDirection.TowardsEarliest);
         case TuiCommand.ViewFileStepTowardsNow: return context.stepCursorFileInDirection(MarkerDirection.TowardsNow);
         case TuiCommand.ToggleDaySpeed: return context.setSpeed(toggleJumpSpeed(context.speed, JumpSpeed.Day));

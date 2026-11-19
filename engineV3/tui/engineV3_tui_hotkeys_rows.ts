@@ -37,7 +37,7 @@ export function buildHotKeyRows(keyBox: KeyBoxSettings, speed: JumpSpeed, disabl
 
 export function buildFileViewHotKeyRows(keyBox: KeyBoxSettings, disabledCommands: TuiCommand[]): HotKeyRow[] {
     return [
-        buildKeyRow(keyBox, "View file", [TuiCommand.ScrollUp, TuiCommand.ScrollDown, TuiCommand.CloseBox], disabledCommands),
+        buildKeyRow(keyBox, "View file", [TuiCommand.ScrollUp, TuiCommand.ScrollDown, TuiCommand.ToggleDiffView, TuiCommand.CloseBox], disabledCommands),
         buildKeyRow(keyBox, "Marker", [TuiCommand.ViewFileStepTowardsEarliest, TuiCommand.ViewFileStepTowardsNow, TuiCommand.ToggleDaySpeed, TuiCommand.ToggleWeekSpeed], disabledCommands),
     ];
 }

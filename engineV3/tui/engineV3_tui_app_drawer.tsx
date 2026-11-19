@@ -7,8 +7,10 @@ import { useViewFile } from "./engineV3_tui_app_view_file.ts";
 import type { AppProps } from "./engineV3_tui_app_types.ts";
 import { TUI_COLORS } from "./engineV3_tui_colors.ts";
 import { ConsoleBox, clampConsoleScrollTop } from "./engineV3_tui_console_box.tsx";
+import { DiffBox } from "./engineV3_tui_diff_box.tsx";
 import { computeDrawerLayout } from "./engineV3_tui_drawer_layout.ts";
 import type { FooterEntry } from "./engineV3_tui_footer.tsx";
+import { basename } from "node:path";
 import { FileViewBox } from "./engineV3_tui_file_view_box.tsx";
 import { HOTKEYS_BOX_ROW_COUNT, countHotKeysBoxRows } from "./engineV3_tui_hotkeys_box.tsx";
 import { buildConsoleHotKeyRows, buildFileViewHotKeyRows, buildHotKeyRows, type HotKeyRow } from "./engineV3_tui_hotkeys_rows.ts";
@@ -24,6 +26,7 @@ export type AppDrawerInput = {
     cursorFile: Path;
     fileTime: Date;
     nowTime: Date;
+    newerTime: Date | undefined;
     speed: JumpSpeed;
     infoLines: FooterEntry[][];
     markedPosition: number;
@@ -42,6 +45,7 @@ export type AppDrawerState = {
     openViewFile: () => void;
     openConsole: () => void;
     closeBox: () => void;
+    toggleDiff: () => void;
     scrollDrawer: (lineCountDelta: number) => void;
 };
 
@@ -74,7 +78,7 @@ export function useAppDrawer(input: AppDrawerInput): AppDrawerState {
     const { props, speed, infoLines } = input;
     const [boxMode, setBoxMode] = useState(AppBoxMode.Browse);
     const [consoleScrollTop, setConsoleScrollTop] = useState<number | undefined>(undefined);
-    const viewFile = useViewFile(props, input.cursorFile, input.fileTime, input.nowTime);
+    const viewFile = useViewFile(props, input.cursorFile, input.fileTime, input.nowTime, input.newerTime);
     const fileViewKeymap = useMemo(() => buildKeymapOfKeyBox(props.keyBoxes[KeyBox.FileView]), [props.keyBoxes]);
     const consoleKeymap = useMemo(() => buildKeymapOfKeyBox(props.keyBoxes[KeyBox.Console]), [props.keyBoxes]);
     const openViewFile = (): void => {
@@ -91,19 +95,22 @@ export function useAppDrawer(input: AppDrawerInput): AppDrawerState {
         viewFile.close();
         setBoxMode(AppBoxMode.Browse);
     };
-    const base = { boxMode, fileViewKeymap, consoleKeymap, openViewFile, openConsole, closeBox };
+    const base = { boxMode, fileViewKeymap, consoleKeymap, openViewFile, openConsole, closeBox, toggleDiff: viewFile.toggleDiff };
     if (boxMode === AppBoxMode.ViewFile) {
         const keyBox = props.keyBoxes[KeyBox.FileView];
         // const geometry = computeDrawerGeometry(props, infoLines, countHotKeysBoxRows(buildFileViewHotKeyRows(keyBox, [])));
         const geometry = computeDrawerGeometry(props, countHotKeysBoxRows(buildFileViewHotKeyRows(keyBox, [])));
-        const disabledCommands = listDisabledScrollCommands(viewFile.scrollTop, viewFile.lines.length, geometry.visibleLineCount);
+        const disabledCommands = listDisabledScrollCommands(viewFile.scrollTop, viewFile.scrollLineCount, geometry.visibleLineCount);
         if (input.markedPosition === input.eventCount) {
             disabledCommands.push(TuiCommand.ViewFileStepTowardsEarliest);
         }
         if (input.markedPosition === 0) {
             disabledCommands.push(TuiCommand.ViewFileStepTowardsNow);
         }
-        const drawer = <FileViewBox lines={viewFile.lines} scrollTop={viewFile.scrollTop} rowCount={geometry.drawerRowCount} columns={props.terminalColumns} lineNumberColor={TUI_COLORS.fileViewBox.lineNumberColor} textColor={TUI_COLORS.fileViewBox.textColor} emptyText={NO_TEXT_EMPTY_TEXT} />;
+        let drawer = <FileViewBox fileName={basename(input.cursorFile.toString())} lines={viewFile.lines} scrollTop={viewFile.scrollTop} rowCount={geometry.drawerRowCount} columns={props.terminalColumns} lineNumberColor={TUI_COLORS.fileViewBox.lineNumberColor} textColor={TUI_COLORS.fileViewBox.textColor} emptyText={viewFile.isDiff ? viewFile.diffView.emptyText : NO_TEXT_EMPTY_TEXT} />;
+        if (viewFile.diffView.lines.length > 0) {
+            drawer = <DiffBox lines={viewFile.diffView.lines} scrollTop={viewFile.scrollTop} rowCount={geometry.drawerRowCount} columns={props.terminalColumns} textColor={TUI_COLORS.diffBox.textColor} lineNumberColor={TUI_COLORS.diffBox.lineNumberColor} newerOnlyBackgroundColor={TUI_COLORS.diffBox.newerOnlyBackgroundColor} markerOnlyBackgroundColor={TUI_COLORS.diffBox.markerOnlyBackgroundColor} changedBackgroundColor={TUI_COLORS.diffBox.changedBackgroundColor} />;
+        }
         return { ...base, keyBox, hotKeyRows: buildFileViewHotKeyRows(keyBox, disabledCommands), drawer, rowsHeight: geometry.rowsHeight, footerRowCount: geometry.footerRowCount, scrollDrawer: (lineCountDelta) => viewFile.scroll(lineCountDelta, geometry.visibleLineCount) };
     }
     if (boxMode === AppBoxMode.Console) {

@@ -31,6 +31,7 @@
             "hljs-attr": "cyan"
         }
     },
+    "diffBox": { "textColor": "white", "lineNumberColor": "gray", "newerOnlyBackgroundColor": "#1f4d2b", "markerOnlyBackgroundColor": "#5a2424", "changedBackgroundColor": "#4d4a1f" },
     "consoleBox": { "summaryColor": "yellow", "rawColor": "white" },
     "globalHotKeysBox": {
         "defaultKeyColor": "#c0c0c0",
@@ -64,6 +65,7 @@
             "up": { "action": "scrollUp", "key": "upArrow", "text": "scroll up", "customColor": null },
             "down": { "action": "scrollDown", "key": "downArrow", "text": "scroll down", "customColor": null },
             "close": { "action": "closeBox", "input": "c", "text": "close", "customColor": null },
+            "diff": { "action": "toggleDiffView", "input": "f", "text": "diff", "customColor": null },
             "right": { "action": "viewFileStepTowardsEarliest", "key": "rightArrow", "text": "towards earlier", "customColor": null },
             "left": { "action": "viewFileStepTowardsNow", "key": "leftArrow", "text": "towards Now", "customColor": null },
             "day": { "action": "toggleDaySpeed", "input": "d", "text": "step by 1 day", "customColor": null },

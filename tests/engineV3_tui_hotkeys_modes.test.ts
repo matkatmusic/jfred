@@ -17,11 +17,11 @@ const { HotKeysBox } = await import("../engineV3/tui/engineV3_tui_hotkeys_box.ts
 const KEYMAP_FILE = new Path(join(import.meta.dirname, "..", "engineV3", "tui", "keymap.json"));
 const DIM_START = "\x1b[2m";
 
-test("test_the_file_view_rows_name_only_the_seven_file_view_keys", () => {
+test("test_the_file_view_rows_name_only_the_eight_file_view_keys", () => {
     // Scenario: the rows of the file view box.
     const rows = buildFileViewHotKeyRows(loadKeyBox(KEYMAP_FILE, KeyBox.FileView), []);
-    // two rows hold the scroll keys and close, then the marker keys.
-    assert.equal(formatHotKeyRowText(rows[0]!), "View file: Up: scroll up, Down: scroll down, c: close");
+    // two rows hold the scroll keys, diff and close, then the marker keys.
+    assert.equal(formatHotKeyRowText(rows[0]!), "View file: Up: scroll up, Down: scroll down, f: diff, c: close");
     assert.equal(formatHotKeyRowText(rows[1]!), "Marker: Right: towards earlier, Left: towards Now, d: step by 1 day, w: step by 1 week");
     assert.equal(rows.length, 2);
 });

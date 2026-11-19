@@ -25,3 +25,14 @@ export function computeMarkedPosition(eventInstants: Date[], time: Date, nowTime
     }
     return eventInstants.length;
 }
+
+// The time of the column to the left of the marked column: position 1 sits right of [now], and Now has no column to its left.
+export function findNewerColumnTime(eventInstants: Date[], markedPosition: number, nowTime: Date): Date | undefined {
+    if (markedPosition === 0) {
+        return undefined;
+    }
+    if (markedPosition === 1) {
+        return nowTime;
+    }
+    return eventInstants[markedPosition - 2];
+}
