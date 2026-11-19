@@ -28,7 +28,7 @@ test("test_the_navigation_row_names_the_eight_navigation_keys_with_what_each_doe
     // Scenario: event speed.
     const rows = buildHotKeyRows(loadKeyBox(KEYMAP_FILE, KeyBox.Global), JumpSpeed.Event);
     // the first row is the Navigation row with the exact text.
-    assert.equal(formatHotKeyRowText(rows[0]!), "Navigation: Up: prev row  Down: next row  Shift+Up: prev page  Shift+Down: next page  Left: toward newer  Right: toward older  Shift+Left: all toward newer  Shift+Right: all toward older");
+    assert.equal(formatHotKeyRowText(rows[0]!), "Navigation: Up: prev row  Down: next row  Option+Up: prev page  Option+Down: next page  Left: toward newer  Right: toward older  Shift+Left: all toward newer  Shift+Right: all toward older");
 });
 
 test("test_the_selection_row_has_the_four_selection_keys", () => {
@@ -50,15 +50,15 @@ test("test_the_actions_row_ends_with_the_play_script_key", () => {
     assert.equal(formatHotKeyRowText(rows[3]!), "Actions: v: View file  g: reconstruct file until Earliest  c: engine console  p: play script");
 });
 
-test("test_day_speed_adds_a_warning_to_the_navigation_row_and_event_speed_does_not", () => {
-    // Scenario: the rows at day speed and at event speed.
+test("test_the_navigation_row_has_no_warning_at_any_speed", () => {
+    // Scenario: the rows at event, day and week speed.
     const keyBox = loadKeyBox(KEYMAP_FILE, KeyBox.Global);
-    // at event speed there is no warning.
-    assert.equal(buildHotKeyRows(keyBox, JumpSpeed.Event)[0]!.warningText, undefined);
-    // at day speed the warning names the marker box.
-    assert.match(buildHotKeyRows(keyBox, JumpSpeed.Day)[0]!.warningText!, /marker box/);
-    // the whole Navigation row text ends with the whole warning.
-    assert.match(formatHotKeyRowText(buildHotKeyRows(keyBox, JumpSpeed.Day)[0]!), /Shift\+Right: all toward older  ! left\/right: not in marker box$/);
+    for (const speed of [JumpSpeed.Event, JumpSpeed.Day, JumpSpeed.Week]) {
+        // the Navigation row has no warning text.
+        assert.equal(buildHotKeyRows(keyBox, speed)[0]!.warningText, undefined);
+        // the Navigation row text ends with the last key.
+        assert.match(formatHotKeyRowText(buildHotKeyRows(keyBox, speed)[0]!), /Shift\+Right: all toward older$/);
+    }
 });
 
 test("test_a_key_label_has_the_default_key_color_and_a_custom_color_replaces_it", () => {

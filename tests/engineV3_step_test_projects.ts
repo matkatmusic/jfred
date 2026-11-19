@@ -6,6 +6,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Path } from "../src/structures/domain.ts";
+import { buildProjectCache, writeProjectCache } from "../engineV3/tui/engineV3_tui_project_cache.ts";
 import { SESSION_A } from "./multi-source-test-helpers.ts";
 
 export const PROJECT_FILE_NAME = "a.txt";
@@ -91,6 +92,14 @@ export function writeProject(t: TestContext, diskText: string, makeRows: (projec
     writeFileSync(filePath, diskText);
     writeSessionLog(folders, makeRows(folders.projectFolder.toString(), filePath));
     return { ...folders, file: new Path(filePath) };
+}
+
+// The project cache file of a project, written as the terminal UI writes it: a step child reads its file list from it.
+export function writeProjectCacheOfProject(project: ProjectFolders): Path {
+    const cacheFile = new Path(join(project.rootFolder, "project-cache.json"));
+    const cache = buildProjectCache({ projectFolder: project.projectFolder, jsonlsFolders: [project.jsonlsFolder], fileHistoryFolders: [project.snapshotFolder], storeFolder: project.storeFolder, earliestBoundary: undefined });
+    writeProjectCache(cacheFile, cache);
+    return cacheFile;
 }
 
 // Like writeProject, with one file on disk for each name of the map.

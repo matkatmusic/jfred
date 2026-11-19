@@ -18,7 +18,7 @@ import { createStepPool } from "../engineV3/tui/engineV3_tui_pool.ts";
 import { createSpawnStepProcess } from "../engineV3/tui/engineV3_tui_step_process.ts";
 import { createWalkState, getFileRunState, setFileRunState, type FileRunState, type WalkState } from "../engineV3/tui/engineV3_tui_walk_state.ts";
 import type { HistoryWalker, HistoryWalkerOptions, PlayOutcome, SpawnSettings, StepPool, StepProcessOutcome, StepRequest } from "../engineV3/tui/engineV3_tui_walk_types.ts";
-import { PROJECT_FILE_NAME, makeInstant, makeWriteCreateRows, writeProject } from "./engineV3_step_test_projects.ts";
+import { PROJECT_FILE_NAME, makeInstant, makeWriteCreateRows, writeProject, writeProjectCacheOfProject } from "./engineV3_step_test_projects.ts";
 
 const JFRED_FOLDER = new Path(join(import.meta.dirname, ".."));
 const REAL_PROCESS_TIMEOUT_MILLISECONDS = 110000;
@@ -735,6 +735,7 @@ test("test_a_file_born_after_the_time_is_finished_spans_the_time_and_is_not_resp
         jsonlsFolders: [project.jsonlsFolder],
         fileHistoryFolders: [project.snapshotFolder],
         storeFolder: project.storeFolder,
+        projectCacheFile: writeProjectCacheOfProject(project),
         earliestBoundary: undefined,
         jfredFolder: JFRED_FOLDER,
     };

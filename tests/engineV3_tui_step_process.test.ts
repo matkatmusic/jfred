@@ -9,7 +9,7 @@ import { Path } from "../src/structures/domain.ts";
 import { InverseStepOutcome, StepProcessOutcomeKind } from "../src/structures/vocabulary.ts";
 import { createSpawnStepProcess, listLiveChildProcessIds, runStepChild } from "../engineV3/tui/engineV3_tui_step_process.ts";
 import type { SpawnSettings, StepProcessOutcome } from "../engineV3/tui/engineV3_tui_walk_types.ts";
-import { PROJECT_FILE_NAME, makeEditRows, makeInstant, writeProject, type Project } from "./engineV3_step_test_projects.ts";
+import { PROJECT_FILE_NAME, makeEditRows, makeInstant, writeProject, writeProjectCacheOfProject, type Project } from "./engineV3_step_test_projects.ts";
 
 const JFRED_FOLDER = new Path(join(import.meta.dirname, ".."));
 const LIVE_CHILD_POLL_MILLISECONDS = 50;
@@ -29,6 +29,7 @@ function buildSettingsForProject(project: Project): SpawnSettings {
         jsonlsFolders: [project.jsonlsFolder],
         fileHistoryFolders: [project.snapshotFolder],
         storeFolder: project.storeFolder,
+        projectCacheFile: writeProjectCacheOfProject(project),
         earliestBoundary: undefined,
         jfredFolder: JFRED_FOLDER,
     };
@@ -85,6 +86,7 @@ test("test_spawnStepProcess_returns_crashed_for_a_bad_project_folder", async (t)
         jsonlsFolders: [new Path(join(rootFolder.toString(), "jsonls"))],
         fileHistoryFolders: [new Path(join(rootFolder.toString(), "file-history"))],
         storeFolder: new Path(join(rootFolder.toString(), "store")),
+        projectCacheFile: new Path(join(rootFolder.toString(), "project-cache.json")),
         earliestBoundary: undefined,
         jfredFolder: JFRED_FOLDER,
     };

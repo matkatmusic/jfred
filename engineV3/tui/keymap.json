@@ -40,8 +40,8 @@
         "keys": {
             "up": { "action": "moveSelectionUp", "key": "upArrow", "text": "Up: prev row", "customColor": null },
             "down": { "action": "moveSelectionDown", "key": "downArrow", "text": "Down: next row", "customColor": null },
-            "shiftUp": { "action": "moveSelectionPageUp", "key": "upArrow", "shift": true, "text": "Shift+Up: prev page", "customColor": null },
-            "shiftDown": { "action": "moveSelectionPageDown", "key": "downArrow", "shift": true, "text": "Shift+Down: next page", "customColor": null },
+            "optionUp": { "action": "moveSelectionPageUp", "key": "upArrow", "meta": true, "text": "Option+Up: prev page", "customColor": null },
+            "optionDown": { "action": "moveSelectionPageDown", "key": "downArrow", "meta": true, "text": "Option+Down: next page", "customColor": null },
             "left": { "action": "stepSelectionTowardsNow", "key": "leftArrow", "text": "Left: toward newer", "customColor": null },
             "right": { "action": "stepSelectionTowardsEarliest", "key": "rightArrow", "text": "Right: toward older", "customColor": null },
             "shiftLeft": { "action": "stepAllTowardsNow", "key": "leftArrow", "shift": true, "text": "Shift+Left: all toward newer", "customColor": null },

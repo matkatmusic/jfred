@@ -4,9 +4,11 @@ import { readFileSync } from "node:fs";
 import type { Key } from "ink";
 import type { Path } from "../../src/structures/domain.ts";
 import { TuiCommand } from "../../src/structures/vocabulary.ts";
+import { KEY_DISPLAY_NAMES } from "./engineV3_tui_key_display_names.ts";
 
 export const INK_KEY_NAMES = ["upArrow", "downArrow", "leftArrow", "rightArrow", "pageDown", "pageUp", "home", "end", "return", "escape", "tab", "backspace", "delete"] as const;
-export type KeyBinding = { input?: string; key?: (typeof INK_KEY_NAMES)[number]; shift?: boolean };
+// meta is the Option key on a Mac.
+export type KeyBinding = { input?: string; key?: (typeof INK_KEY_NAMES)[number]; shift?: boolean; meta?: boolean };
 export type Keymap = Map<TuiCommand, KeyBinding>;
 
 // The name of a box in keymap.json that has keys.
@@ -17,22 +19,6 @@ export enum KeyBox {
 }
 export type KeyEntry = KeyBinding & { action: TuiCommand; text: string; customColor: string | null };
 export type KeyBoxSettings = { defaultKeyColor: string; defaultLabelColor: string; borderColor: string; keys: Record<string, KeyEntry> };
-
-const KEY_DISPLAY_NAMES: Record<(typeof INK_KEY_NAMES)[number], string> = {
-    upArrow: "Up",
-    downArrow: "Down",
-    leftArrow: "Left",
-    rightArrow: "Right",
-    pageDown: "PageDown",
-    pageUp: "PageUp",
-    home: "Home",
-    end: "End",
-    return: "Enter",
-    escape: "Esc",
-    tab: "Tab",
-    backspace: "Backspace",
-    delete: "Delete",
-};
 
 function validateKeyBinding(commandName: string, binding: KeyBinding): void {
     const hasInput = binding.input !== undefined;
@@ -53,7 +39,8 @@ function validateKeyBinding(commandName: string, binding: KeyBinding): void {
 }
 
 function buildBindingSignature(binding: KeyBinding): string {
-    return JSON.stringify([binding.input ?? null, binding.key ?? null, binding.shift ?? false]);
+    // return JSON.stringify([binding.input ?? null, binding.key ?? null, binding.shift ?? false]);
+    return JSON.stringify([binding.input ?? null, binding.key ?? null, binding.shift ?? false, binding.meta ?? false]);
 }
 
 // The same binding may repeat in two boxes, never inside one box.
@@ -90,6 +77,9 @@ function buildBindingOfEntry(entry: KeyEntry): KeyBinding {
     }
     if (entry.shift !== undefined) {
         binding.shift = entry.shift;
+    }
+    if (entry.meta !== undefined) {
+        binding.meta = entry.meta;
     }
     return binding;
 }
@@ -128,7 +118,9 @@ export function findCommandForKey(keymap: Keymap, input: string, key: Key): TuiC
         if (binding.key !== undefined) {
             if (key[binding.key] === true) {
                 if (key.shift === (binding.shift ?? false)) {
-                    return command;
+                    if (key.meta === (binding.meta ?? false)) {
+                        return command;
+                    }
                 }
             }
         }
@@ -143,6 +135,9 @@ export function formatKeyBinding(binding: KeyBinding): string {
     const keyDisplayName = KEY_DISPLAY_NAMES[binding.key];
     if (binding.shift === true) {
         return `Shift-${keyDisplayName}`;
+    }
+    if (binding.meta === true) {
+        return `Option-${keyDisplayName}`;
     }
     return keyDisplayName;
 }

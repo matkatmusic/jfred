@@ -1,4 +1,4 @@
-// Shift+Up and Shift+Down move the cursor and the first visible row by one page.
+// Option+Up and Option+Down move the cursor and the first visible row by one page.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Key } from "ink";
@@ -40,12 +40,12 @@ test("test_a_page_up_near_the_first_row_stops_at_the_first_row", () => {
     assert.deepEqual(move, { cursorIndex: 0, top: 0 });
 });
 
-test("test_shift_up_and_shift_down_are_the_page_commands_and_plain_up_and_down_stay_single_row", () => {
+test("test_option_up_and_option_down_are_the_page_commands_and_plain_up_and_down_stay_single_row", () => {
     // Scenario: the keymap file is loaded.
     const keymap = loadKeymap(KEYMAP_FILE);
-    // shift with the arrows picks the page commands.
-    assert.equal(findCommandForKey(keymap, "", makeKey({ upArrow: true, shift: true })), TuiCommand.MoveSelectionPageUp);
-    assert.equal(findCommandForKey(keymap, "", makeKey({ downArrow: true, shift: true })), TuiCommand.MoveSelectionPageDown);
+    // option (Ink reports it as meta) with the arrows picks the page commands.
+    assert.equal(findCommandForKey(keymap, "", makeKey({ upArrow: true, meta: true })), TuiCommand.MoveSelectionPageUp);
+    assert.equal(findCommandForKey(keymap, "", makeKey({ downArrow: true, meta: true })), TuiCommand.MoveSelectionPageDown);
     // the arrows alone still move one row.
     assert.equal(findCommandForKey(keymap, "", makeKey({ upArrow: true })), TuiCommand.MoveSelectionUp);
     assert.equal(findCommandForKey(keymap, "", makeKey({ downArrow: true })), TuiCommand.MoveSelectionDown);

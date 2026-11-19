@@ -17,7 +17,7 @@ export type FileEventCounts = Record<FileEventType, number>;
 export type ProjectCache = { inputsHash: string; projectFiles: Path[]; replayFiles: Path[]; transcriptsToParse: Path[]; events: ProjectEventEntry[]; countsByFile: Map<string, FileEventCounts>; scriptCounts: { mayWrite: number; readOnly: number } };
 export type FileProgress = { file: Path; current: number; total: number };
 
-type ProjectCacheJson = {
+export type ProjectCacheJson = {
     inputsHash: string;
     projectFiles: string[];
     replayFiles: string[];

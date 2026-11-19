@@ -32,6 +32,7 @@ import { assertStoreHasNoFullBuildRepos, resetStoreFolder } from "./engineV3_ste
 // import { applyEarliestBoundaryToEvents, readFileTextAtBoundary, type EarliestBoundary } from "./engineV3_earliest_boundary.ts";
 import { applyEarliestBoundaryToEvents, readEarliestBoundary, readFileTextAtBoundary, type EarliestBoundary } from "./engineV3_earliest_boundary.ts";
 import { buildReplayGapsSidecar, isReplayGapsSidecarPresent, writeReplayGapsSidecar } from "./engineV3_script_replay_gaps.ts";
+import type { ProjectCacheJson } from "./tui/engineV3_tui_project_cache.ts";
 
 export type FileInverseRepoResult = { file: Path; repoFolder: Path; eventCount: number; stateCount: number; commitCount: number; unknownStateCount: number; wasReused: boolean };
 
@@ -408,6 +409,7 @@ if (isCliRun) {
     const startAtFlag = extractValueFlag(resultsFlag.rest, "--startAt");
     const repoFlag = extractValueFlag(startAtFlag.rest, "--repo");
     const commitFlag = extractValueFlag(repoFlag.rest, "--commit");
+    const projectCacheFlag = extractValueFlag(commitFlag.rest, "--project-cache");
     const isPassingStops = commitFlag.rest.includes("--pass-stops");
     const isNotWalkingOtherFiles = commitFlag.rest.includes("--no-walk-other-files");
     if (isNotWalkingOtherFiles) {
@@ -465,7 +467,8 @@ if (isCliRun) {
     // const argumentsWithoutStepFlags = resultsFlag.rest.filter((argument) => argument !== "--from-now" && argument !== "--step-all");
     // const argumentsWithoutStepFlags = resultsFlag.rest.filter((argument) => argument !== "--from-now" && argument !== "--step-all" && argument !== "--resetStore");
     // const argumentsWithoutStepFlags = commitFlag.rest.filter((argument) => argument !== "--from-now" && argument !== "--step-all" && argument !== "--resetStore" && argument !== "--pass-stops");
-    const argumentsWithoutStepFlags = commitFlag.rest.filter((argument) => argument !== "--from-now" && argument !== "--step-all" && argument !== "--resetStore" && argument !== "--pass-stops" && argument !== "--no-walk-other-files");
+    // const argumentsWithoutStepFlags = commitFlag.rest.filter((argument) => argument !== "--from-now" && argument !== "--step-all" && argument !== "--resetStore" && argument !== "--pass-stops" && argument !== "--no-walk-other-files");
+    const argumentsWithoutStepFlags = projectCacheFlag.rest.filter((argument) => argument !== "--from-now" && argument !== "--step-all" && argument !== "--resetStore" && argument !== "--pass-stops" && argument !== "--no-walk-other-files");
     // const settings = readInverseReposSettingsFromArguments(process.argv.slice(2));
     const settings = readInverseReposSettingsFromArguments(argumentsWithoutStepFlags);
     if (isResetStore) {
@@ -476,11 +479,21 @@ if (isCliRun) {
     // const projectFiles = files.map((file) => ({ file, transcriptFile: file }));
     // const { listProjectFilesOnDiskAndInLogs } = await import("./engineV3_inverse_repos_project_files.ts");
     // const projectFiles = listProjectFilesOnDiskAndInLogs(settings.projectFolder, [settings.jsonlsFolder]);
-    const { listLayeredSearchProjectFiles, getRepoFolderOfProject } = await import("./layeredSearch/layeredSearch_project_files.ts");
-    const repoFolder = getRepoFolderOfProject(settings.projectFolder);
-    // The terminal bars sink is created after this call, so the progress callback does nothing.
-    // const { projectFiles, transcriptsToParse } = listLayeredSearchProjectFiles(settings.projectFolder, repoFolder, [settings.jsonlsFolder], false, () => {});
-    const { projectFiles, transcriptsToParse } = listLayeredSearchProjectFiles(settings.projectFolder, repoFolder, settings.jsonlsFolders, false, () => {});
+    // The terminal UI passes its project cache, so a step child does not search every log again for the file list.
+    let projectFiles: ProjectFile[];
+    let transcriptsToParse: Path[];
+    if (projectCacheFlag.value === undefined) {
+        const { listLayeredSearchProjectFiles, getRepoFolderOfProject } = await import("./layeredSearch/layeredSearch_project_files.ts");
+        const repoFolder = getRepoFolderOfProject(settings.projectFolder);
+        // The terminal bars sink is created after this call, so the progress callback does nothing.
+        // const { projectFiles, transcriptsToParse } = listLayeredSearchProjectFiles(settings.projectFolder, repoFolder, [settings.jsonlsFolder], false, () => {});
+        ({ projectFiles, transcriptsToParse } = listLayeredSearchProjectFiles(settings.projectFolder, repoFolder, settings.jsonlsFolders, false, () => {}));
+    } else {
+        // The cache module imports this module, so it cannot be imported here: this module is still running.
+        const projectCacheJson = JSON.parse(readFileSync(resolve(projectCacheFlag.value), "utf8")) as Pick<ProjectCacheJson, "projectFiles" | "transcriptsToParse">;
+        projectFiles = projectCacheJson.projectFiles.map((fileText) => ({ file: new Path(fileText), transcriptFile: new Path(fileText) }));
+        transcriptsToParse = projectCacheJson.transcriptsToParse.map((transcriptText) => new Path(transcriptText));
+    }
     if (isStepAll) {
         // await walkAllFilesInStepMode({ projectFolder: settings.projectFolder, jsonlsFolder: settings.jsonlsFolder, fileHistoryFolder: settings.fileHistoryFolder, storeFolder: settings.storeFolder, projectFiles, transcriptsToParse, resultsFile: new Path(resultsFlag.value!) });
         await walkAllFilesInStepMode({ projectFolder: settings.projectFolder, jsonlsFolders: settings.jsonlsFolders, fileHistoryFolders: settings.fileHistoryFolders, storeFolder: settings.storeFolder, projectFiles, transcriptsToParse, resultsFile: new Path(resultsFlag.value!) });

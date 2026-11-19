@@ -14,6 +14,7 @@ import { runAutoWalk } from "./engineV3_tui_auto.ts";
 import { createConsentGate, decideScriptAction, type ConsentAnswers } from "./engineV3_tui_consent.ts";
 import { createEngineLog, getEngineLogFile, openFolderOfLogFile } from "./engineV3_tui_engine_log.ts";
 import { formatKeyBinding } from "./engineV3_tui_keymap.ts";
+import { getProjectCacheFile } from "./engineV3_tui_project_cache.ts";
 import { createStepPool } from "./engineV3_tui_pool.ts";
 // import { acquireTuiLock, prepareTuiStore, readTuiSettings } from "./engineV3_tui_settings.ts";
 import { acquireTuiLock, readTuiSettings } from "./engineV3_tui_settings.ts";
@@ -49,7 +50,8 @@ async function main(): Promise<void> {
     // const engineLogFile = getEngineLogFile(storeFolder);
     // const engineLog = createEngineLog(engineLogFile);
     // const spawnSettings = { projectFolder, jsonlsFolders: settings.jsonlsFolders, fileHistoryFolders: settings.fileHistoryFolders, storeFolder, earliestBoundary, jfredFolder };
-    const spawnSettings = { projectFolder, jsonlsFolders: settings.jsonlsFolders, fileHistoryFolders: settings.fileHistoryFolders, storeFolder, earliestBoundary, jfredFolder, engineLog };
+    // const spawnSettings = { projectFolder, jsonlsFolders: settings.jsonlsFolders, fileHistoryFolders: settings.fileHistoryFolders, storeFolder, earliestBoundary, jfredFolder, engineLog };
+    const spawnSettings = { projectFolder, jsonlsFolders: settings.jsonlsFolders, fileHistoryFolders: settings.fileHistoryFolders, storeFolder, projectCacheFile: getProjectCacheFile(storeFolder), earliestBoundary, jfredFolder, engineLog };
     const walkState = createWalkState();
     const { handleStatusChange, clearRunStateOfFile, subscribeToStatusChanges } = createStatusChangeWiring(walkState);
     const consentAnswers: ConsentAnswers = { runScripts: undefined, runModifyingScriptsAutomatically: undefined };

@@ -29,6 +29,7 @@ export type SpawnSettings = {
     jsonlsFolders: Path[];
     fileHistoryFolders: Path[];
     storeFolder: Path;
+    projectCacheFile: Path;   // the child reads the project file list from it, so it does not search every log again
     earliestBoundary: EarliestBoundary | undefined;
     jfredFolder: Path;
     engineLog?: EngineLog;   // every output line of the child goes to it

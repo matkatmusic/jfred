@@ -4,8 +4,7 @@ import { spawn } from "node:child_process";
 import type { Path } from "../../src/structures/domain.ts";
 import { getRelativePathInProject } from "../engineV3_inverse_repos_for_project.ts";
 import { createLogForwarder, getRelativeLogPath, type EngineLog } from "./engineV3_tui_engine_log.ts";
-import { ensureExitHandlerIsRegistered, liveChildren, type LiveChild } from "./engineV3_tui_live_children.ts";
-import { computePlayOutcome, computeStepOutcome, type ChildResult } from "./engineV3_tui_step_outcome.ts";
+import { ensureExitHandlerIsRegistered, liveChildren, type LiveChild } from "./engineV3_tui_live_children.ts";import { computePlayOutcome, computeStepOutcome, type ChildResult } from "./engineV3_tui_step_outcome.ts";
 import type { PlayOutcome, PlayRequest, SpawnPlayProcess, SpawnSettings, SpawnStepProcess, StepProcessOutcome, StepRequest } from "./engineV3_tui_walk_types.ts";
 
 const STANDARD_ERROR_TAIL_LINE_COUNT = 20;
@@ -62,7 +61,7 @@ function spawnChildProcess(command: string, args: string[], workingFolder: Path,
 }
 
 function buildChildArguments(settings: SpawnSettings, file: Path, modeArguments: string[]): string[] {
-    const childArguments = ["--import", "tsx", "engineV3/engineV3_inverse_repos_for_project.ts", "--project", settings.projectFolder.toString(), "--jsonls", settings.jsonlsFolders.join(","), "--file-history", settings.fileHistoryFolders.join(","), "--store", settings.storeFolder.toString(), "--step", getRelativePathInProject(settings.projectFolder, file), ...modeArguments];
+    const childArguments = ["--import", "tsx", "engineV3/engineV3_inverse_repos_for_project.ts", "--project", settings.projectFolder.toString(), "--jsonls", settings.jsonlsFolders.join(","), "--file-history", settings.fileHistoryFolders.join(","), "--store", settings.storeFolder.toString(), "--step", getRelativePathInProject(settings.projectFolder, file), "--project-cache", settings.projectCacheFile.toString(), ...modeArguments];
     if (settings.earliestBoundary !== undefined) {
         childArguments.push("--repo", settings.earliestBoundary.repoFolder.toString(), "--commit", settings.earliestBoundary.commit.toString());
     }

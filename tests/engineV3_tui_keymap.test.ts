@@ -135,6 +135,11 @@ test("test_findCommandForKey_finds_the_day_and_week_speed_commands", () => {
     assert.equal(findCommandForKey(keymap, "w", makeKey({})), TuiCommand.ToggleWeekSpeed);
 });
 
+test("test_formatKeyBinding_shows_option_up", () => {
+    // The Option-Up binding shows as "Option-Up".
+    assert.equal(formatKeyBinding({ key: "upArrow", meta: true }), "Option-Up");
+});
+
 test("test_formatKeyBinding_shows_shift_left", () => {
     // The Shift-Left binding shows as "Shift-Left".
     assert.equal(formatKeyBinding({ key: "leftArrow", shift: true }), "Shift-Left");
