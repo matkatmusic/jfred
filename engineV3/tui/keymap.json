@@ -31,7 +31,7 @@
             "hljs-attr": "cyan"
         }
     },
-    "diffBox": { "textColor": "white", "lineNumberColor": "gray", "newerOnlyBackgroundColor": "#1f4d2b", "markerOnlyBackgroundColor": "#5a2424", "changedBackgroundColor": "#4d4a1f" },
+    "diffBox": { "textColor": "white", "lineNumberColor": "gray", "newerOnlyBackgroundColor": "#005f00", "markerOnlyBackgroundColor": "#5f0000", "changedBackgroundColor": "#5f5f00" },
     "consoleBox": { "summaryColor": "yellow", "rawColor": "white" },
     "globalHotKeysBox": {
         "defaultKeyColor": "#c0c0c0",
@@ -44,8 +44,6 @@
             "optionDown": { "action": "moveSelectionPageDown", "key": "downArrow", "meta": true, "text": "next page", "customColor": null },
             "left": { "action": "stepSelectionTowardsNow", "key": "leftArrow", "text": "selected row towards newer", "customColor": null },
             "right": { "action": "stepSelectionTowardsEarliest", "key": "rightArrow", "text": "selected row towards older", "customColor": null },
-            "shiftLeft": { "action": "stepAllTowardsNow", "key": "leftArrow", "shift": true, "text": "step all rows towards newer", "customColor": null },
-            "shiftRight": { "action": "stepAllTowardsEarliest", "key": "rightArrow", "shift": true, "text": "step all rows towards older", "customColor": null },
             "select": { "action": "toggleSelection", "input": "s", "text": "(de)select", "customColor": null },
             "selectMultiple": { "action": "extendSelection", "input": "S", "text": "select multiple", "customColor": null },
             "resetSelected": { "action": "resetSelectedStores", "input": "r", "text": "reset selected store", "customColor": null },

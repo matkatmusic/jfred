@@ -23,7 +23,21 @@ test("test_the_file_row_explains_born_removed_and_moved_away", () => {
     // Scenario: build the legend lines.
     const fileRow = buildBarLegendLines()[1]!;
     // After the row name come the three file marks and their short meaning.
-    assert.deepEqual(fileRow.slice(1), [{ label: "+", value: "born" }, { label: "-", value: "removed" }, { label: "←", value: "moved away" }]);
+    assert.deepEqual(fileRow.slice(1, 4), [{ label: "+", value: "born" }, { label: "-", value: "removed" }, { label: "←", value: "moved away" }]);
+});
+
+test("test_the_file_row_explains_the_walk_marks_left_of_the_bars", () => {
+    // Scenario: build the legend lines.
+    const fileRow = buildBarLegendLines()[1]!;
+    // After the three file marks come the four walk marks of ROW_MARKS: walked, stopped, crashed, walking.
+    assert.deepEqual(fileRow.slice(4), [{ label: "✔", value: "walked" }, { label: "!", value: "stopped" }, { label: "x", value: "crashed" }, { label: "⠿", value: "walking" }]);
+});
+
+test("test_the_legend_box_with_the_walk_marks_still_has_3_text_rows_at_100_columns", () => {
+    // Scenario: render the legend box on the 100 column screen of the app tests.
+    const frame = render(createElement(LegendBox, { lines: buildBarLegendLines(), columns: 100 })).lastFrame()!;
+    // The frame has 5 rows: no line wraps.
+    assert.equal(frame.split("\n").length, 5);
 });
 
 test("test_the_bar_row_explains_lifetime_marker_undone_and_confidence", () => {

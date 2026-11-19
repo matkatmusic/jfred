@@ -8,11 +8,13 @@ import type { DiffDisplayLine } from "../engineV3/tui/engineV3_tui_diff_display.
 // Dynamic imports: chalk reads FORCE_COLOR when it loads, so Ink must load after the line above.
 const { render } = await import("ink-testing-library");
 const { DiffBox } = await import("../engineV3/tui/engineV3_tui_diff_box.tsx");
+const { TUI_COLORS } = await import("../engineV3/tui/engineV3_tui_colors.ts");
 
 const GREEN_BACKGROUND_START = "\x1b[42m";
 const RED_BACKGROUND_START = "\x1b[41m";
 const YELLOW_BACKGROUND_START = "\x1b[43m";
 const CYAN_TEXT_START = "\x1b[36m";
+const WHITE_TEXT_START = "\x1b[37m";
 const ANSI_PATTERN = /\x1b\[[0-9;]*m/g;
 
 function drawBox(lines: DiffDisplayLine[], scrollTop: number, rowCount: number, columns: number): string {
@@ -83,6 +85,26 @@ test("test_a_piece_with_a_token_color_keeps_that_color", () => {
     const frame = drawBox([makeLine(DiffRowKind.Same, "token", "token", 1, 1, "cyan")], 0, 8, 40);
     // the token text starts with the cyan color.
     assert.ok(frame.includes(`${CYAN_TEXT_START}token`));
+});
+
+test("test_a_token_color_is_replaced_by_the_text_color_on_a_row_with_a_background", () => {
+    // Scenario: a changed row whose newer text has a cyan token; the text color is white.
+    const frame = drawBox([makeLine(DiffRowKind.Changed, "token", "token", 1, 1, "cyan")], 0, 8, 40);
+    // the token is drawn in white and not in cyan, so it stays readable on the background.
+    assert.ok(frame.includes(`${WHITE_TEXT_START}token`));
+    assert.ok(!frame.includes(`${CYAN_TEXT_START}token`));
+});
+
+test("test_the_diff_backgrounds_of_the_keymap_are_dark_colors_that_a_256_color_terminal_draws_unchanged", () => {
+    // Scenario: the three diff background colors of keymap.json.
+    const backgroundColors = [TUI_COLORS.diffBox.newerOnlyBackgroundColor, TUI_COLORS.diffBox.markerOnlyBackgroundColor, TUI_COLORS.diffBox.changedBackgroundColor];
+    for (const backgroundColor of backgroundColors) {
+        const channels = [1, 3, 5].map((start) => parseInt(backgroundColor.slice(start, start + 2), 16));
+        // every channel is a level of the 256 color cube, and none is lighter than 0x5f.
+        for (const channel of channels) {
+            assert.ok([0x00, 0x5f].includes(channel), `${backgroundColor} has the channel ${channel}`);
+        }
+    }
 });
 
 test("test_the_rows_start_at_scrollTop", () => {

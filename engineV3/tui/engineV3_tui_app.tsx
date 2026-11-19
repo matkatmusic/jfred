@@ -11,7 +11,7 @@ import { AppLayout } from "./engineV3_tui_app_layout.tsx";
 import { buildFileRowElements } from "./engineV3_tui_app_row_elements.tsx";
 import { getLoadingStatusText } from "./engineV3_tui_app_rows.ts";
 import { getMemoizedFileModel, stepProjectMarker, stepSelectedFiles, type FileModelMemo, type StepContext } from "./engineV3_tui_app_steps.ts";
-import { describeBarInfo } from "./engineV3_tui_bars.ts";
+import { countModifyingEvents, describeBarInfo } from "./engineV3_tui_bars.ts";
 import { chooseFileForPlayKey, getNextConsentQuestion } from "./engineV3_tui_consent.ts";
 import { ConsentPopup } from "./engineV3_tui_consent_popup.tsx";
 // import { countBoxRows } from "./engineV3_tui_footer.tsx";
@@ -24,7 +24,7 @@ import { useMarkerWindowStart } from "./engineV3_tui_marker_window.ts";
 // import { HOTKEYS_BOX_ROW_COUNT } from "./engineV3_tui_hotkeys_box.tsx";
 // import { KeyBox } from "./engineV3_tui_keymap.ts";
 import { LEGEND_ROW_COUNT, LegendFrame } from "./engineV3_tui_legend_frame.tsx";
-import { computeRowColumnWidths } from "./engineV3_tui_row_columns.ts";
+import { buildRowCountText, computeRowColumnWidths } from "./engineV3_tui_row_columns.ts";
 // import { buildInfoEntries } from "./engineV3_tui_info_row.tsx";
 import { buildInfoBoxLines } from "./engineV3_tui_info_row.tsx";
 import { NoEventsScreen } from "./engineV3_tui_no_events.tsx";
@@ -91,9 +91,9 @@ function LoadedApp(props: AppProps) {
     // const footerRowCount = countBoxRows(detailEntries, props.terminalColumns) + HOTKEYS_BOX_ROW_COUNT + LEGEND_ROW_COUNT;
     // const footerRowCount = countLinesBoxRows(infoLines) + MARKER_BOX_ROW_COUNT + HOTKEYS_BOX_ROW_COUNT + LEGEND_ROW_COUNT;
     const newerTime = findNewerColumnTime(eventInstants, markedPosition, bounds.newest);
-    const drawerState = useAppDrawer({ props, cursorFile, fileTime: getTimeOfFile(cursorFile), nowTime: bounds.newest, newerTime, speed, infoLines, markedPosition, eventCount: eventInstants.length });
+    const drawerState = useAppDrawer({ props, cursorFile, fileTime: getTimeOfFile(cursorFile), nowTime: bounds.newest, newerTime, speed, infoLines, markedPosition, eventCount: eventInstants.length, isMarkerBoxForAllFiles });
     const footerRowCount = drawerState.footerRowCount;
-    const longestNameLength = Math.max(...props.files.map((file) => getRelativePathInProject(props.projectFolder, file).length));
+    const longestNameLength = Math.max(...props.files.map((file) => getRelativePathInProject(props.projectFolder, file).length + buildRowCountText(countModifyingEvents(props.countsByFile.get(file.value)!)).length));
     const rowColumnWidths = computeRowColumnWidths(props.terminalColumns, longestNameLength);
     const range = getVisibleRowRange(props.files.length, selection.cursorIndex, previousTop.current, getAvailableRowCount(props.terminalRows, footerRowCount));
     previousTop.current = range.top;
@@ -116,6 +116,13 @@ function LoadedApp(props: AppProps) {
     const stepProjectMarkerInDirection = (direction: MarkerDirection): void => {
         setMarker(stepProjectMarker(stepContext, direction));
         setFileTimes(new Map());
+    };
+    // Left and Right step all rows while the Marker Box shows all files, and the selected rows otherwise.
+    const stepInDirection = (direction: MarkerDirection): void => {
+        if (isMarkerBoxForAllFiles) {
+            return stepProjectMarkerInDirection(direction);
+        }
+        stepSelectedFilesInDirection(direction);
     };
     const toggleMarkerBoxScope = (): void => setIsMarkerBoxForAllFiles(!isMarkerBoxForAllFiles);
     const stepCursorFileInDirection =(direction: MarkerDirection): void => setFileTimes(stepSelectedFiles(stepContext, [cursorFile], fileTimes, direction));
@@ -140,7 +147,7 @@ function LoadedApp(props: AppProps) {
     const refreshScreen = (): void => setRenderCount((renderCount) => renderCount + 1);
     const moveCursorByPage = (direction: 1 | -1): void => movePageInDirection({ previousTop, selection, files: props.files, pageRowCount: getAvailableRowCount(props.terminalRows, footerRowCount), direction, setSelection });
 
-    useAppKeys({ props, consentQuestion, selection, speed, selectedOrCursorFiles, modelMemo: modelMemo.current, setSelection, setSpeed, refreshScreen, stepSelectedFilesInDirection, stepProjectMarkerInDirection, toggleMarkerBoxScope, playScriptOfCursorFile, boxMode: drawerState.boxMode, fileViewKeymap: drawerState.fileViewKeymap, openViewFile: drawerState.openViewFile, closeBox: drawerState.closeBox, toggleDiff: drawerState.toggleDiff, scrollDrawer: drawerState.scrollDrawer, stepCursorFileInDirection, consoleKeymap: drawerState.consoleKeymap, openConsole: drawerState.openConsole, reconstructCursorFile, moveCursorByPage });
+    useAppKeys({ props, consentQuestion, selection, speed, selectedOrCursorFiles, modelMemo: modelMemo.current, setSelection, setSpeed, refreshScreen, stepInDirection, toggleMarkerBoxScope, playScriptOfCursorFile, boxMode: drawerState.boxMode, fileViewKeymap: drawerState.fileViewKeymap, openViewFile: drawerState.openViewFile, closeBox: drawerState.closeBox, toggleDiff: drawerState.toggleDiff, scrollDrawer: drawerState.scrollDrawer, stepCursorFileInDirection, consoleKeymap: drawerState.consoleKeymap, openConsole: drawerState.openConsole, reconstructCursorFile, moveCursorByPage });
 
     const rows = buildFileRowElements({ props, visibleFiles, rangeTop: range.top, selection, rulerRows, rowColumnWidths, getModelOfFile, getTimeOfFile });
     // const headerText = consentQuestion?.questionText ?? props.cacheStatusText ?? `marker ${marker.instant.toISOString()}`;

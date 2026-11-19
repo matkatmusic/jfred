@@ -191,8 +191,9 @@ export enum TuiCommand {
     ResetAllStores = "resetAllStores",
     StepSelectionTowardsNow = "stepSelectionTowardsNow",
     StepSelectionTowardsEarliest = "stepSelectionTowardsEarliest",
-    StepAllTowardsNow = "stepAllTowardsNow",
-    StepAllTowardsEarliest = "stepAllTowardsEarliest",
+    // The Shift+Left and Shift+Right keys are removed: Left and Right step all rows while the Marker Box shows all files.
+    // StepAllTowardsNow = "stepAllTowardsNow",
+    // StepAllTowardsEarliest = "stepAllTowardsEarliest",
     ToggleDaySpeed = "toggleDaySpeed",
     ToggleWeekSpeed = "toggleWeekSpeed",
     ToggleMarkerBoxScope = "toggleMarkerBoxScope",

@@ -24,13 +24,15 @@ export type ViewFileState = {
 
 const NO_DIFF_VIEW: DiffDisplay = { lines: [], emptyText: "" };
 
-// A new file, a new time, or a switch between text and diff resets the scroll position to 0. The newer time is the time of the next newer event, or undefined at Now.
+// A new file, a new time in the text view, or a switch between text and diff resets the scroll position to 0. The newer time is the time of the next newer event, or undefined at Now.
 export function useViewFile(props: AppProps, cursorFile: Path, fileTime: Date, nowTime: Date, newerTime: Date | undefined): ViewFileState {
     const [isOpen, setIsOpen] = useState(false);
     const [isDiff, setIsDiff] = useState(false);
     const [scrollState, setScrollState] = useState({ scrollKey: "", scrollTop: 0 });
-    const scrollKey = `${cursorFile.value}|${fileTime.getTime()}|${isDiff}`;
-    const scrollTop = scrollState.scrollKey === scrollKey ? scrollState.scrollTop : 0;
+    const contentKey = `${cursorFile.value}|${fileTime.getTime()}|${isDiff}`;
+    // The diff keeps its scroll position when the time changes: a step shows nearly the same lines.
+    const scrollKey = isDiff ? `${cursorFile.value}|diff` : contentKey;
+    const storedScrollTop = scrollState.scrollKey === scrollKey ? scrollState.scrollTop : 0;
     const canOpen = canOpenViewFile(props.storeFolder, props.projectFolder, cursorFile, props.isTimeSpannedForFile(cursorFile, fileTime));
     const lines = useMemo(() => {
         if (!isOpen) {
@@ -41,7 +43,7 @@ export function useViewFile(props: AppProps, cursorFile: Path, fileTime: Date, n
         }
         const text = readFileTextAtInstant(props.storeFolder, props.projectFolder, cursorFile, computeViewFileInstant(fileTime, nowTime, new Date()));
         return buildViewFileLines(text, cursorFile, props.terminalColumns);
-    }, [isOpen, scrollKey, props.terminalColumns]);
+    }, [isOpen, contentKey, props.terminalColumns]);
     const diffView = useMemo(() => {
         if (!isOpen) {
             return NO_DIFF_VIEW;
@@ -52,8 +54,9 @@ export function useViewFile(props: AppProps, cursorFile: Path, fileTime: Date, n
         const markerText = readFileTextAtInstant(props.storeFolder, props.projectFolder, cursorFile, computeViewFileInstant(fileTime, nowTime, new Date()));
         const newerText = newerTime === undefined ? undefined : readFileTextAtInstant(props.storeFolder, props.projectFolder, cursorFile, computeViewFileInstant(newerTime, nowTime, new Date()));
         return computeDiffDisplay(markerText, newerText, computeLanguageForPath(cursorFile.toString()), props.terminalColumns);
-    }, [isOpen, scrollKey, props.terminalColumns]);
+    }, [isOpen, contentKey, props.terminalColumns]);
     const scrollLineCount = isDiff ? diffView.lines.length : lines.length;
+    const scrollTop = Math.min(storedScrollTop, Math.max(0, scrollLineCount - 1));
     return {
         isOpen,
         canOpen,

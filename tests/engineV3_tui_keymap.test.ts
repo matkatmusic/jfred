@@ -99,13 +99,13 @@ test("test_loadKeymap_throws_on_a_missing_file", () => {
     assert.throws(() => loadKeymap(missingKeymapFile));
 });
 
-test("test_findCommandForKey_tells_left_from_shift_left", () => {
+test("test_findCommandForKey_finds_a_command_for_left_and_none_for_shift_left", () => {
     // Load the default keymap.
     const keymap = loadKeymap(DEFAULT_KEYMAP_FILE);
     // The left arrow without shift finds the selection step command.
     assert.equal(findCommandForKey(keymap, "", makeKey({ leftArrow: true })), TuiCommand.StepSelectionTowardsNow);
-    // The left arrow with shift finds the step-all command.
-    assert.equal(findCommandForKey(keymap, "", makeKey({ leftArrow: true, shift: true })), TuiCommand.StepAllTowardsNow);
+    // The left arrow with shift is not bound.
+    assert.equal(findCommandForKey(keymap, "", makeKey({ leftArrow: true, shift: true })), undefined);
 });
 
 test("test_findCommandForKey_finds_the_marker_box_scope_toggle_for_the_a_key", () => {

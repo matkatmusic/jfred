@@ -7,7 +7,8 @@ import { getRelativePathInProject } from "../engineV3_inverse_repos_for_project.
 import { describeRowState } from "./engineV3_tui_app_rows.ts";
 import type { AppProps, SelectionState } from "./engineV3_tui_app_types.ts";
 import { Row } from "./engineV3_tui_row.tsx";
-import { ROW_STATE_WIDTH, computeRowColumnWidths } from "./engineV3_tui_row_columns.ts";
+import { countModifyingEvents } from "./engineV3_tui_bars.ts";
+import { ROW_STATE_WIDTH, computeRowColumnWidths, formatRowFileName } from "./engineV3_tui_row_columns.ts";
 import { foldEventsIntoRulerRows } from "./engineV3_tui_time_marker.ts";
 import { getFileRunState } from "./engineV3_tui_walk_state.ts";
 
@@ -27,6 +28,6 @@ export function buildFileRowElements(input: FileRowsInput) {
     return input.visibleFiles.map((file, offset) => {
         const model = getModelOfFile(file);
         const markerRowIndex = findRulerRowIndexForInstant(rulerRows, getTimeOfFile(file).toISOString());
-        return <Row key={file.value} fileName={getRelativePathInProject(props.projectFolder, file)} model={model} status={getFileRunState(props.walkState, file).status} markerRowIndex={markerRowIndex} rulerRowCount={rulerRows.length} barWidth={rowColumnWidths.barWidth} nameWidth={rowColumnWidths.nameWidth} stateWidth={ROW_STATE_WIDTH} isCursor={input.rangeTop + offset === selection.cursorIndex} isSelected={selection.selectedFiles.some((selectedFile) => selectedFile.value === file.value)} stateText={describeRowState(model, getTimeOfFile(file), markerRowIndex)} />;
+        return <Row key={file.value} fileName={formatRowFileName(getRelativePathInProject(props.projectFolder, file), countModifyingEvents(props.countsByFile.get(file.value)!), rowColumnWidths.nameWidth)} model={model} status={getFileRunState(props.walkState, file).status} markerRowIndex={markerRowIndex} rulerRowCount={rulerRows.length} barWidth={rowColumnWidths.barWidth} nameWidth={rowColumnWidths.nameWidth} stateWidth={ROW_STATE_WIDTH} isCursor={input.rangeTop + offset === selection.cursorIndex} isSelected={selection.selectedFiles.some((selectedFile) => selectedFile.value === file.value)} stateText={describeRowState(model, getTimeOfFile(file), markerRowIndex)} />;
     });
 }

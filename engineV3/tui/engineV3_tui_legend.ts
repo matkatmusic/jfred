@@ -33,6 +33,10 @@ export function buildBarLegendLines(): FooterEntry[][] {
             { label: "+", value: "born" },
             { label: "-", value: "removed" },
             { label: "←", value: "moved away" },
+            { label: "✔", value: "walked" },
+            { label: "!", value: "stopped" },
+            { label: "x", value: "crashed" },
+            { label: "⠿", value: "walking" },
         ],
         [
             { label: "Bar", value: "" },

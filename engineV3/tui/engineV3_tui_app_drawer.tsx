@@ -31,6 +31,7 @@ export type AppDrawerInput = {
     infoLines: FooterEntry[][];
     markedPosition: number;
     eventCount: number;
+    isMarkerBoxForAllFiles: boolean;
 };
 
 export type AppDrawerState = {
@@ -128,7 +129,7 @@ export function useAppDrawer(input: AppDrawerInput): AppDrawerState {
     return {
         ...base,
         keyBox,
-        hotKeyRows: buildHotKeyRows(keyBox, speed, disabledCommands),
+        hotKeyRows: buildHotKeyRows(keyBox, speed, disabledCommands, input.isMarkerBoxForAllFiles),
         drawer: null,
         rowsHeight: undefined,
         footerRowCount: infoLines.length + BOX_BORDER_ROWS + MARKER_BOX_ROW_COUNT + HOTKEYS_BOX_ROW_COUNT + LEGEND_ROW_COUNT,

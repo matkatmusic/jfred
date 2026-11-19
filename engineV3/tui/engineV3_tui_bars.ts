@@ -35,13 +35,18 @@ export function listInverseRepoFileWire(storeFolder: Path, projectFolder: Path, 
 
 export const buildTuiBarModels = buildBarFileModels;
 
-export function describeBarInfo(model: BarFileModel, counts: FileEventCounts, runState: FileRunState): BarInfo {
+export function countModifyingEvents(counts: FileEventCounts): number {
     let modifyingEventCount = 0;
     for (const eventType of Object.values(FileEventType)) {
         if (isModifyingEventType(eventType)) {
             modifyingEventCount += counts[eventType];
         }
     }
+    return modifyingEventCount;
+}
+
+export function describeBarInfo(model: BarFileModel, counts: FileEventCounts, runState: FileRunState): BarInfo {
+    const modifyingEventCount = countModifyingEvents(counts);
     // The selected row is the oldest row the file exists at: the TUI shows the whole undo.
     const selectedRowIndex = model.bornRowIndex;
     const isChanged = isBarFileChangedSince(model, selectedRowIndex);

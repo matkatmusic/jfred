@@ -24,11 +24,18 @@ function drawBox(speed: JumpSpeed, columns: number = 100): string[] {
     return lastFrame()!.split("\n");
 }
 
-test("test_the_navigation_row_names_the_eight_navigation_keys_with_what_each_does", () => {
+test("test_the_navigation_row_names_the_six_navigation_keys_with_what_each_does", () => {
     // Scenario: event speed.
     const rows = buildHotKeyRows(loadKeyBox(KEYMAP_FILE, KeyBox.Global), JumpSpeed.Event);
     // the first row is the Navigation row with the exact text.
-    assert.equal(formatHotKeyRowText(rows[0]!), "Navigation: Up: prev row  Down: next row  Option+Up: prev page  Option+Down: next page  Left: selected row towards newer  Right: selected row towards older  Shift+Left: step all rows towards newer  Shift+Right: step all rows towards older");
+    assert.equal(formatHotKeyRowText(rows[0]!), "Navigation: Up: prev row  Down: next row  Option+Up: prev page  Option+Down: next page  Left: selected row towards newer  Right: selected row towards older");
+});
+
+test("test_the_left_and_right_texts_say_step_all_rows_when_the_marker_scope_is_on", () => {
+    // Scenario: event speed with the Marker Box showing all files.
+    const rows = buildHotKeyRows(loadKeyBox(KEYMAP_FILE, KeyBox.Global), JumpSpeed.Event, [], true);
+    // Left and Right now step all rows; the other four keys keep their text.
+    assert.equal(formatHotKeyRowText(rows[0]!), "Navigation: Up: prev row  Down: next row  Option+Up: prev page  Option+Down: next page  Left: step all rows towards newer  Right: step all rows towards older");
 });
 
 test("test_the_navigation_key_labels_have_the_same_key_color_as_the_other_rows", () => {
@@ -72,7 +79,7 @@ test("test_the_navigation_row_has_no_warning_at_any_speed", () => {
         // the Navigation row has no warning text.
         assert.equal(buildHotKeyRows(keyBox, speed)[0]!.warningText, undefined);
         // the Navigation row text ends with the last key.
-        assert.match(formatHotKeyRowText(buildHotKeyRows(keyBox, speed)[0]!), /Shift\+Right: step all rows towards older$/);
+        assert.match(formatHotKeyRowText(buildHotKeyRows(keyBox, speed)[0]!), /Right: selected row towards older$/);
     }
 });
 

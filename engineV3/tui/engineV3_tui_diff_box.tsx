@@ -41,14 +41,18 @@ function pickBackgroundColor(kind: DiffRowKind, sideName: DiffSideName, props: D
 function DiffSide({ title, sideName, sideLines, kinds, lineNumberWidth, columns, props }: { title: string; sideName: DiffSideName; sideLines: FileViewLine[]; kinds: DiffRowKind[]; lineNumberWidth: number; columns: number; props: DiffBoxProps }) {
     return (
         <TitledBox title={title} flexDirection="column" columns={columns} height={props.rowCount}>
-            {sideLines.map((line, index) => (
-                <Box key={props.scrollTop + index} backgroundColor={pickBackgroundColor(kinds[index]!, sideName, props)}>
-                    <Text color={props.lineNumberColor}>{String(line.lineNumber ?? "").padStart(lineNumberWidth)} </Text>
-                    {line.pieces.map((piece, pieceIndex) => (
-                        <Text key={pieceIndex} color={piece.color ?? props.textColor}>{piece.text}</Text>
-                    ))}
-                </Box>
-            ))}
+            {sideLines.map((line, index) => {
+                const backgroundColor = pickBackgroundColor(kinds[index]!, sideName, props);
+                return (
+                    <Box key={props.scrollTop + index} backgroundColor={backgroundColor}>
+                        <Text color={props.lineNumberColor}>{String(line.lineNumber ?? "").padStart(lineNumberWidth)} </Text>
+                        {line.pieces.map((piece, pieceIndex) => (
+                            // Token colors are unreadable on a red or green background: a row with a background uses the plain text color.
+                            <Text key={pieceIndex} color={backgroundColor === undefined ? piece.color ?? props.textColor : props.textColor}>{piece.text}</Text>
+                        ))}
+                    </Box>
+                );
+            })}
         </TitledBox>
     );
 }

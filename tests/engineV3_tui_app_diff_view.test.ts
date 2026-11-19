@@ -64,6 +64,24 @@ test("test_closing_the_box_leaves_the_diff_so_the_next_v_shows_the_plain_text", 
     assert.doesNotMatch(screen.frame(), DIFF_TITLES_PATTERN);
 });
 
+test("test_stepping_in_the_diff_view_keeps_the_scrolled_lines", async (t) => {
+    // Scenario: the diff is shown one event back and scrolled down 12 rows, so the top row is line 13.
+    const screen = await startScreen(t, writeLongProject(t, true));
+    await screen.press("v");
+    await screen.press(RIGHT_ARROW);
+    await screen.press("f");
+    for (let pressCount = 0; pressCount < 12; pressCount++) {
+        await screen.press(DOWN_ARROW);
+    }
+    assert.ok(screen.frame().includes("l13"));
+    assert.ok(!screen.frame().includes("l5 "));
+    // one more step towards earlier shows another diff: the scrolled lines stay on screen and the view does not jump to line 1.
+    await screen.press(RIGHT_ARROW);
+    assert.match(screen.frame(), DIFF_TITLES_PATTERN);
+    assert.ok(screen.frame().includes("l13"));
+    assert.ok(!screen.frame().includes("l5 "));
+});
+
 test("test_the_down_arrow_scrolls_the_diff_rows", async (t) => {
     // Scenario: the diff is shown one event back; the first row is the changed row "three" | "two".
     const screen = await startScreen(t, writeLongProject(t, true));

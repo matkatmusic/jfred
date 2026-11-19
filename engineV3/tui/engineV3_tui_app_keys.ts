@@ -20,8 +20,7 @@ export type AppKeyContext = {
     setSelection: (selection: SelectionState) => void;
     setSpeed: (speed: JumpSpeed) => void;
     refreshScreen: () => void;
-    stepSelectedFilesInDirection: (direction: MarkerDirection) => void;
-    stepProjectMarkerInDirection: (direction: MarkerDirection) => void;
+    stepInDirection: (direction: MarkerDirection) => void;
     toggleMarkerBoxScope: () => void;
     playScriptOfCursorFile: () => void;
     boxMode: AppBoxMode;
@@ -91,10 +90,11 @@ export function useAppKeys(context: AppKeyContext): void {
             case TuiCommand.SetEventSpeed: return context.setSpeed(JumpSpeed.Event);
             case TuiCommand.ToggleDaySpeed: return context.setSpeed(toggleJumpSpeed(speed, JumpSpeed.Day));
             case TuiCommand.ToggleWeekSpeed: return context.setSpeed(toggleJumpSpeed(speed, JumpSpeed.Week));
-            case TuiCommand.StepSelectionTowardsNow: return context.stepSelectedFilesInDirection(MarkerDirection.TowardsNow);
-            case TuiCommand.StepSelectionTowardsEarliest: return context.stepSelectedFilesInDirection(MarkerDirection.TowardsEarliest);
-            case TuiCommand.StepAllTowardsNow: return context.stepProjectMarkerInDirection(MarkerDirection.TowardsNow);
-            case TuiCommand.StepAllTowardsEarliest: return context.stepProjectMarkerInDirection(MarkerDirection.TowardsEarliest);
+            case TuiCommand.StepSelectionTowardsNow: return context.stepInDirection(MarkerDirection.TowardsNow);
+            case TuiCommand.StepSelectionTowardsEarliest: return context.stepInDirection(MarkerDirection.TowardsEarliest);
+            // The Shift+Left and Shift+Right keys are removed: Left and Right step all rows while the Marker Box shows all files.
+            // case TuiCommand.StepAllTowardsNow: return context.stepProjectMarkerInDirection(MarkerDirection.TowardsNow);
+            // case TuiCommand.StepAllTowardsEarliest: return context.stepProjectMarkerInDirection(MarkerDirection.TowardsEarliest);
             case TuiCommand.ToggleMarkerBoxScope: return context.toggleMarkerBoxScope();
             case TuiCommand.ResetSelectedStores:
                 selectedOrCursorFiles.forEach((file) => modelMemo.delete(file.value));

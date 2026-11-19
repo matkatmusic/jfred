@@ -35,7 +35,6 @@ const SHIFT_RIGHT_ARROW = "\x1b[1;2C";
 // Option+Down as xterm sends it, and Option+Up as a terminal sends it in Esc+ mode.
 const OPTION_DOWN_ARROW = "\x1b[1;3B";
 const OPTION_UP_ARROW = "\x1b\x1b[A";
-const SHIFT_LEFT_ARROW = "\x1b[1;2D";
 const SHARED_INSTANT_GAP_DAYS = 10;
 
 type AppHarness = {
@@ -456,7 +455,13 @@ test("test_a_row_not_walked_to_the_marker_shows_not_walked_to_this_time", async 
     assert.ok(!getInfoRow(screen.readFrameLines()).includes("not walked to this time"));
 });
 
-test("test_manual_shift_right_past_a_birth_shows_did_not_exist_yet", async (t) => {
+// The a key shows all files; Left and Right then step every row.
+async function turnOnStepAll(screen: ScreenHandle): Promise<void> {
+    screen.stdin.write("a");
+    await settle();
+}
+
+test("test_manual_step_all_right_past_a_birth_shows_did_not_exist_yet", async (t) => {
     // Scenario: every file has one commit, its birth, at the newest event time. The marker starts at the newest event.
     const harness = makeAppProps({ isTimeSpannedForFile: () => false });
     const bornInstant = harness.props.events[0]!.instant;
@@ -465,8 +470,9 @@ test("test_manual_shift_right_past_a_birth_shows_did_not_exist_yet", async (t) =
     await settle();
     // At the birth time the row does not say that the file did not exist.
     assert.ok(!findRowLine(screen.readFrameLines(), makeFileName(0)).includes("did not exist yet"));
-    // Shift-right moves the marker to the next older event, which is older than the birth.
-    screen.stdin.write(SHIFT_RIGHT_ARROW);
+    // With the a key on, Right moves the marker to the next older event, which is older than the birth.
+    await turnOnStepAll(screen);
+    screen.stdin.write(RIGHT_ARROW);
     await settle();
     const lines = screen.readFrameLines();
     assert.ok(readMarkerInstantFromWalkCalls(harness).getTime() < bornInstant.getTime());
@@ -546,7 +552,7 @@ test("test_the_w_key_replaces_day_speed_by_week_speed", async (t) => {
     assert.ok(getMenuRow(screen.readFrameLines()).includes("Current: event"));
 });
 
-test("test_shift_right_in_day_speed_moves_the_marker_time_by_one_day", async (t) => {
+test("test_step_all_right_in_day_speed_moves_the_marker_time_by_one_day", async (t) => {
     // Scenario: the marker starts at the newest event (day 30). The day speed is on.
     const harness = makeAppProps({ isTimeSpannedForFile: () => false });
     const screen = startScreen(t, harness.props);
@@ -555,8 +561,9 @@ test("test_shift_right_in_day_speed_moves_the_marker_time_by_one_day", async (t)
     assert.equal(markerBefore.toISOString(), makeInstant(NEWEST_EVENT_DAY * SECONDS_PER_DAY).toISOString());
     screen.stdin.write("d");
     await settle();
-    // Shift-right moves the marker towards the earliest time.
-    screen.stdin.write(SHIFT_RIGHT_ARROW);
+    // With the a key on, Right moves the marker towards the earliest time.
+    await turnOnStepAll(screen);
+    screen.stdin.write(RIGHT_ARROW);
     await settle();
     // The walk requests carry a time exactly one day older.
     const markerAfter = readMarkerInstantFromWalkCalls(harness);
@@ -571,13 +578,15 @@ test("test_left_in_week_speed_moves_the_selected_files_time_by_seven_days", asyn
     await settle();
     screen.stdin.write("w");
     await settle();
-    screen.stdin.write(SHIFT_RIGHT_ARROW);
+    await turnOnStepAll(screen);
+    screen.stdin.write(RIGHT_ARROW);
     await settle();
-    screen.stdin.write(SHIFT_RIGHT_ARROW);
+    screen.stdin.write(RIGHT_ARROW);
     await settle();
     const markerInstant = readMarkerInstantFromWalkCalls(harness);
     assert.equal(markerInstant.toISOString(), makeInstant(16 * SECONDS_PER_DAY).toISOString());
-    // Select the file under the cursor with the toggleSelection key.
+    // The a key off: Left steps the selected rows again. Select the file under the cursor with the toggleSelection key.
+    await turnOnStepAll(screen);
     screen.stdin.write("s");
     await settle();
     // Left moves the time of the selected file towards now by seven days.
@@ -601,8 +610,9 @@ test("test_day_speed_walks_every_file_that_does_not_cover_the_new_time", async (
     screen.stdin.write("d");
     await settle();
     const callCountBefore = harness.walkHistoryToCalls.length;
-    // Shift-right moves the marker one day older.
-    screen.stdin.write(SHIFT_RIGHT_ARROW);
+    // With the a key on, Right moves the marker one day older.
+    await turnOnStepAll(screen);
+    screen.stdin.write(RIGHT_ARROW);
     await settle();
     const newMarkerInstant = readMarkerInstantFromWalkCalls(harness);
     const callsAfterMove = harness.walkHistoryToCalls.slice(callCountBefore);
@@ -665,21 +675,22 @@ function makeEventsWithSharedNewestInstant(files: Path[]): ProjectEventEntry[] {
     ];
 }
 
-test("test_shift_right_in_event_speed_changes_the_header_time_when_the_newest_events_share_one_instant", async (t) => {
+test("test_step_all_right_in_event_speed_changes_the_header_time_when_the_newest_events_share_one_instant", async (t) => {
     // Scenario: the two newest events share one instant. The next events are ten days older.
     const harness = makeAppProps({ isTimeSpannedForFile: () => false });
     harness.props.events = makeEventsWithSharedNewestInstant(harness.files);
     const olderIso = makeInstant((NEWEST_EVENT_DAY - SHARED_INSTANT_GAP_DAYS) * SECONDS_PER_DAY).toISOString();
     const screen = startScreen(t, harness.props);
     await settle();
-    // One Shift-Right press.
-    screen.stdin.write(SHIFT_RIGHT_ARROW);
+    // One Right press with the a key on.
+    await turnOnStepAll(screen);
+    screen.stdin.write(RIGHT_ARROW);
     await settle();
     // The walk requests carry the older instant, not the newest one.
     assert.equal(readMarkerInstantFromWalkCalls(harness).toISOString(), olderIso);
 });
 
-test("test_shift_left_in_event_speed_returns_the_header_to_the_newest_time_after_shift_right", async (t) => {
+test("test_step_all_left_in_event_speed_returns_the_header_to_the_newest_time_after_step_all_right", async (t) => {
     // Scenario: the two newest events share one instant. The next events are ten days older.
     const harness = makeAppProps({ isTimeSpannedForFile: () => false });
     harness.props.events = makeEventsWithSharedNewestInstant(harness.files);
@@ -687,12 +698,13 @@ test("test_shift_left_in_event_speed_returns_the_header_to_the_newest_time_after
     const olderIso = makeInstant((NEWEST_EVENT_DAY - SHARED_INSTANT_GAP_DAYS) * SECONDS_PER_DAY).toISOString();
     const screen = startScreen(t, harness.props);
     await settle();
-    // One Shift-Right press: the walk requests carry the older instant.
-    screen.stdin.write(SHIFT_RIGHT_ARROW);
+    // One Right press with the a key on: the walk requests carry the older instant.
+    await turnOnStepAll(screen);
+    screen.stdin.write(RIGHT_ARROW);
     await settle();
     assert.equal(readMarkerInstantFromWalkCalls(harness).toISOString(), olderIso);
-    // One Shift-Left press: the walk requests carry the newest instant again.
-    screen.stdin.write(SHIFT_LEFT_ARROW);
+    // One Left press: the walk requests carry the newest instant again.
+    screen.stdin.write(LEFT_ARROW);
     await settle();
     assert.equal(readMarkerInstantFromWalkCalls(harness).toISOString(), newestIso);
 });
@@ -842,6 +854,34 @@ test("test_option_down_shows_the_next_page_of_rows_and_option_up_shows_the_first
     assert.deepEqual(backNames, firstPageNames);
 });
 
+test("test_each_row_shows_the_number_of_modifying_events_in_parentheses_after_the_file_name", async (t) => {
+    // Scenario: f00 has 3 edit events and 2 read events; f01 has none.
+    const files = makeFiles();
+    const countsByFile = makeCountsByFile(files);
+    countsByFile.get(files[0]!.toString())![FileEventType.EditRow] = 3;
+    countsByFile.get(files[0]!.toString())![FileEventType.ReadWhole] = 2;
+    const harness = makeAppProps({ countsByFile });
+    const screen = startScreen(t, harness.props);
+    await settle();
+    // the f00 row names 3 events, because a read is not a modifying event; the f01 row names 0.
+    const lines = screen.readFrameLines();
+    assert.ok(findRowLine(lines, "f00.txt").includes("f00.txt (3)"), findRowLine(lines, "f00.txt"));
+    assert.ok(findRowLine(lines, "f01.txt").includes("f01.txt (0)"), findRowLine(lines, "f01.txt"));
+});
+
+test("test_shift_right_does_nothing_any_more", async (t) => {
+    // Scenario: a fresh screen with the a key on.
+    const harness = makeAppProps({ isTimeSpannedForFile: () => false });
+    const screen = startScreen(t, harness.props);
+    await settle();
+    await turnOnStepAll(screen);
+    const callCountBefore = harness.walkHistoryToCalls.length;
+    // Shift-right is no longer bound: the walker gets no request.
+    screen.stdin.write(SHIFT_RIGHT_ARROW);
+    await settle();
+    assert.equal(harness.walkHistoryToCalls.length, callCountBefore);
+});
+
 // The Marker Box is the second box of the frame; its top border carries the title.
 function readMarkerBoxTitleLine(lines: string[]): string {
     const markerTopBorderIndex = lines.findIndex((line) => line.startsWith("╭") && line.includes("Marker"));
@@ -854,20 +894,18 @@ test("test_the_a_key_toggles_the_marker_box_between_the_cursor_file_and_all_file
     const harness = makeAppProps({});
     const screen = startScreen(t, harness.props);
     await settle();
-    // Shift-right moves the project marker to day 29, an event of another file.
-    screen.stdin.write(SHIFT_RIGHT_ARROW);
+    assert.ok(!readMarkerBoxTitleLine(screen.readFrameLines()).includes("all files"));
+    // The a key shows the events of all files: the title says so.
+    await turnOnStepAll(screen);
+    assert.ok(readMarkerBoxTitleLine(screen.readFrameLines()).includes("all files"), readMarkerBoxTitleLine(screen.readFrameLines()));
+    // Right moves the project marker to day 29, an event of another file: the marker is in the middle of the list, not at Now or Earliest.
+    screen.stdin.write(RIGHT_ARROW);
     await settle();
-    let lines = screen.readFrameLines();
-    assert.ok(!readMarkerBoxTitleLine(lines).includes("all files"));
-    // The a key shows the events of all files: the title says so and the marker is in the middle of the list, not at Now or Earliest.
-    screen.stdin.write("a");
-    await settle();
-    lines = screen.readFrameLines();
-    assert.ok(readMarkerBoxTitleLine(lines).includes("all files"), readMarkerBoxTitleLine(lines));
+    const lines = screen.readFrameLines();
     assert.ok(!lines.some((line) => line.includes("[now]")), `the all files Marker Box should not mark Now: ${lines.join("\n")}`);
     assert.ok(!lines.some((line) => line.includes("[Earliest]")), `the all files Marker Box should not mark Earliest: ${lines.join("\n")}`);
-    // Shift-left moves the marker back to the newest event, which is Now.
-    screen.stdin.write(SHIFT_LEFT_ARROW);
+    // Left moves the marker back to the newest event, which is Now.
+    screen.stdin.write(LEFT_ARROW);
     await settle();
     assert.ok(screen.readFrameLines().some((line) => line.includes("[now]")));
     // The a key again shows the events of the cursor file.

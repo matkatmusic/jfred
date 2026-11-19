@@ -26,7 +26,7 @@ import { PROJECT_FILE_NAME, makeEditRows, makeInstant, makeWriteCreateRows, writ
 
 const DISK_NOW_INSTANT = new Date(Date.UTC(2026, 5, 1, 12, 0, 0));
 const DEFAULT_KEYMAP_FILE = new Path(join(dirname(fileURLToPath(import.meta.url)), "..", "engineV3", "tui", "keymap.json"));
-const XTERM_SHIFT_RIGHT_ARROW_SEQUENCE = "\x1b[1;2C";
+const XTERM_RIGHT_ARROW_SEQUENCE = "\x1b[C";
 const DID_NOT_EXIST_YET_TEXT = "did not exist yet";
 const FRAME_POLL_INTERVAL_MILLISECONDS = 10;
 const FRAME_WAIT_LIMIT_MILLISECONDS = 2000;
@@ -245,10 +245,12 @@ test("test_a_row_of_a_file_born_after_the_marker_shows_did_not_exist_yet", async
     await waitMilliseconds(INK_SETTLE_MILLISECONDS);
     // The marker starts at second 40, newer than the birth: the row does not say "did not exist yet".
     assert.ok(!(lastFrame() ?? "").includes(DID_NOT_EXIST_YET_TEXT));
-    // Shift-Right in event speed moves the marker to second 30, and once more to second 10, older than the birth.
-    stdin.write(XTERM_SHIFT_RIGHT_ARROW_SEQUENCE);
+    // With the a key on, Right in event speed moves the marker to second 30, and once more to second 10, older than the birth.
+    stdin.write("a");
     await waitMilliseconds(INK_SETTLE_MILLISECONDS);
-    stdin.write(XTERM_SHIFT_RIGHT_ARROW_SEQUENCE);
+    stdin.write(XTERM_RIGHT_ARROW_SEQUENCE);
+    await waitMilliseconds(INK_SETTLE_MILLISECONDS);
+    stdin.write(XTERM_RIGHT_ARROW_SEQUENCE);
     // The screen shows the text "did not exist yet".
     await waitForFrame(lastFrame, DID_NOT_EXIST_YET_TEXT);
     // The text is on the row of a.txt.
