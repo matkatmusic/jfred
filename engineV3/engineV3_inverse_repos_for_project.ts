@@ -219,6 +219,25 @@ export function createProjectEventsLoader(projectFiles: ProjectFile[], jsonlsFol
         return events;
     };
 }
+// Like createProjectEventsLoader, but each file reads only the log lines that name that file: a step child needs one file (and the file it was moved or copied from), not all of them.
+export function createSingleFileEventsLoader(projectFiles: ProjectFile[], jsonlsFolders: Path[], snapshotFolders: Path[], earliestBoundary?: EarliestBoundary): (fileIndex: number) => FileEvent[] {
+    const eventsByFile: (FileEvent[] | undefined)[] = projectFiles.map(() => undefined);
+    return (fileIndex: number): FileEvent[] => {
+        const computedEvents = eventsByFile[fileIndex];
+        if (computedEvents !== undefined) {
+            return computedEvents;
+        }
+        const { file, transcriptFile } = projectFiles[fileIndex]!;
+        const linesByFileKey = loadJSONLLinesNamingFiles([transcriptFile], jsonlsFolders);
+        addLinesNamingWrittenScripts(linesByFileKey, [transcriptFile], jsonlsFolders);
+        let events = sortEventsNewestToOldest(getAllEventsForFileFromLines(file, transcriptFile, linesByFileKey.get(transcriptFile.toString())!, snapshotFolders, true));
+        if (earliestBoundary !== undefined) {
+            events = applyEarliestBoundaryToEvents(events, earliestBoundary, readFileTextAtBoundary(earliestBoundary, file));
+        }
+        eventsByFile[fileIndex] = events;
+        return events;
+    };
+}
 
 export function listKnownStatesForProjectFiles(projectFiles: ProjectFile[], jsonlsFolders: Path[], snapshotFolders: Path[]): FileKnownState[][] {
     const getEvents = createProjectEventsLoader(projectFiles, jsonlsFolders, snapshotFolders);
@@ -479,7 +498,8 @@ if (isCliRun) {
         }
         // const getEvents = createProjectEventsLoader(projectFiles, transcriptsToParse, [settings.fileHistoryFolder]);
         // const getEvents = createProjectEventsLoader(projectFiles, transcriptsToParse, settings.fileHistoryFolders);
-        const getEvents = createProjectEventsLoader(projectFiles, transcriptsToParse, settings.fileHistoryFolders, earliestBoundary);
+        // const getEvents = createProjectEventsLoader(projectFiles, transcriptsToParse, settings.fileHistoryFolders, earliestBoundary);
+        const getEvents = createSingleFileEventsLoader(projectFiles, transcriptsToParse, settings.fileHistoryFolders, earliestBoundary);
         const stepFileIndex = projectFiles.indexOf(stepProjectFile);
         const statesByFile: (FileKnownState[] | undefined)[] = projectFiles.map(() => undefined);
         listStatesOfProjectFile(stepFileIndex, projectFiles, getEvents, statesByFile, new Set<number>());

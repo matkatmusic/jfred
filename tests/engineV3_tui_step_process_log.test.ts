@@ -33,8 +33,8 @@ test("test_every_output_line_goes_to_the_log_with_the_file_name_in_front", async
     const file = new Path(join(folder.toString(), "a.txt"));
     const engineLog = createEngineLog(new Path(join(folder.toString(), "engine.log")));
     await runStepChild(process.execPath, ["-e", `process.stdout.write("out1\\n"); process.stderr.write("err1\\nerr2 without newline"); ${buildResultLineScript()}`], folder, file, engineLog, LOG_FILE);
-    // the log holds the lines, each with the project-relative file name in front; the last standard error line has no newline.
-    const texts = engineLog.listLines().map((line) => line.text);
+    // the log holds the lines, each with the project-relative file name in front (after the clock); the last standard error line has no newline.
+    const texts = engineLog.listLines().map((line) => line.text.replace(/^\d\d:\d\d:\d\d\.\d{3} /, ""));
     assert.ok(texts.includes("[a.txt] out1"));
     assert.ok(texts.includes("[a.txt] err1"));
     assert.ok(texts.includes("[a.txt] err2 without newline"));
@@ -47,7 +47,7 @@ test("test_a_carriage_return_ends_a_log_line_and_no_log_line_holds_one", async (
     const engineLog = createEngineLog(new Path(join(folder.toString(), "engine.log")));
     await runStepChild(process.execPath, ["-e", `process.stderr.write("\\rC: 1/1 logs read, 4 files, 5 ms\\rC: 2/2 logs read\\ndone\\r\\n"); ${buildResultLineScript()}`], folder, file, engineLog, LOG_FILE);
     // each update is its own log line (the result line of the child follows), and no log line holds a carriage return.
-    const texts = engineLog.listLines().map((line) => line.text);
+    const texts = engineLog.listLines().map((line) => line.text.replace(/^\d\d:\d\d:\d\d\.\d{3} /, ""));
     assert.deepEqual(texts.slice(0, 3), ["[a.txt] C: 1/1 logs read, 4 files, 5 ms", "[a.txt] C: 2/2 logs read", "[a.txt] done"]);
     assert.ok(texts.every((text) => !text.includes("\r")));
 });
@@ -58,8 +58,8 @@ test("test_the_log_file_on_disk_holds_the_raw_lines", async (t) => {
     const file = new Path(join(folder.toString(), "a.txt"));
     const logFile = new Path(join(folder.toString(), "engine.log"));
     await runStepChild(process.execPath, ["-e", `console.log("out1"); ${buildResultLineScript()}`], folder, file, createEngineLog(logFile), LOG_FILE);
-    // the file holds the raw line.
-    assert.ok(readFileSync(logFile.toString(), "utf8").includes("R [a.txt] out1\n"));
+    // the file holds the raw line after the kind letter and the clock.
+    assert.match(readFileSync(logFile.toString(), "utf8"), /^R \d\d:\d\d:\d\d\.\d{3} \[a\.txt\] out1$/m);
 });
 
 test("test_the_log_keeps_every_standard_error_line_while_the_outcome_keeps_the_last_twenty", async (t) => {

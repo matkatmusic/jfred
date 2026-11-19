@@ -34,7 +34,7 @@ function handleDoneOutcome(options: HistoryWalkerOptions, request: StepRequest, 
 }
 
 function writePlayOutcome(options: HistoryWalkerOptions, file: Path, startAt: Date, playOutcome: PlayOutcome): void {
-    options.engineLog?.appendSummaryLine(describePlaySummary(new Date(), getRelativeLogPath(options.projectFolder, file), playOutcome));
+    options.engineLog?.appendSummaryLine(describePlaySummary(getRelativeLogPath(options.projectFolder, file), playOutcome));
     if (playOutcome.kind === PlayOutcomeKind.Replayed) {
         writeStatus(options, file, FileWalkStatus.Idle, undefined);
         walkHistoryTo(options, startAt, file, IS_REWALK_VISIBLE);
@@ -90,7 +90,7 @@ async function handleScriptStop(options: HistoryWalkerOptions, playStartAtByFile
 }
 
 async function handleOutcome(options: HistoryWalkerOptions, lastStopByFileValue: Map<string, StoppedWalk>, playStartAtByFileValue: Map<string, Date>, request: StepRequest, outcome: StepProcessOutcome): Promise<void> {
-    options.engineLog?.appendSummaryLine(describeStepSummary(new Date(), { ...request, file: getRelativeLogPath(options.projectFolder, request.file) }, outcome));
+    options.engineLog?.appendSummaryLine(describeStepSummary({ ...request, file: getRelativeLogPath(options.projectFolder, request.file) }, outcome));
     if (outcome.kind === StepProcessOutcomeKind.Covered) {
         handleDoneOutcome(options, request, outcome.kind);
         return;

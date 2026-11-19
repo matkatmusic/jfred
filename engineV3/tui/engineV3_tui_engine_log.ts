@@ -13,6 +13,7 @@ import type { PlayOutcome, StepProcessOutcome, StepRequest } from "./engineV3_tu
 export const ENGINE_LOG_MEMORY_LINE_COUNT = 5000;
 const ENGINE_LOG_FILE_NAME = "engine.log";
 const CLOCK_LETTER_COUNT = 8;
+const MILLISECOND_LETTER_COUNT = 3;
 const COMMIT_HASH_LETTER_COUNT = 8;
 
 export enum EngineLogLineKind { Summary = "summary", Raw = "raw" }
@@ -63,10 +64,11 @@ export function getEngineLogFile(storeFolder: Path): Path {
     return new Path(join(dirname(getProjectCacheFile(storeFolder).toString()), ENGINE_LOG_FILE_NAME));
 }
 
-export function createEngineLog(logFile: Path): EngineLog {
+export function createEngineLog(logFile: Path, getNow: () => Date = () => new Date()): EngineLog {
     mkdirSync(dirname(logFile.toString()), { recursive: true });
     const memoryLines: EngineLogLine[] = [];
-    function appendLine(line: EngineLogLine): void {
+    function appendLine(unstampedLine: EngineLogLine): void {
+        const line = { kind: unstampedLine.kind, text: `${formatClock(getNow())} ${unstampedLine.text}` };
         appendFileSync(logFile.toString(), `${FILE_PREFIX_BY_KIND[line.kind]}${line.text}\n`);
         memoryLines.push(line);
         if (memoryLines.length > ENGINE_LOG_MEMORY_LINE_COUNT) {
@@ -81,7 +83,7 @@ export function createEngineLog(logFile: Path): EngineLog {
 }
 
 function formatClock(now: Date): string {
-    return now.toTimeString().slice(0, CLOCK_LETTER_COUNT);
+    return `${now.toTimeString().slice(0, CLOCK_LETTER_COUNT)}.${String(now.getMilliseconds()).padStart(MILLISECOND_LETTER_COUNT, "0")}`;
 }
 
 function formatTargetTime(startAt: Date): string {
@@ -92,8 +94,8 @@ function joinLines(text: string): string {
     return text.replaceAll("\n", " ");
 }
 
-export function describeStepSummary(now: Date, request: StepRequest, outcome: StepProcessOutcome): string {
-    const prefix = `${formatClock(now)} walk  ${request.file}`;
+export function describeStepSummary(request: StepRequest, outcome: StepProcessOutcome): string {
+    const prefix = `walk  ${request.file}`;
     switch (outcome.kind) {
         case StepProcessOutcomeKind.Covered:
             return `${prefix} -> ${formatTargetTime(request.startAt)}  ${outcome.lastLine.commitsWritten} commits added`;
@@ -108,12 +110,12 @@ export function describeStepSummary(now: Date, request: StepRequest, outcome: St
 
 export enum LoadStepPhase { Started = "started", Ended = "ended" }
 
-export function describeLoadStepSummary(now: Date, stepName: string, phase: LoadStepPhase): string {
-    return `${formatClock(now)} load  ${stepName}  ${phase}`;
+export function describeLoadStepSummary(stepName: string, phase: LoadStepPhase): string {
+    return `load  ${stepName}  ${phase}`;
 }
 
-export function describePlaySummary(now: Date, file: Path, outcome: PlayOutcome): string {
-    const prefix = `${formatClock(now)} play  ${file}`;
+export function describePlaySummary(file: Path, outcome: PlayOutcome): string {
+    const prefix = `play  ${file}`;
     switch (outcome.kind) {
         case PlayOutcomeKind.Replayed:
             return `${prefix}  replayed`;

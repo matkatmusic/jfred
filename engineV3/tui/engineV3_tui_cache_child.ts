@@ -38,7 +38,7 @@ export function runProjectCacheProcess(command: string, childArguments: string[]
         appendSummaryLine: (text) => { engineLog.appendSummaryLine(text); onLogChanged(); },
         listLines: engineLog.listLines,
     };
-    notifyingLog.appendSummaryLine(describeLoadStepSummary(new Date(), PROJECT_CACHE_STEP_NAME, LoadStepPhase.Started));
+    notifyingLog.appendSummaryLine(describeLoadStepSummary(PROJECT_CACHE_STEP_NAME, LoadStepPhase.Started));
     const child = spawn(command, childArguments, { cwd: workingFolder, stdio: ["ignore", "pipe", "pipe"] });
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
@@ -58,7 +58,7 @@ export function runProjectCacheProcess(command: string, childArguments: string[]
         child.once("close", (exitCode) => {
             standardOutputForwarder.flush();
             standardErrorForwarder.flush();
-            notifyingLog.appendSummaryLine(describeLoadStepSummary(new Date(), PROJECT_CACHE_STEP_NAME, LoadStepPhase.Ended));
+            notifyingLog.appendSummaryLine(describeLoadStepSummary(PROJECT_CACHE_STEP_NAME, LoadStepPhase.Ended));
             if (exitCode !== 0) {
                 reject(new Error(`the project cache child exited with code ${exitCode}: ${standardErrorLines.slice(-20).join("\n")}`));
                 return;

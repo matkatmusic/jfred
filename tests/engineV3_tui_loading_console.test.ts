@@ -24,19 +24,18 @@ function runScript(script: string, engineLog: EngineLog, showProgress: (progress
 }
 
 test("test_the_load_step_summary_names_the_step_and_the_phase", () => {
-    // Scenario: the summary of the start and of the end of the step "project cache" at 13:05:09.
-    const now = new Date(2026, 10, 18, 13, 5, 9);
-    // the text holds the clock, the step name and the phase.
-    assert.equal(describeLoadStepSummary(now, "project cache", LoadStepPhase.Started), "13:05:09 load  project cache  started");
-    assert.equal(describeLoadStepSummary(now, "project cache", LoadStepPhase.Ended), "13:05:09 load  project cache  ended");
+    // Scenario: the summary of the start and of the end of the step "project cache".
+    // the text holds the step name and the phase; the engine log adds the clock.
+    assert.equal(describeLoadStepSummary("project cache", LoadStepPhase.Started), "load  project cache  started");
+    assert.equal(describeLoadStepSummary("project cache", LoadStepPhase.Ended), "load  project cache  ended");
 });
 
 test("test_every_output_line_except_the_json_lines_goes_to_the_log_with_the_short_name", async (t) => {
     // Scenario: a child writes one line and a JSON result line to standard output, and progress updates, a JSON progress line and a last line to standard error.
     const engineLog = makeEngineLog(t);
     await runScript(`process.stdout.write("out1\\n" + JSON.stringify({ cacheFile: "c.json", wasRebuilt: true }) + "\\n"); process.stderr.write("\\rC: 1/2 logs read\\rC: 2/2 logs read\\n" + JSON.stringify({ file: "a.txt", current: 1, total: 2 }) + "\\nD: done\\n");`, engineLog);
-    // the raw lines hold the short name in front.
-    const rawTexts = engineLog.listLines().filter((line) => line.kind === EngineLogLineKind.Raw).map((line) => line.text);
+    // the raw lines hold the short name in front, after the clock.
+    const rawTexts = engineLog.listLines().filter((line) => line.kind === EngineLogLineKind.Raw).map((line) => line.text.replace(/^\d\d:\d\d:\d\d\.\d{3} /, ""));
     assert.deepEqual(rawTexts, ["[project cache] out1", "[project cache] C: 1/2 logs read", "[project cache] C: 2/2 logs read", "[project cache] D: done"]);
 });
 

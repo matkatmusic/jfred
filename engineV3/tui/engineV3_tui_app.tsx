@@ -92,15 +92,16 @@ function LoadedApp(props: AppProps) {
     const visibleFiles = props.files.slice(range.top, range.bottom);
 
     useEffect(() => props.subscribeToStatusChanges(() => setRenderCount((renderCount) => renderCount + 1)), []);
-    useEffect(() => {
-        for (const file of visibleFiles) {
-            if (!props.isTimeSpannedForFile(file, getTimeOfFile(file))) {
-                if (getFileRunState(props.walkState, file).status === FileWalkStatus.Idle) {
-                    props.walker.walkHistoryTo(getTimeOfFile(file), file, true);
-                }
-            }
-        }
-    }, [range.top, range.bottom, marker]);
+    // Only the Left and Right keys walk a file: the load and the Up and Down keys walk nothing.
+    // useEffect(() => {
+    //     for (const file of visibleFiles) {
+    //         if (!props.isTimeSpannedForFile(file, getTimeOfFile(file))) {
+    //             if (getFileRunState(props.walkState, file).status === FileWalkStatus.Idle) {
+    //                 props.walker.walkHistoryTo(getTimeOfFile(file), file, true);
+    //             }
+    //         }
+    //     }
+    // }, [range.top, range.bottom, marker]);
 
     const stepContext: StepContext = { props, speed, marker, bounds, range, getTimeOfFile };
     const stepSelectedFilesInDirection = (direction: MarkerDirection): void => setFileTimes(stepSelectedFiles(stepContext, selectedOrCursorFiles, fileTimes, direction));
