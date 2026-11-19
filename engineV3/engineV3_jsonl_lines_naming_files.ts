@@ -72,8 +72,43 @@ function addErroredResultSpansToNonEmptyLists(transcriptText: string, spansByNee
     }
 }
 
+type NeedleTrieNode = { children: Map<string, NeedleTrieNode>; needleText: string | undefined };
+function createNeedleTrie(needleTexts: string[], needleByteTexts: string[]): NeedleTrieNode {
+    const root: NeedleTrieNode = { children: new Map(), needleText: undefined };
+    for (const [needleIndex, needleByteText] of needleByteTexts.entries()) {
+        let node = root;
+        for (const character of needleByteText) {
+            let child = node.children.get(character);
+            if (child === undefined) {
+                child = { children: new Map(), needleText: undefined };
+                node.children.set(character, child);
+            }
+            node = child;
+        }
+        node.needleText = needleTexts[needleIndex];
+    }
+    return root;
+}
+// Every needle that starts at the position, including a needle that is the start of a longer needle.
+function listNeedleTextsStartingAt(root: NeedleTrieNode, text: string, position: number, lineEnd: number): string[] {
+    const needleTexts: string[] = [];
+    let node = root;
+    let index = position;
+    while (index < lineEnd) {
+        const child = node.children.get(text[index]!);
+        if (child === undefined) {
+            break;
+        }
+        node = child;
+        if (node.needleText !== undefined) {
+            needleTexts.push(node.needleText);
+        }
+        index += 1;
+    }
+    return needleTexts;
+}
 // A latin1 string has one char per byte, so a string index is a byte offset. One RegExp pass finds the lines holding any needle.
-function listLineSpansByNeedleText(transcriptBytes: Buffer, needleTexts: string[]): Map<string, LineSpan[]> {
+export function listLineSpansByNeedleText(transcriptBytes: Buffer, needleTexts: string[]): Map<string, LineSpan[]> {
     const transcriptText = transcriptBytes.toString("latin1");
     const needleByteTexts = needleTexts.map((needleText) => Buffer.from(needleText).toString("latin1"));
     const anyNeedleRegExp = new RegExp(needleByteTexts.map(escapeRegExpText).join("|"), "g");
@@ -81,17 +116,36 @@ function listLineSpansByNeedleText(transcriptBytes: Buffer, needleTexts: string[
     for (const needleText of needleTexts) {
         spansByNeedleText.set(needleText, []);
     }
+    const needleTrie = createNeedleTrie(needleTexts, needleByteTexts);
     let hit = anyNeedleRegExp.exec(transcriptText);
     while (hit !== null) {
         const span = findLineSpanAroundInText(transcriptText, hit.index);
-        const lineText = transcriptText.slice(span.start, span.end);
-        for (const [needleIndex, needleText] of needleTexts.entries()) {
-            if (lineText.includes(needleByteTexts[needleIndex]!)) {
-                spansByNeedleText.get(needleText)!.push(span);
+        const needleTextsInLine = new Set<string>();
+        let isHitInLine = true;
+        while (isHitInLine) {
+            for (const needleText of listNeedleTextsStartingAt(needleTrie, transcriptText, hit!.index, span.end)) {
+                needleTextsInLine.add(needleText);
+            }
+            anyNeedleRegExp.lastIndex = hit!.index + 1;
+            hit = anyNeedleRegExp.exec(transcriptText);
+            isHitInLine = false;
+            if (hit !== null) {
+                if (hit.index < span.end) {
+                    isHitInLine = true;
+                }
             }
         }
-        anyNeedleRegExp.lastIndex = span.end + 1;
-        hit = anyNeedleRegExp.exec(transcriptText);
+        for (const needleText of needleTextsInLine) {
+            spansByNeedleText.get(needleText)!.push(span);
+        }
+        // const lineText = transcriptText.slice(span.start, span.end);
+        // for (const [needleIndex, needleText] of needleTexts.entries()) {
+        //     if (lineText.includes(needleByteTexts[needleIndex]!)) {
+        //         spansByNeedleText.get(needleText)!.push(span);
+        //     }
+        // }
+        // anyNeedleRegExp.lastIndex = span.end + 1;
+        // hit = anyNeedleRegExp.exec(transcriptText);
     }
     addCwdSpanToNonEmptyLists(transcriptText, spansByNeedleText);
     addErroredResultSpansToNonEmptyLists(transcriptText, spansByNeedleText);
