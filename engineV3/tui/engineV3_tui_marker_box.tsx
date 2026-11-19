@@ -20,6 +20,7 @@ export const MARKER_BOX_ROW_COUNT = 3;
 const MARKER_BOX_BORDER_COLOR = TUI_COLORS.markerBox.borderColor;
 
 export interface MarkerBoxProps {
+    title: string;
     eventInstants: Date[];
     markedPosition: number;
     windowStart: number;
@@ -29,7 +30,7 @@ export interface MarkerBoxProps {
     timeColor: string;
 }
 
-export function MarkerBox({ eventInstants, markedPosition, windowStart, columns, markedColor, arrowColor, timeColor }: MarkerBoxProps) {
+export function MarkerBox({ title, eventInstants, markedPosition, windowStart, columns, markedColor, arrowColor, timeColor }: MarkerBoxProps) {
     const eventCount = eventInstants.length;
     const layout = computeMarkerBoxLayout(eventCount, markedPosition, windowStart, computeInnerColumnCount(columns));
     const row: ReactNode[] = [];
@@ -81,7 +82,7 @@ export function MarkerBox({ eventInstants, markedPosition, windowStart, columns,
 
     return (
         // <Box borderStyle="round" borderColor={MARKER_BOX_BORDER_COLOR} paddingX={1} width={columns}>
-        <TitledBox title="Marker" borderColor={MARKER_BOX_BORDER_COLOR} paddingX={1} columns={columns}>
+        <TitledBox title={title} borderColor={MARKER_BOX_BORDER_COLOR} paddingX={1} columns={columns}>
             <Text wrap="truncate-end">{row}</Text>
         </TitledBox>
     );

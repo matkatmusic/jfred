@@ -134,10 +134,10 @@ export function formatKeyBinding(binding: KeyBinding): string {
     }
     const keyDisplayName = KEY_DISPLAY_NAMES[binding.key];
     if (binding.shift === true) {
-        return `Shift-${keyDisplayName}`;
+        return `Shift+${keyDisplayName}`;
     }
     if (binding.meta === true) {
-        return `Option-${keyDisplayName}`;
+        return `Option+${keyDisplayName}`;
     }
     return keyDisplayName;
 }

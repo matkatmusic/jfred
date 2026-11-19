@@ -12,7 +12,7 @@ const WIDE_COLUMNS = 200;
 const EVENT_COUNT = 20;
 
 function Probe({ file, markedPosition }: { file: Path; markedPosition: number }) {
-    return createElement(Text, null, `start ${useMarkerWindowStart(file, EVENT_COUNT, markedPosition, WIDE_COLUMNS)}`);
+    return createElement(Text, null, `start ${useMarkerWindowStart(file.value, EVENT_COUNT, markedPosition, WIDE_COLUMNS)}`);
 }
 
 const FILE_A = new Path("/project/a.txt");

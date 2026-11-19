@@ -27,6 +27,7 @@ import { loadJSONLLinesNamingFiles } from "./engineV3_jsonl_lines_naming_files.t
 import { FileEventType, createEvent, getAllEventsForFileFromLines, sortEventsNewestToOldest, type FileEvent } from "./engineV3_replay_reverse_events.ts";
 import { readDiskText } from "./engineV3_replay_reverse.ts";
 import { addLinesNamingWrittenScripts } from "./engineV3_jsonl_lines_naming_scripts.ts";
+import { getLineSourceIndexFile, listLinesOfFileFromIndex, readLineSourceIndex, type LineSourceIndex } from "./engineV3_jsonl_lines_source_index.ts";
 // import { assertStoreHasNoFullBuildRepos } from "./engineV3_step_store_guard.ts";
 import { assertStoreHasNoFullBuildRepos, resetStoreFolder } from "./engineV3_step_store_guard.ts";
 // import { applyEarliestBoundaryToEvents, readFileTextAtBoundary, type EarliestBoundary } from "./engineV3_earliest_boundary.ts";
@@ -197,7 +198,7 @@ function isStampBuiltFromInputs(stamp: InverseRepoStamp, inputs: InverseRepoStam
 
 // Script indirection is on here: this is the per-file repo path only.
 // export function createProjectEventsLoader(projectFiles: ProjectFile[], jsonlsFolders: Path[], snapshotFolders: Path[]): (fileIndex: number) => FileEvent[] {
-export function createProjectEventsLoader(projectFiles: ProjectFile[], jsonlsFolders: Path[], snapshotFolders: Path[], earliestBoundary?: EarliestBoundary): (fileIndex: number) => FileEvent[] {
+export function createProjectEventsLoader(projectFiles: ProjectFile[], jsonlsFolders: Path[], snapshotFolders: Path[], earliestBoundary?: EarliestBoundary, onLinesLoaded?: (linesByFileKey: Map<string, JSONLLine[]>) => void): (fileIndex: number) => FileEvent[] {
     let linesByFileKey: Map<string, JSONLLine[]> | undefined;
     const eventsByFile: (FileEvent[] | undefined)[] = projectFiles.map(() => undefined);
     return (fileIndex: number): FileEvent[] => {
@@ -209,6 +210,9 @@ export function createProjectEventsLoader(projectFiles: ProjectFile[], jsonlsFol
             const transcriptFiles = projectFiles.map((projectFile) => projectFile.transcriptFile);
             linesByFileKey = loadJSONLLinesNamingFiles(transcriptFiles, jsonlsFolders);
             addLinesNamingWrittenScripts(linesByFileKey, transcriptFiles, jsonlsFolders);
+            if (onLinesLoaded !== undefined) {
+                onLinesLoaded(linesByFileKey);
+            }
         }
         const { file, transcriptFile } = projectFiles[fileIndex]!;
         // const events = sortEventsNewestToOldest(getAllEventsForFileFromLines(file, transcriptFile, linesByFileKey.get(transcriptFile.toString())!, snapshotFolders, true));
@@ -221,7 +225,7 @@ export function createProjectEventsLoader(projectFiles: ProjectFile[], jsonlsFol
     };
 }
 // Like createProjectEventsLoader, but each file reads only the log lines that name that file: a step child needs one file (and the file it was moved or copied from), not all of them.
-export function createSingleFileEventsLoader(projectFiles: ProjectFile[], jsonlsFolders: Path[], snapshotFolders: Path[], earliestBoundary?: EarliestBoundary): (fileIndex: number) => FileEvent[] {
+export function createSingleFileEventsLoader(projectFiles: ProjectFile[], jsonlsFolders: Path[], snapshotFolders: Path[], earliestBoundary?: EarliestBoundary, lineSourceIndex?: LineSourceIndex): (fileIndex: number) => FileEvent[] {
     const eventsByFile: (FileEvent[] | undefined)[] = projectFiles.map(() => undefined);
     return (fileIndex: number): FileEvent[] => {
         const computedEvents = eventsByFile[fileIndex];
@@ -229,8 +233,13 @@ export function createSingleFileEventsLoader(projectFiles: ProjectFile[], jsonls
             return computedEvents;
         }
         const { file, transcriptFile } = projectFiles[fileIndex]!;
-        const linesByFileKey = loadJSONLLinesNamingFiles([transcriptFile], jsonlsFolders);
-        addLinesNamingWrittenScripts(linesByFileKey, [transcriptFile], jsonlsFolders);
+        let linesByFileKey: Map<string, JSONLLine[]>;
+        if (lineSourceIndex === undefined) {
+            linesByFileKey = loadJSONLLinesNamingFiles([transcriptFile], jsonlsFolders);
+            addLinesNamingWrittenScripts(linesByFileKey, [transcriptFile], jsonlsFolders);
+        } else {
+            linesByFileKey = new Map([[transcriptFile.toString(), listLinesOfFileFromIndex(lineSourceIndex, transcriptFile.toString())]]);
+        }
         let events = sortEventsNewestToOldest(getAllEventsForFileFromLines(file, transcriptFile, linesByFileKey.get(transcriptFile.toString())!, snapshotFolders, true));
         if (earliestBoundary !== undefined) {
             events = applyEarliestBoundaryToEvents(events, earliestBoundary, readFileTextAtBoundary(earliestBoundary, file));
@@ -482,6 +491,7 @@ if (isCliRun) {
     // The terminal UI passes its project cache, so a step child does not search every log again for the file list.
     let projectFiles: ProjectFile[];
     let transcriptsToParse: Path[];
+    let lineSourceIndex: LineSourceIndex | undefined;
     if (projectCacheFlag.value === undefined) {
         const { listLayeredSearchProjectFiles, getRepoFolderOfProject } = await import("./layeredSearch/layeredSearch_project_files.ts");
         const repoFolder = getRepoFolderOfProject(settings.projectFolder);
@@ -493,6 +503,7 @@ if (isCliRun) {
         const projectCacheJson = JSON.parse(readFileSync(resolve(projectCacheFlag.value), "utf8")) as Pick<ProjectCacheJson, "projectFiles" | "transcriptsToParse">;
         projectFiles = projectCacheJson.projectFiles.map((fileText) => ({ file: new Path(fileText), transcriptFile: new Path(fileText) }));
         transcriptsToParse = projectCacheJson.transcriptsToParse.map((transcriptText) => new Path(transcriptText));
+        lineSourceIndex = readLineSourceIndex(getLineSourceIndexFile(new Path(resolve(projectCacheFlag.value))));
     }
     if (isStepAll) {
         // await walkAllFilesInStepMode({ projectFolder: settings.projectFolder, jsonlsFolder: settings.jsonlsFolder, fileHistoryFolder: settings.fileHistoryFolder, storeFolder: settings.storeFolder, projectFiles, transcriptsToParse, resultsFile: new Path(resultsFlag.value!) });
@@ -512,7 +523,7 @@ if (isCliRun) {
         // const getEvents = createProjectEventsLoader(projectFiles, transcriptsToParse, [settings.fileHistoryFolder]);
         // const getEvents = createProjectEventsLoader(projectFiles, transcriptsToParse, settings.fileHistoryFolders);
         // const getEvents = createProjectEventsLoader(projectFiles, transcriptsToParse, settings.fileHistoryFolders, earliestBoundary);
-        const getEvents = createSingleFileEventsLoader(projectFiles, transcriptsToParse, settings.fileHistoryFolders, earliestBoundary);
+        const getEvents = createSingleFileEventsLoader(projectFiles, transcriptsToParse, settings.fileHistoryFolders, earliestBoundary, lineSourceIndex);
         const stepFileIndex = projectFiles.indexOf(stepProjectFile);
         const statesByFile: (FileKnownState[] | undefined)[] = projectFiles.map(() => undefined);
         listStatesOfProjectFile(stepFileIndex, projectFiles, getEvents, statesByFile, new Set<number>());

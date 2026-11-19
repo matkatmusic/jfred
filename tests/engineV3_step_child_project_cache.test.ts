@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { makeEditRows, makeInstant, writeProjectCacheOfProject, writeProjectFiles, type ProjectWithFiles } from "./engineV3_step_test_projects.ts";
 
-const FILE_SEARCH_PROGRESS_PATTERN = /B: read the cwd|C: \d+\/\d+ logs read/;
+const FILE_SEARCH_PROGRESS_PATTERN = /B: read the cwd|C: \d+\/\d+ logs read|D: \d+\/\d+ logs scanned/;
 
 function writeProjectWithOneEdit(t: TestContext): ProjectWithFiles {
     return writeProjectFiles(t, new Map([["a.txt", "two\n"]]), (projectFolder, filePathByFileName) =>

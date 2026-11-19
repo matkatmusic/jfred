@@ -22,6 +22,7 @@ export type AppKeyContext = {
     refreshScreen: () => void;
     stepSelectedFilesInDirection: (direction: MarkerDirection) => void;
     stepProjectMarkerInDirection: (direction: MarkerDirection) => void;
+    toggleMarkerBoxScope: () => void;
     playScriptOfCursorFile: () => void;
     boxMode: AppBoxMode;
     fileViewKeymap: Keymap;
@@ -94,6 +95,7 @@ export function useAppKeys(context: AppKeyContext): void {
             case TuiCommand.StepSelectionTowardsEarliest: return context.stepSelectedFilesInDirection(MarkerDirection.TowardsEarliest);
             case TuiCommand.StepAllTowardsNow: return context.stepProjectMarkerInDirection(MarkerDirection.TowardsNow);
             case TuiCommand.StepAllTowardsEarliest: return context.stepProjectMarkerInDirection(MarkerDirection.TowardsEarliest);
+            case TuiCommand.ToggleMarkerBoxScope: return context.toggleMarkerBoxScope();
             case TuiCommand.ResetSelectedStores:
                 selectedOrCursorFiles.forEach((file) => modelMemo.delete(file.value));
                 return void props.onResetSelectedStores(selectedOrCursorFiles);

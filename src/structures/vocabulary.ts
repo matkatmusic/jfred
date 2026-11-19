@@ -195,6 +195,7 @@ export enum TuiCommand {
     StepAllTowardsEarliest = "stepAllTowardsEarliest",
     ToggleDaySpeed = "toggleDaySpeed",
     ToggleWeekSpeed = "toggleWeekSpeed",
+    ToggleMarkerBoxScope = "toggleMarkerBoxScope",
     PlayScript = "playScript",
     SetEventSpeed = "setEventSpeed",
     ViewFile = "viewFile",

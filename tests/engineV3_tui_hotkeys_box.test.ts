@@ -28,7 +28,22 @@ test("test_the_navigation_row_names_the_eight_navigation_keys_with_what_each_doe
     // Scenario: event speed.
     const rows = buildHotKeyRows(loadKeyBox(KEYMAP_FILE, KeyBox.Global), JumpSpeed.Event);
     // the first row is the Navigation row with the exact text.
-    assert.equal(formatHotKeyRowText(rows[0]!), "Navigation: Up: prev row  Down: next row  Option+Up: prev page  Option+Down: next page  Left: toward newer  Right: toward older  Shift+Left: all toward newer  Shift+Right: all toward older");
+    assert.equal(formatHotKeyRowText(rows[0]!), "Navigation: Up: prev row  Down: next row  Option+Up: prev page  Option+Down: next page  Left: selected row towards newer  Right: selected row towards older  Shift+Left: step all rows towards newer  Shift+Right: step all rows towards older");
+});
+
+test("test_the_navigation_key_labels_have_the_same_key_color_as_the_other_rows", () => {
+    // Scenario: the rows at event speed.
+    const keyBox = loadKeyBox(KEYMAP_FILE, KeyBox.Global);
+    const rows = buildHotKeyRows(keyBox, JumpSpeed.Event);
+    // every Navigation item has its key as a label, in the same color as the "s" key of the selection row.
+    const selectKeyColor = rows[1]!.items[0]!.keyColor;
+    for (const item of rows[0]!.items) {
+        assert.notEqual(item.keyLabel, undefined, item.text);
+        assert.equal(item.keyColor, selectKeyColor);
+    }
+    // the drawn Navigation row has the Up label in the light grey code.
+    const frame = drawBox(JumpSpeed.Event).join("\n");
+    assert.ok(frame.includes(`${LIGHT_GREY_START}Up:`));
 });
 
 test("test_the_selection_row_has_the_four_selection_keys", () => {
@@ -37,10 +52,10 @@ test("test_the_selection_row_has_the_four_selection_keys", () => {
 });
 
 test("test_the_speed_row_has_three_speed_keys_and_the_current_speed_on_the_right", () => {
-    // Scenario: week speed.
+    // Scenario: week speed. The row also names the a key, which toggles the Marker Box between the cursor file and all files.
     const rows = buildHotKeyRows(loadKeyBox(KEYMAP_FILE, KeyBox.Global), JumpSpeed.Week);
-    // the Speed row lists e, d and w.
-    assert.equal(formatHotKeyRowText(rows[2]!), "Speed: e: Step by 1 event, d: Step by 1 Day, w: Step by 1 week");
+    // the Speed row lists e, d, w and a.
+    assert.equal(formatHotKeyRowText(rows[2]!), "Speed: e: Step by 1 event, d: Step by 1 Day, w: Step by 1 week, a: Marker scope");
     // the right text names the current speed.
     assert.equal(rows[2]!.rightText, "Current: week");
 });
@@ -57,7 +72,7 @@ test("test_the_navigation_row_has_no_warning_at_any_speed", () => {
         // the Navigation row has no warning text.
         assert.equal(buildHotKeyRows(keyBox, speed)[0]!.warningText, undefined);
         // the Navigation row text ends with the last key.
-        assert.match(formatHotKeyRowText(buildHotKeyRows(keyBox, speed)[0]!), /Shift\+Right: all toward older$/);
+        assert.match(formatHotKeyRowText(buildHotKeyRows(keyBox, speed)[0]!), /Shift\+Right: step all rows towards older$/);
     }
 });
 

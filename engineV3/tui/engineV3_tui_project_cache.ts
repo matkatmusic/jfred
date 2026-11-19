@@ -5,6 +5,7 @@ import { Path } from "../../src/structures/domain.ts";
 import type { EarliestBoundary } from "../engineV3_earliest_boundary.ts";
 import { isModifyingEventType } from "../engineV3_file_step.ts";
 import { createProjectEventsLoader, type ProjectFile } from "../engineV3_inverse_repos_for_project.ts";
+import { buildLineSourceIndex, getLineSourceIndexFile, writeLineSourceIndex, type LineSourceIndex } from "../engineV3_jsonl_lines_source_index.ts";
 import { listProjectFilesOnDiskAndInLogs } from "../engineV3_inverse_repos_project_files.ts";
 import { FileEventType } from "../engineV3_replay_reverse_events.ts";
 import { formatSourceText } from "../engineV3_step_replay_command.ts";
@@ -14,7 +15,7 @@ import { computeProjectCacheInputsHash } from "./engineV3_tui_project_cache_hash
 export type TuiInput = { projectFolder: Path; jsonlsFolders: Path[]; fileHistoryFolders: Path[]; storeFolder: Path; earliestBoundary: EarliestBoundary | undefined };
 export type ProjectEventEntry = { instant: Date; file: Path; eventType: FileEventType; source: string | null };
 export type FileEventCounts = Record<FileEventType, number>;
-export type ProjectCache = { inputsHash: string; projectFiles: Path[]; replayFiles: Path[]; transcriptsToParse: Path[]; events: ProjectEventEntry[]; countsByFile: Map<string, FileEventCounts>; scriptCounts: { mayWrite: number; readOnly: number } };
+export type ProjectCache = { inputsHash: string; projectFiles: Path[]; replayFiles: Path[]; transcriptsToParse: Path[]; events: ProjectEventEntry[]; countsByFile: Map<string, FileEventCounts>; scriptCounts: { mayWrite: number; readOnly: number }; lineSourceIndex?: LineSourceIndex };
 export type FileProgress = { file: Path; current: number; total: number };
 
 export type ProjectCacheJson = {
@@ -42,7 +43,8 @@ function listProjectFilesOfInput(input: TuiInput): { projectFiles: ProjectFile[]
 
 function buildProjectCacheFromFileLists(input: TuiInput, inputsHash: string, projectFiles: ProjectFile[], transcriptsToParse: Path[], reportFileProgress?: (progress: FileProgress) => void): ProjectCache {
     const replayFiles = listProjectFilesOnDiskAndInLogs(input.projectFolder, input.jsonlsFolders).map((projectFile) => projectFile.file);
-    const getEvents = createProjectEventsLoader(projectFiles, transcriptsToParse, input.fileHistoryFolders, input.earliestBoundary);
+    let lineSourceIndex: LineSourceIndex | undefined;
+    const getEvents = createProjectEventsLoader(projectFiles, transcriptsToParse, input.fileHistoryFolders, input.earliestBoundary, (linesByFileKey) => { lineSourceIndex = buildLineSourceIndex(linesByFileKey); });
     const events: ProjectEventEntry[] = [];
     const countsByFile = new Map<string, FileEventCounts>();
     const mayWriteSources = new Set<string>();
@@ -74,7 +76,7 @@ function buildProjectCacheFromFileLists(input: TuiInput, inputsHash: string, pro
         }
     }
     events.sort((first, second) => second.instant.getTime() - first.instant.getTime());
-    return { inputsHash, projectFiles: projectFiles.map((projectFile) => projectFile.file), replayFiles, transcriptsToParse, events, countsByFile, scriptCounts: { mayWrite: mayWriteSources.size, readOnly: readOnlySources.size } };
+    return { inputsHash, projectFiles: projectFiles.map((projectFile) => projectFile.file), replayFiles, transcriptsToParse, events, countsByFile, scriptCounts: { mayWrite: mayWriteSources.size, readOnly: readOnlySources.size }, lineSourceIndex };
 }
 
 export function buildProjectCache(input: TuiInput, reportFileProgress?: (progress: FileProgress) => void): ProjectCache {
@@ -97,6 +99,9 @@ export function writeProjectCache(cacheFile: Path, cache: ProjectCache): void {
     mkdirSync(dirname(cacheFile.toString()), { recursive: true });
     writeFileSync(temporaryFile, JSON.stringify(json));
     renameSync(temporaryFile, cacheFile.toString());
+    if (cache.lineSourceIndex !== undefined) {
+        writeLineSourceIndex(getLineSourceIndexFile(cacheFile), cache.lineSourceIndex);
+    }
 }
 
 export function readProjectCache(cacheFile: Path): ProjectCache {

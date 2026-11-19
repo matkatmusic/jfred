@@ -34,6 +34,7 @@ import { getAvailableRowCount, getVisibleRowRange, movePageInDirection } from ".
 import { getFileRunState } from "./engineV3_tui_walk_state.ts";
 
 const RULER_ROW_LIMIT = 200;
+const ALL_FILES_SCOPE_KEY = "all files";
 
 export function App(startProps: AppProps) {
     const terminalSize = useTerminalSize({ terminalRows: startProps.terminalRows, terminalColumns: startProps.terminalColumns });
@@ -47,6 +48,7 @@ export function App(startProps: AppProps) {
 function LoadedApp(props: AppProps) {
     const [marker, setMarker] = useState<TimeMarker>({ instant: props.events[0]!.instant, eventIndex: 0 });
     const [speed, setSpeed] = useState(JumpSpeed.Event);
+    const [isMarkerBoxForAllFiles, setIsMarkerBoxForAllFiles] = useState(false);
     const [selection, setSelection] = useState<SelectionState>({ cursorIndex: 0, selectedFiles: [], lastToggledIndex: undefined });
     const [fileTimes, setFileTimes] = useState<FileTimes>(new Map());
     const [, setRenderCount] = useState(0);
@@ -76,8 +78,14 @@ function LoadedApp(props: AppProps) {
     // const eventInstants = listEventInstants(listEventsOfFile(props.events, cursorFile));
     const eventInstants = listEventInstants(listEventsOfFile(props.events, cursorFile), bounds.newest);
     const markedPosition = computeMarkedPosition(eventInstants, getTimeOfFile(cursorFile), bounds.newest);
-    const windowStart = useMarkerWindowStart(cursorFile, eventInstants.length, markedPosition, props.terminalColumns);
-    const markerBox = <MarkerBox eventInstants={eventInstants} markedPosition={markedPosition} windowStart={windowStart} columns={props.terminalColumns} markedColor={TUI_COLORS.markerBox.markedColor} arrowColor={TUI_COLORS.markerBox.arrowColor} timeColor={TUI_COLORS.markerBox.timeColor} />;
+    // The Marker Box shows the events of all files, sorted, so a project-wide step is visible at once; the info and drawer boxes stay on the cursor file.
+    const markerBoxEvents = isMarkerBoxForAllFiles ? props.events : listEventsOfFile(props.events, cursorFile);
+    const markerBoxTime = isMarkerBoxForAllFiles ? marker.instant : getTimeOfFile(cursorFile);
+    const markerBoxEventInstants = listEventInstants(markerBoxEvents, bounds.newest);
+    const markerBoxMarkedPosition = computeMarkedPosition(markerBoxEventInstants, markerBoxTime, bounds.newest);
+    const windowStart = useMarkerWindowStart(isMarkerBoxForAllFiles ? ALL_FILES_SCOPE_KEY : cursorFile.value, markerBoxEventInstants.length, markerBoxMarkedPosition, props.terminalColumns);
+    const markerBoxTitle = isMarkerBoxForAllFiles ? "Marker (all files)" : "Marker";
+    const markerBox = <MarkerBox title={markerBoxTitle} eventInstants={markerBoxEventInstants} markedPosition={markerBoxMarkedPosition} windowStart={windowStart} columns={props.terminalColumns} markedColor={TUI_COLORS.markerBox.markedColor} arrowColor={TUI_COLORS.markerBox.arrowColor} timeColor={TUI_COLORS.markerBox.timeColor} />;
     // const keyEntries = buildKeyFooterEntries(props.keymap, speed);
     // const footerRowCount = countBoxRows(detailEntries, props.terminalColumns) + countBoxRows(keyEntries, props.terminalColumns) + LEGEND_ROW_COUNT;
     // const footerRowCount = countBoxRows(detailEntries, props.terminalColumns) + HOTKEYS_BOX_ROW_COUNT + LEGEND_ROW_COUNT;
@@ -109,7 +117,8 @@ function LoadedApp(props: AppProps) {
         setMarker(stepProjectMarker(stepContext, direction));
         setFileTimes(new Map());
     };
-    const stepCursorFileInDirection = (direction: MarkerDirection): void => setFileTimes(stepSelectedFiles(stepContext, [cursorFile], fileTimes, direction));
+    const toggleMarkerBoxScope = (): void => setIsMarkerBoxForAllFiles(!isMarkerBoxForAllFiles);
+    const stepCursorFileInDirection =(direction: MarkerDirection): void => setFileTimes(stepSelectedFiles(stepContext, [cursorFile], fileTimes, direction));
     // const reconstructCursorFile = (): void => void props.walker.walkHistoryTo(new Date(0), cursorFile, true);
     const reconstructCursorFile = (): void => {
         const runStatus = getFileRunState(props.walkState, cursorFile).status;
@@ -131,7 +140,7 @@ function LoadedApp(props: AppProps) {
     const refreshScreen = (): void => setRenderCount((renderCount) => renderCount + 1);
     const moveCursorByPage = (direction: 1 | -1): void => movePageInDirection({ previousTop, selection, files: props.files, pageRowCount: getAvailableRowCount(props.terminalRows, footerRowCount), direction, setSelection });
 
-    useAppKeys({ props, consentQuestion, selection, speed, selectedOrCursorFiles, modelMemo: modelMemo.current, setSelection, setSpeed, refreshScreen, stepSelectedFilesInDirection, stepProjectMarkerInDirection, playScriptOfCursorFile, boxMode: drawerState.boxMode, fileViewKeymap: drawerState.fileViewKeymap, openViewFile: drawerState.openViewFile, closeBox: drawerState.closeBox, toggleDiff: drawerState.toggleDiff, scrollDrawer: drawerState.scrollDrawer, stepCursorFileInDirection, consoleKeymap: drawerState.consoleKeymap, openConsole: drawerState.openConsole, reconstructCursorFile, moveCursorByPage });
+    useAppKeys({ props, consentQuestion, selection, speed, selectedOrCursorFiles, modelMemo: modelMemo.current, setSelection, setSpeed, refreshScreen, stepSelectedFilesInDirection, stepProjectMarkerInDirection, toggleMarkerBoxScope, playScriptOfCursorFile, boxMode: drawerState.boxMode, fileViewKeymap: drawerState.fileViewKeymap, openViewFile: drawerState.openViewFile, closeBox: drawerState.closeBox, toggleDiff: drawerState.toggleDiff, scrollDrawer: drawerState.scrollDrawer, stepCursorFileInDirection, consoleKeymap: drawerState.consoleKeymap, openConsole: drawerState.openConsole, reconstructCursorFile, moveCursorByPage });
 
     const rows = buildFileRowElements({ props, visibleFiles, rangeTop: range.top, selection, rulerRows, rowColumnWidths, getModelOfFile, getTimeOfFile });
     // const headerText = consentQuestion?.questionText ?? props.cacheStatusText ?? `marker ${marker.instant.toISOString()}`;

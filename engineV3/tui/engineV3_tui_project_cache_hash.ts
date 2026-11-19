@@ -6,6 +6,8 @@ import { executeGit } from "../engineV3.ts";
 import { getLogFilesHash } from "../engineV3_inverse_repos_for_project.ts";
 import type { TuiInput } from "./engineV3_tui_project_cache.ts";
 
+// Change this text when the cache gains a file a reader needs: caches stored before are rebuilt. "lines-index" = the line source index file.
+const PROJECT_CACHE_FORMAT = "lines-index";
 function listFileHistoryFileLines(fileHistoryFolders: Path[]): string[] {
     const fileLines: string[] = [];
     for (const fileHistoryFolder of fileHistoryFolders) {
@@ -28,6 +30,6 @@ export function computeProjectCacheInputsHash(input: TuiInput, projectFiles: Pat
     const headCommit = executeGit(input.projectFolder, ["rev-parse", "HEAD"]).toString("utf8").trim();
     const fileHistoryLines = listFileHistoryFileLines(input.fileHistoryFolders);
     const projectFilePaths = projectFiles.map((projectFile) => projectFile.toString()).sort();
-    const hashedParts = [logFilesHash, boundaryCommit, projectFolderText, headCommit, fileHistoryLines.join("\n"), projectFilePaths.join("\n")];
+    const hashedParts = [PROJECT_CACHE_FORMAT, logFilesHash, boundaryCommit, projectFolderText, headCommit, fileHistoryLines.join("\n"), projectFilePaths.join("\n")];
     return createHash("sha256").update(hashedParts.join("\n")).digest("hex");
 }

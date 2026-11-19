@@ -841,3 +841,37 @@ test("test_option_down_shows_the_next_page_of_rows_and_option_up_shows_the_first
     const backNames = screen.readFrameLines().filter((line) => /f\d\d\.txt/.test(line)).map((line) => /f\d\d\.txt/.exec(line)![0]);
     assert.deepEqual(backNames, firstPageNames);
 });
+
+// The Marker Box is the second box of the frame; its top border carries the title.
+function readMarkerBoxTitleLine(lines: string[]): string {
+    const markerTopBorderIndex = lines.findIndex((line) => line.startsWith("╭") && line.includes("Marker"));
+    assert.notEqual(markerTopBorderIndex, -1, `no Marker Box title: ${lines.join("\n")}`);
+    return lines[markerTopBorderIndex]!;
+}
+
+test("test_the_a_key_toggles_the_marker_box_between_the_cursor_file_and_all_files", async (t) => {
+    // Scenario: 31 events over 50 files; each file has one event, so the cursor file f00 has only the day 0 event.
+    const harness = makeAppProps({});
+    const screen = startScreen(t, harness.props);
+    await settle();
+    // Shift-right moves the project marker to day 29, an event of another file.
+    screen.stdin.write(SHIFT_RIGHT_ARROW);
+    await settle();
+    let lines = screen.readFrameLines();
+    assert.ok(!readMarkerBoxTitleLine(lines).includes("all files"));
+    // The a key shows the events of all files: the title says so and the marker is in the middle of the list, not at Now or Earliest.
+    screen.stdin.write("a");
+    await settle();
+    lines = screen.readFrameLines();
+    assert.ok(readMarkerBoxTitleLine(lines).includes("all files"), readMarkerBoxTitleLine(lines));
+    assert.ok(!lines.some((line) => line.includes("[now]")), `the all files Marker Box should not mark Now: ${lines.join("\n")}`);
+    assert.ok(!lines.some((line) => line.includes("[Earliest]")), `the all files Marker Box should not mark Earliest: ${lines.join("\n")}`);
+    // Shift-left moves the marker back to the newest event, which is Now.
+    screen.stdin.write(SHIFT_LEFT_ARROW);
+    await settle();
+    assert.ok(screen.readFrameLines().some((line) => line.includes("[now]")));
+    // The a key again shows the events of the cursor file.
+    screen.stdin.write("a");
+    await settle();
+    assert.ok(!readMarkerBoxTitleLine(screen.readFrameLines()).includes("all files"));
+});

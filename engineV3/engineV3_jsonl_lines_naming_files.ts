@@ -173,7 +173,7 @@ function listLineNumbersByStart(transcriptBytes: Buffer, spansByNeedleText: Map<
 }
 
 // Returns undefined for a line of an unknown record type.
-function parseRecordAtSpan(transcriptFile: Path, transcriptBytes: Buffer, span: LineSpan, lineNumber: number): JSONLLine | undefined {
+export function parseRecordAtSpan(transcriptFile: Path, transcriptBytes: Buffer, span: LineSpan, lineNumber: number): JSONLLine | undefined {
     const lineText = transcriptBytes.toString("utf8", span.start, span.end);
     const recordType = (JSON.parse(lineText) as { type?: unknown }).type;
     if (KNOWN_RECORD_TYPE_SET.has(String(recordType))) {

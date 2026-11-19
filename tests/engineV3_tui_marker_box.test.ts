@@ -41,7 +41,7 @@ class WideStdout extends EventEmitter {
 
 function renderFrame(eventCount: number, markedPosition: number, windowStart: number, columns: number = BOX_COLUMNS): string {
     const stdout = new WideStdout();
-    const instance = render(createElement(MarkerBox, { eventInstants: makeEventInstants(eventCount), markedPosition, windowStart, columns, markedColor: "yellow", arrowColor: "white", timeColor: "green" }), { stdout: stdout as never, debug: true, exitOnCtrlC: false, patchConsole: false });
+    const instance = render(createElement(MarkerBox, { title: "Marker", eventInstants: makeEventInstants(eventCount), markedPosition, windowStart, columns, markedColor: "yellow", arrowColor: "white", timeColor: "green" }), { stdout: stdout as never, debug: true, exitOnCtrlC: false, patchConsole: false });
     instance.unmount();
     return stdout.lastFrame;
 }

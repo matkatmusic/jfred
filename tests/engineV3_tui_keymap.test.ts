@@ -108,6 +108,13 @@ test("test_findCommandForKey_tells_left_from_shift_left", () => {
     assert.equal(findCommandForKey(keymap, "", makeKey({ leftArrow: true, shift: true })), TuiCommand.StepAllTowardsNow);
 });
 
+test("test_findCommandForKey_finds_the_marker_box_scope_toggle_for_the_a_key", () => {
+    // Load the default keymap.
+    const keymap = loadKeymap(DEFAULT_KEYMAP_FILE);
+    // The input "a" finds the command that toggles the Marker Box between the cursor file and all files.
+    assert.equal(findCommandForKey(keymap, "a", makeKey({})), TuiCommand.ToggleMarkerBoxScope);
+});
+
 test("test_findCommandForKey_matches_an_uppercase_letter_by_input", () => {
     // Load the default keymap.
     const keymap = loadKeymap(DEFAULT_KEYMAP_FILE);
@@ -136,13 +143,13 @@ test("test_findCommandForKey_finds_the_day_and_week_speed_commands", () => {
 });
 
 test("test_formatKeyBinding_shows_option_up", () => {
-    // The Option-Up binding shows as "Option-Up".
-    assert.equal(formatKeyBinding({ key: "upArrow", meta: true }), "Option-Up");
+    // The Option-Up binding shows as "Option+Up".
+    assert.equal(formatKeyBinding({ key: "upArrow", meta: true }), "Option+Up");
 });
 
 test("test_formatKeyBinding_shows_shift_left", () => {
-    // The Shift-Left binding shows as "Shift-Left".
-    assert.equal(formatKeyBinding({ key: "leftArrow", shift: true }), "Shift-Left");
+    // The Shift-Left binding shows as "Shift+Left".
+    assert.equal(formatKeyBinding({ key: "leftArrow", shift: true }), "Shift+Left");
     // A letter binding shows as the letter.
     assert.equal(formatKeyBinding({ input: "s" }), "s");
     assert.equal(formatKeyBinding({ input: "S" }), "S");
