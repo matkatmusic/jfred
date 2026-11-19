@@ -1,0 +1,142 @@
+flowchart TD
+  B_FILE_NAMED_IN_LOGS["File F named in the logs (project files on disk, plus gone files the logs name)"]
+  B_FILE_NAMED_IN_LOGS --> Q_ABSENT_ON_DISK_NOW
+
+  Q_ABSENT_ON_DISK_NOW{"Is 'F' still on disk?"}
+  Q_CHOICE_ABSENT_ON_DISK_NOW_YES["Yes"]
+  Q_CHOICE_ABSENT_ON_DISK_NOW_NO["No"]
+  Q_ABSENT_ON_DISK_NOW --> Q_CHOICE_ABSENT_ON_DISK_NOW_YES --> Q_HISTORY_COMPLETE_IN_GIT
+  Q_ABSENT_ON_DISK_NOW --> Q_CHOICE_ABSENT_ON_DISK_NOW_NO --> Q_INSIDE_REPO_AT_START
+
+  Q_HISTORY_COMPLETE_IN_GIT{"R2: F is inside the repo, has git hops, the last git hop is a delete, and no log event changes F after that delete commit?"}
+  Q_CHOICE_HISTORY_COMPLETE_IN_GIT_YES["Yes"]
+  Q_CHOICE_HISTORY_COMPLETE_IN_GIT_NO["No"]
+  B_EXCLUDED_HISTORY_COMPLETE_IN_GIT["EXCLUDED: history complete in git (filesWithHistoryCompleteInGit), no puzzle is run"]
+  Q_HISTORY_COMPLETE_IN_GIT --> Q_CHOICE_HISTORY_COMPLETE_IN_GIT_YES --> B_EXCLUDED_HISTORY_COMPLETE_IN_GIT
+  Q_HISTORY_COMPLETE_IN_GIT --> Q_CHOICE_HISTORY_COMPLETE_IN_GIT_NO --> Q_INSIDE_REPO_AT_START
+
+  Q_INSIDE_REPO_AT_START{"R3: F inside the repo at start commit C? (not outside the repo, not inside a submodule)"}
+  Q_CHOICE_INSIDE_REPO_AT_START_YES["Yes"]
+  Q_CHOICE_INSIDE_REPO_AT_START_NO["No"]
+  B_USE_LOADED_EVENTS_AS_THEY_ARE["No start rule: the loaded log events and the git commits of F's own repo are used as they are, no born check"]
+  Q_INSIDE_REPO_AT_START --> Q_CHOICE_INSIDE_REPO_AT_START_YES --> Q_CREATION_COMMIT_FOUND
+  Q_INSIDE_REPO_AT_START --> Q_CHOICE_INSIDE_REPO_AT_START_NO --> B_USE_LOADED_EVENTS_AS_THEY_ARE --> Q_ANY_EVENT_TO_REPLAY
+
+  Q_CREATION_COMMIT_FOUND{"R4: creation commit of F found at or before C, following renames?"}
+  Q_CHOICE_CREATION_COMMIT_FOUND_YES["Yes"]
+  Q_CHOICE_CREATION_COMMIT_FOUND_NO["No"]
+  Q_CREATION_COMMIT_FOUND --> Q_CHOICE_CREATION_COMMIT_FOUND_YES --> B_BEACONS_FROM_CREATION
+  Q_CREATION_COMMIT_FOUND --> Q_CHOICE_CREATION_COMMIT_FOUND_NO --> Q_MOVED_ONTO_F
+
+  Q_MOVED_ONTO_F{"R5: does any log event move or copy a file onto F?"}
+  Q_CHOICE_MOVED_ONTO_F_YES["Yes"]
+  Q_CHOICE_MOVED_ONTO_F_NO["No"]
+  B_RESEARCH_BORN_AFTER_START["RESEARCH: BornAfterStart"]
+  Q_MOVED_ONTO_F --> Q_CHOICE_MOVED_ONTO_F_YES --> B_BEACONS_FROM_CREATION
+  Q_MOVED_ONTO_F --> Q_CHOICE_MOVED_ONTO_F_NO --> B_RESEARCH_BORN_AFTER_START
+
+  B_BEACONS_FROM_CREATION["Beacons: every git commit of F from its creation to HEAD (a delete commit means absent). Log events at or before the creation commit are dropped. The disk-now event is never an input."]
+  B_BEACONS_FROM_CREATION --> Q_ANY_EVENT_TO_REPLAY
+
+  Q_ANY_EVENT_TO_REPLAY{"R6: any event to replay?"}
+  Q_CHOICE_ANY_EVENT_TO_REPLAY_YES["Yes"]
+  Q_CHOICE_ANY_EVENT_TO_REPLAY_NO["No"]
+  B_RESEARCH_NO_EVENTS["RESEARCH: NoEvents"]
+  Q_ANY_EVENT_TO_REPLAY --> Q_CHOICE_ANY_EVENT_TO_REPLAY_YES --> B_TAKE_NEXT_EVENT
+  Q_ANY_EVENT_TO_REPLAY --> Q_CHOICE_ANY_EVENT_TO_REPLAY_NO --> B_RESEARCH_NO_EVENTS
+
+  B_TAKE_NEXT_EVENT["Take the next event, oldest first"]
+  B_TAKE_NEXT_EVENT --> Q_EVENT_KIND
+
+  Q_EVENT_KIND{"R7: event kind?"}
+  Q_CHOICE_EVENT_KIND_BEACON["Beacon: git commit, snapshot, Write, whole Read, Edit with originalFile"]
+  Q_CHOICE_EVENT_KIND_EDIT["Edit without originalFile"]
+  Q_CHOICE_EVENT_KIND_READ_ONLY["Partial Read or read-only command"]
+  Q_CHOICE_EVENT_KIND_SCRIPT["ScriptMayWrite or OtherRow"]
+  Q_CHOICE_EVENT_KIND_USER_EDIT_NOTICE["UserEditNotice"]
+  Q_CHOICE_EVENT_KIND_ANY_OTHER["Any other event kind"]
+  Q_EVENT_KIND --> Q_CHOICE_EVENT_KIND_BEACON --> B_SET_BYTES_FROM_BEACON
+  Q_EVENT_KIND --> Q_CHOICE_EVENT_KIND_EDIT --> Q_TEXT_KNOWN
+  Q_EVENT_KIND --> Q_CHOICE_EVENT_KIND_READ_ONLY --> Q_MORE_EVENTS_LEFT
+  Q_EVENT_KIND --> Q_CHOICE_EVENT_KIND_SCRIPT --> Q_SCRIPT_EFFECT
+  Q_EVENT_KIND --> Q_CHOICE_EVENT_KIND_USER_EDIT_NOTICE --> B_FAIL_USER_EDIT_NOTICE
+  Q_EVENT_KIND --> Q_CHOICE_EVENT_KIND_ANY_OTHER --> B_THROW_NO_RULE_FOR_EVENT_KIND
+
+  B_SET_BYTES_FROM_BEACON["bytes = beacon bytes (git delete commit: bytes = absent), add hop, the gap is closed"]
+  B_SET_BYTES_FROM_BEACON --> Q_MORE_EVENTS_LEFT
+  B_THROW_NO_RULE_FOR_EVENT_KIND["THROW: no rule for this event type"]
+  B_FAIL_USER_EDIT_NOTICE["R14: failure UserEditNotice, bytes unknown"]
+  B_FAIL_USER_EDIT_NOTICE --> Q_MORE_EVENTS_LEFT
+
+  Q_TEXT_KNOWN{"R8: is the text of F known?"}
+  Q_CHOICE_TEXT_KNOWN_YES["Yes"]
+  Q_CHOICE_TEXT_KNOWN_NO["No: unknown or absent"]
+  B_FAIL_EDIT_NO_TEXT["failure EditOldTextNotFound, bytes unknown"]
+  Q_TEXT_KNOWN --> Q_CHOICE_TEXT_KNOWN_YES --> Q_EDIT_OLD_TEXT_COUNT
+  Q_TEXT_KNOWN --> Q_CHOICE_TEXT_KNOWN_NO --> B_FAIL_EDIT_NO_TEXT --> Q_MORE_EVENTS_LEFT
+
+  Q_EDIT_OLD_TEXT_COUNT{"R9: how many times is the old text in the bytes?"}
+  Q_CHOICE_EDIT_OLD_TEXT_COUNT_ONCE["Exactly once, or at least once with replaceAll"]
+  Q_CHOICE_EDIT_OLD_TEXT_COUNT_ZERO["0 times"]
+  Q_CHOICE_EDIT_OLD_TEXT_COUNT_MANY["More than once, replaceAll off"]
+  B_APPLY_EDIT["apply Edit, add hop"]
+  B_FAIL_EDIT_OLD_TEXT_NOT_FOUND["failure EditOldTextNotFound, bytes unknown"]
+  B_FAIL_EDIT_OLD_TEXT_FOUND_MANY_TIMES["failure EditOldTextFoundManyTimes, bytes unknown"]
+  Q_EDIT_OLD_TEXT_COUNT --> Q_CHOICE_EDIT_OLD_TEXT_COUNT_ONCE --> B_APPLY_EDIT --> Q_MORE_EVENTS_LEFT
+  Q_EDIT_OLD_TEXT_COUNT --> Q_CHOICE_EDIT_OLD_TEXT_COUNT_ZERO --> B_FAIL_EDIT_OLD_TEXT_NOT_FOUND --> Q_MORE_EVENTS_LEFT
+  Q_EDIT_OLD_TEXT_COUNT --> Q_CHOICE_EDIT_OLD_TEXT_COUNT_MANY --> B_FAIL_EDIT_OLD_TEXT_FOUND_MANY_TIMES --> Q_MORE_EVENTS_LEFT
+
+  Q_SCRIPT_EFFECT{"R10: what does the event do to F?"}
+  Q_CHOICE_SCRIPT_EFFECT_MOVES_ONTO_F["Moves or copies an old path onto F"]
+  Q_CHOICE_SCRIPT_EFFECT_REMOVES_F["Removes F or moves it away"]
+  Q_CHOICE_SCRIPT_EFFECT_OTHER["Other"]
+  B_BYTES_ABSENT["bytes = absent, add hop, the gap is closed"]
+  B_FAIL_SCRIPT_MAY_WRITE["failure ScriptMayWrite (a script is never run), bytes unknown"]
+  Q_SCRIPT_EFFECT --> Q_CHOICE_SCRIPT_EFFECT_MOVES_ONTO_F --> Q_OLD_PATH_REPLAY_RESULT
+  Q_SCRIPT_EFFECT --> Q_CHOICE_SCRIPT_EFFECT_REMOVES_F --> B_BYTES_ABSENT --> Q_MORE_EVENTS_LEFT
+  Q_SCRIPT_EFFECT --> Q_CHOICE_SCRIPT_EFFECT_OTHER --> B_FAIL_SCRIPT_MAY_WRITE --> Q_MORE_EVENTS_LEFT
+
+  Q_OLD_PATH_REPLAY_RESULT{"R11: replay of the old path up to the move instant (strictly before it) ends how?"}
+  Q_CHOICE_OLD_PATH_REPLAY_RESULT_KNOWN["Known bytes"]
+  Q_CHOICE_OLD_PATH_REPLAY_RESULT_FAILED["Old path failed"]
+  Q_CHOICE_OLD_PATH_REPLAY_RESULT_ABSENT["Old path absent"]
+  B_BYTES_FROM_OLD_PATH["bytes = bytes of the old path, add the old path hops then this hop, the gap is closed"]
+  B_FAIL_FROM_OLD_PATH["failure = the failure of the old path (for example BornAfterStart)"]
+  B_FAIL_SCRIPT_MAY_WRITE_OLD_PATH_ABSENT["failure ScriptMayWrite, bytes unknown"]
+  Q_OLD_PATH_REPLAY_RESULT --> Q_CHOICE_OLD_PATH_REPLAY_RESULT_KNOWN --> B_BYTES_FROM_OLD_PATH --> Q_MORE_EVENTS_LEFT
+  Q_OLD_PATH_REPLAY_RESULT --> Q_CHOICE_OLD_PATH_REPLAY_RESULT_FAILED --> B_FAIL_FROM_OLD_PATH --> Q_MORE_EVENTS_LEFT
+  Q_OLD_PATH_REPLAY_RESULT --> Q_CHOICE_OLD_PATH_REPLAY_RESULT_ABSENT --> B_FAIL_SCRIPT_MAY_WRITE_OLD_PATH_ABSENT --> Q_MORE_EVENTS_LEFT
+
+  Q_MORE_EVENTS_LEFT{"R16: any event left after this one?"}
+  Q_CHOICE_MORE_EVENTS_LEFT_YES["Yes"]
+  Q_CHOICE_MORE_EVENTS_LEFT_NO["No"]
+  Q_MORE_EVENTS_LEFT --> Q_CHOICE_MORE_EVENTS_LEFT_YES --> B_TAKE_NEXT_EVENT
+  Q_MORE_EVENTS_LEFT --> Q_CHOICE_MORE_EVENTS_LEFT_NO --> Q_END_STATE_KNOWN
+
+  Q_END_STATE_KNOWN{"R12: end state known (text or absent)?"}
+  Q_CHOICE_END_STATE_KNOWN_YES["Yes"]
+  Q_CHOICE_END_STATE_KNOWN_NO["No"]
+  B_RESEARCH_FIRST_FAILURE["RESEARCH: the first failure since the last gap closed (NoEvents if none), with the log line of that failure as lastAttemptedHop"]
+  Q_END_STATE_KNOWN --> Q_CHOICE_END_STATE_KNOWN_YES --> Q_END_HASH_EQUALS_HASH_NOW
+  Q_END_STATE_KNOWN --> Q_CHOICE_END_STATE_KNOWN_NO --> B_RESEARCH_FIRST_FAILURE
+
+  Q_END_HASH_EQUALS_HASH_NOW{"R13: hash of the end bytes equals hashNow? (an absent end equals ABSENT_FILE_HASH)"}
+  Q_CHOICE_END_HASH_EQUALS_HASH_NOW_YES["Yes"]
+  Q_CHOICE_END_HASH_EQUALS_HASH_NOW_NO["No"]
+  B_FULLY_RECONSTRUCTIBLE["FULLY RECONSTRUCTIBLE: hops saved in reconstruction-cache.json"]
+  B_RESEARCH_FINAL_HASH_MISMATCH["RESEARCH: FinalHashMismatch"]
+  Q_END_HASH_EQUALS_HASH_NOW --> Q_CHOICE_END_HASH_EQUALS_HASH_NOW_YES --> B_FULLY_RECONSTRUCTIBLE
+  Q_END_HASH_EQUALS_HASH_NOW --> Q_CHOICE_END_HASH_EQUALS_HASH_NOW_NO --> B_RESEARCH_FINAL_HASH_MISMATCH
+
+  classDef forwards fill:#c8f7c5,stroke:#6da26f
+  classDef decision fill:#fff3b0,stroke:#b8860b
+  classDef backwards fill:#f8c8c8,stroke:#c62828
+classDef information fill:#ffffff,stroke:#000000
+  class B_FULLY_RECONSTRUCTIBLE forwards
+  class B_EXCLUDED_HISTORY_COMPLETE_IN_GIT,B_RESEARCH_BORN_AFTER_START,B_RESEARCH_NO_EVENTS,B_RESEARCH_FIRST_FAILURE,B_RESEARCH_FINAL_HASH_MISMATCH,B_THROW_NO_RULE_FOR_EVENT_KIND backwards
+class B_FILE_NAMED_IN_LOGS information
+class Q_ABSENT_ON_DISK_NOW decision
+%%%%====
+%% DO NOT MODIFY - AUTOMATICALLY GENERATED DURING EVERY SAVE
+%% {"lastSelectedNodeId":"Q_ABSENT_ON_DISK_NOW","outputScrollLeft":1107.5,"outputScrollTop":0,"mainZoomPercent":100}
+%%%%====
