@@ -1,16 +1,7 @@
 flowchart TD
   B_FILE_NAMED_IN_LOGS["for file F in list of files:"]
-  B_FIND_GIT_FOLDER_OF_F["Find F's git folder: the submodule's own git folder if F is inside a submodule, otherwise the project's git folder"]
-  B_FIND_GIT_FOLDER_OF_F --> Q_STILL_ON_DISK
 
-  Q_STILL_ON_DISK{"Is 'F' still on disk?"}
-  Q_CHOICE_STILL_ON_DISK_YES["Yes"]
-  Q_CHOICE_STILL_ON_DISK_NO["No"]
-  Q_STILL_ON_DISK --> Q_CHOICE_STILL_ON_DISK_NO --> Q_EVER_MENTIONED_IN_GIT
 
-  Q_EVER_MENTIONED_IN_GIT{"Was this file ever mentioned in F's git folder?"}
-  Q_CHOICE_EVER_MENTIONED_IN_GIT_YES["Yes"]
-  Q_EVER_MENTIONED_IN_GIT --> Q_CHOICE_EVER_MENTIONED_IN_GIT_YES --> Q_REMOVED_FROM_REPO_IN_GIT
 
   Q_REMOVED_FROM_REPO_IN_GIT{"Is there an event in F's git folder where the file was removed?"}
   Q_CHOICE_REMOVED_FROM_REPO_IN_GIT_YES["Yes"]
@@ -134,10 +125,12 @@ flowchart TD
   Q_CHOICE_NEW_2_N["after"]
   Q_NEW_2 --> Q_CHOICE_NEW_2_Y
   Q_NEW_2 --> Q_CHOICE_NEW_2_N
+  Q_CHOICE_NEW_2_Y --> B_NEW_1
+  Q_CHOICE_NEW_2_N --> B_NEW_2
   Q_CHOICE_REMOVED_FROM_REPO_IN_GIT_NEW["No"]
   Q_REMOVED_FROM_REPO_IN_GIT --> Q_CHOICE_REMOVED_FROM_REPO_IN_GIT_NEW
   Q_CHOICE_REMOVED_FROM_REPO_IN_GIT_NEW --> B_NEW_3
-  Q_STILL_ON_DISK --> Q_CHOICE_STILL_ON_DISK_YES
+  B_NEW_3 --> B_NEW_2
 
   B_LAUNCH["The program is launched. The project folder is always passed in."]
   B_LAUNCH --> Q_JSONLS_GIVEN
@@ -189,29 +182,19 @@ flowchart TD
   B_DERIVE_SNAPSHOTS --> B_NEW_4
   B_BUILD_LIST_TO_RECONSTRUCT --> B_FILE_NAMED_IN_LOGS
   B_HISTORY_COMPLETE_IN_GIT --> Q_NEW_2
-  Q_CHOICE_EVER_MENTIONED_IN_GIT_NEW["No"]
-  Q_EVER_MENTIONED_IN_GIT --> Q_CHOICE_EVER_MENTIONED_IN_GIT_NEW
   Q_NEW_1{"Is that event the latest event in F's git folder for file F?"}
   Q_CHOICE_NEW_1_Y["Yes"]
   Q_CHOICE_NEW_1_N["No"]
   Q_CHOICE_REMOVED_FROM_REPO_IN_GIT_YES --> Q_NEW_1
   Q_NEW_1 --> Q_CHOICE_NEW_1_Y
   Q_NEW_1 --> Q_CHOICE_NEW_1_N
+  Q_CHOICE_NEW_1_N --> B_NEW_3
   Q_CHOICE_NEW_1_Y --> B_HISTORY_COMPLETE_IN_GIT
   Q_REMOVED_FROM_REPO_IN_GIT --> Q_CHOICE_REMOVED_FROM_REPO_IN_GIT_YES
   B_ALL_INPUTS_KNOWN --> B_NEW_5
   B_NEW_5 --> B_MERGE_SOURCES
   B_MERGE_SOURCES --> B_NEW_6
   B_NEW_6 --> B_BUILD_LIST_TO_RECONSTRUCT
-  B_NEW_8["Answered: What order do we try to reconstruct this file vs every other file?"]
-  B_GROUP_1 --> B_NEW_8
-  B_GROUP_2 --> B_NEW_8
-  B_GROUP_3 --> B_NEW_8
-  B_GROUP_4 --> B_NEW_8
-  B_GROUP_5 --> B_NEW_8
-  B_GROUP_6 --> B_NEW_8
-  B_GROUP_7 --> B_NEW_8
-  B_NEW_8 --> B_PROCESS_GROUPS_IN_ORDER
   %% disabled (old order: JSONLs, git, disk): Q_SORT_ON_DISK_JSONLS_YES_GIT_YES --> Q_CHOICE_SORT_ON_DISK_JSONLS_YES_GIT_YES_YES
   %% disabled: Q_CHOICE_SORT_ON_DISK_JSONLS_YES_GIT_YES_YES --> B_GROUP_1
   %% disabled: Q_SORT_ON_DISK_JSONLS_YES_GIT_YES --> Q_CHOICE_SORT_ON_DISK_JSONLS_YES_GIT_YES_NO
@@ -226,30 +209,6 @@ flowchart TD
   %% disabled: Q_CHOICE_SORT_ON_DISK_JSONLS_NO_GIT_YES_NO --> B_GROUP_6
   %% disabled: Q_SORT_ON_DISK_JSONLS_NO_GIT_NO --> Q_CHOICE_SORT_ON_DISK_JSONLS_NO_GIT_NO_YES
   %% disabled: Q_CHOICE_SORT_ON_DISK_JSONLS_NO_GIT_NO_YES --> B_GROUP_7
-  Q_NEW_3{"Do the JSONL logs mention F?"}
-  Q_CHOICE_NEW_3_Y["Yes"]
-  Q_CHOICE_NEW_3_N["No"]
-  Q_NEW_3 --> Q_CHOICE_NEW_3_Y
-  Q_NEW_3 --> Q_CHOICE_NEW_3_N
-  Q_NEW_4{"Does F's git folder have git history for F?"}
-  Q_CHOICE_NEW_4_Y["Yes"]
-  Q_CHOICE_NEW_4_N["No"]
-  Q_CHOICE_NEW_3_N --> Q_NEW_4
-  Q_NEW_4 --> Q_CHOICE_NEW_4_Y
-  Q_NEW_4 --> Q_CHOICE_NEW_4_N
-  Q_NEW_5{"Is F on disk?"}
-  Q_CHOICE_NEW_5_Y["Yes"]
-  Q_CHOICE_NEW_5_N["No"]
-  Q_CHOICE_NEW_4_N --> Q_NEW_5
-  Q_NEW_5 --> Q_CHOICE_NEW_5_Y
-  Q_NEW_5 --> Q_CHOICE_NEW_5_N
-  Q_CHOICE_NEW_5_N --> B_NEW_9
-  Q_CHOICE_NEW_3_Y --> B_NEW_10
-  Q_CHOICE_NEW_4_Y --> B_NEW_10
-  Q_CHOICE_NEW_5_Y --> B_NEW_10
-  B_NEW_9 --> B_NEW_1
-  B_NEW_10 --> B_NEW_2
-  B_NEW_2 --> B_NEW_12
   Q_NEW_6{"Which processing group should this file go into? \ncheck: \n1) on-disk, \n2) in-git, \n3) in-jsonl"}
   Q_CHOICE_NEW_6_Y["Group 1: \nno disk\nno git\nno jsonl"]
   Q_CHOICE_NEW_6_N["Group 2: \nno disk \nno git \nyes jsonl"]
@@ -267,8 +226,24 @@ flowchart TD
   Q_NEW_6 --> Q_CHOICE_NEW_6_NEW5
   Q_CHOICE_NEW_6_NEW6["Group 8: \nyes disk \nyes git \nyes jsonl"]
   Q_NEW_6 --> Q_CHOICE_NEW_6_NEW6
-  B_FILE_NAMED_IN_LOGS --> Q_NEW_6
-  B_NEW_7 --> Q_NEW_3
+  %% disabled: B_FILE_NAMED_IN_LOGS --> Q_NEW_6
+  %% disabled: B_NEW_7 --> Q_NEW_3
+  B_FILE_NAMED_IN_LOGS --> B_NEW_7
+  B_NEW_7 --> Q_NEW_6
+
+  B_THROW_NO_SOURCE_NAMES_FILE["THROW: no source names this file, so this case cannot happen"]
+  B_NEW_2 --> B_NEW_10
+  B_NEW_1 --> B_NEW_9
+  B_NEW_10 --> B_PROCESS_GROUPS_IN_ORDER
+  class B_THROW_NO_SOURCE_NAMES_FILE no-path
+  Q_CHOICE_NEW_6_Y --> B_THROW_NO_SOURCE_NAMES_FILE
+  Q_CHOICE_NEW_6_N --> B_NEW_2
+  Q_CHOICE_NEW_6_NEW --> Q_REMOVED_FROM_REPO_IN_GIT
+  Q_CHOICE_NEW_6_NEW2 --> Q_REMOVED_FROM_REPO_IN_GIT
+  Q_CHOICE_NEW_6_NEW3 --> B_NEW_2
+  Q_CHOICE_NEW_6_NEW4 --> B_NEW_2
+  Q_CHOICE_NEW_6_NEW5 --> B_NEW_2
+  Q_CHOICE_NEW_6_NEW6 --> B_NEW_2
   classDef yes-path fill:#c8f7c5,stroke:#6da26f
   classDef question fill:#fff3b0,stroke:#b8860b
   classDef no-path fill:#f8c8c8,stroke:#c62828
@@ -289,55 +264,14 @@ class B_LAUNCH,B_ALL_INPUTS_KNOWN,B_SOURCE_DISK,B_SOURCE_GIT,B_SOURCE_SUBMODULE_
   %% disabled (old order: JSONLs, git, disk) nodes and edges of the old sorting tree:
   %% Q_SORT_IN_JSONLS, Q_SORT_GIT_HISTORY_JSONLS_YES, Q_SORT_GIT_HISTORY_JSONLS_NO, Q_SORT_ON_DISK_JSONLS_YES_GIT_YES, Q_SORT_ON_DISK_JSONLS_YES_GIT_NO, Q_SORT_ON_DISK_JSONLS_NO_GIT_YES, Q_SORT_ON_DISK_JSONLS_NO_GIT_NO and their Q_CHOICE_ answers
 
-  Q_SORT_ON_DISK{"Is F on disk?"}
-  Q_CHOICE_SORT_ON_DISK_YES["Yes"]
-  Q_CHOICE_SORT_ON_DISK_NO["No"]
-  Q_SORT_ON_DISK --> Q_CHOICE_SORT_ON_DISK_YES --> Q_SORT_IN_JSONLS_DISK_YES
-  Q_SORT_ON_DISK --> Q_CHOICE_SORT_ON_DISK_NO --> Q_SORT_IN_JSONLS_DISK_NO
 
-  Q_SORT_IN_JSONLS_DISK_YES{"Do the JSONL logs mention F?"}
-  Q_CHOICE_SORT_IN_JSONLS_DISK_YES_YES["Yes"]
-  Q_CHOICE_SORT_IN_JSONLS_DISK_YES_NO["No"]
-  Q_SORT_IN_JSONLS_DISK_YES --> Q_CHOICE_SORT_IN_JSONLS_DISK_YES_YES --> Q_SORT_GIT_HISTORY_DISK_YES_JSONLS_YES
-  Q_SORT_IN_JSONLS_DISK_YES --> Q_CHOICE_SORT_IN_JSONLS_DISK_YES_NO --> Q_SORT_GIT_HISTORY_DISK_YES_JSONLS_NO
 
-  Q_SORT_IN_JSONLS_DISK_NO{"Do the JSONL logs mention F?"}
-  Q_CHOICE_SORT_IN_JSONLS_DISK_NO_YES["Yes"]
-  Q_CHOICE_SORT_IN_JSONLS_DISK_NO_NO["No"]
-  Q_SORT_IN_JSONLS_DISK_NO --> Q_CHOICE_SORT_IN_JSONLS_DISK_NO_YES --> Q_SORT_GIT_HISTORY_DISK_NO_JSONLS_YES
-  Q_SORT_IN_JSONLS_DISK_NO --> Q_CHOICE_SORT_IN_JSONLS_DISK_NO_NO --> Q_SORT_GIT_HISTORY_DISK_NO_JSONLS_NO
 
-  Q_SORT_GIT_HISTORY_DISK_YES_JSONLS_YES{"Does F's git folder have git history for F?"}
-  Q_CHOICE_SORT_GIT_HISTORY_DISK_YES_JSONLS_YES_YES["Yes"]
-  Q_CHOICE_SORT_GIT_HISTORY_DISK_YES_JSONLS_YES_NO["No"]
-  B_GROUP_1["Group 1: on disk, has git history, in the JSONLs"]
-  B_GROUP_3["Group 3: on disk, no git history, in the JSONLs"]
-  Q_SORT_GIT_HISTORY_DISK_YES_JSONLS_YES --> Q_CHOICE_SORT_GIT_HISTORY_DISK_YES_JSONLS_YES_YES --> B_GROUP_1
-  Q_SORT_GIT_HISTORY_DISK_YES_JSONLS_YES --> Q_CHOICE_SORT_GIT_HISTORY_DISK_YES_JSONLS_YES_NO --> B_GROUP_3
 
-  Q_SORT_GIT_HISTORY_DISK_YES_JSONLS_NO{"Does F's git folder have git history for F?"}
-  Q_CHOICE_SORT_GIT_HISTORY_DISK_YES_JSONLS_NO_YES["Yes"]
-  Q_CHOICE_SORT_GIT_HISTORY_DISK_YES_JSONLS_NO_NO["No"]
-  B_GROUP_5["Group 5: on disk, has git history, not in the JSONLs"]
-  B_GROUP_7["Group 7: on disk, no git history, not in the JSONLs"]
-  Q_SORT_GIT_HISTORY_DISK_YES_JSONLS_NO --> Q_CHOICE_SORT_GIT_HISTORY_DISK_YES_JSONLS_NO_YES --> B_GROUP_5
-  Q_SORT_GIT_HISTORY_DISK_YES_JSONLS_NO --> Q_CHOICE_SORT_GIT_HISTORY_DISK_YES_JSONLS_NO_NO --> B_GROUP_7
 
-  Q_SORT_GIT_HISTORY_DISK_NO_JSONLS_YES{"Does F's git folder have git history for F?"}
-  Q_CHOICE_SORT_GIT_HISTORY_DISK_NO_JSONLS_YES_YES["Yes"]
-  Q_CHOICE_SORT_GIT_HISTORY_DISK_NO_JSONLS_YES_NO["No"]
-  B_GROUP_2["Group 2: not on disk, has git history, in the JSONLs"]
-  B_GROUP_4["Group 4: not on disk, no git history, in the JSONLs"]
-  Q_SORT_GIT_HISTORY_DISK_NO_JSONLS_YES --> Q_CHOICE_SORT_GIT_HISTORY_DISK_NO_JSONLS_YES_YES --> B_GROUP_2
-  Q_SORT_GIT_HISTORY_DISK_NO_JSONLS_YES --> Q_CHOICE_SORT_GIT_HISTORY_DISK_NO_JSONLS_YES_NO --> B_GROUP_4
 
-  Q_SORT_GIT_HISTORY_DISK_NO_JSONLS_NO{"Does F's git folder have git history for F?"}
-  Q_CHOICE_SORT_GIT_HISTORY_DISK_NO_JSONLS_NO_YES["Yes"]
-  Q_CHOICE_SORT_GIT_HISTORY_DISK_NO_JSONLS_NO_NO["No"]
-  B_GROUP_6["Group 6: not on disk, has git history, not in the JSONLs"]
-  B_THROW_GROUP_8_NO_SOURCE_NAMES_FILE["THROW: group 8 (not on disk, no git history, not in the JSONLs) cannot happen, because no source names the file"]
-  Q_SORT_GIT_HISTORY_DISK_NO_JSONLS_NO --> Q_CHOICE_SORT_GIT_HISTORY_DISK_NO_JSONLS_NO_YES --> B_GROUP_6
-  Q_SORT_GIT_HISTORY_DISK_NO_JSONLS_NO --> Q_CHOICE_SORT_GIT_HISTORY_DISK_NO_JSONLS_NO_NO --> B_THROW_GROUP_8_NO_SOURCE_NAMES_FILE
+  
+
 
   B_PROCESS_GROUPS_IN_ORDER["Process the files one file at a time, starting with the lowest numbered group."]
 
@@ -361,13 +295,8 @@ class B_NEW_6,B_NEW_8,B_NEW_9,B_NEW_10 Answered
   B_NEW_7["Asked: Do we try to reconstruct this file?"]
   B_NEW_9["Answered: Do we try to reconstruct this file?"]
   B_NEW_10["Answered: Do we try to reconstruct this file?"]
-  B_NEW_11["Asked: What order do we try to reconstruct this file vs every other file?"]
   %% disabled: B_NEW_11 --> Q_SORT_IN_JSONLS
-  B_NEW_11 --> Q_SORT_ON_DISK
-  %% ==note==: simpler groups are handled first
-  B_NEW_12["Sort the file into ordered groups for processing"]
-  B_NEW_12 --> B_NEW_11
 %%%%====
 %% DO NOT MODIFY - AUTOMATICALLY GENERATED DURING EVERY SAVE
-%% {"lastSelectedNodeId":"Q_CHOICE_NEW_6_Y","outputScrollLeft":297.5,"outputScrollTop":3418,"mainZoomPercent":60}
+%% {"lastSelectedNodeId":null,"outputScrollLeft":0,"outputScrollTop":4159.5,"mainZoomPercent":60}
 %%%%====
