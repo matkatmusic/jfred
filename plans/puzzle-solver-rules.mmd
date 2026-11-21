@@ -421,7 +421,7 @@ class B_NEW_6,B_NEW_8,B_NEW_9,B_NEW_10 Answered
   %% disabled: B_PUZZLE_NODE_REPLAYED["This node is replayed"]
   %% disabled: B_PUZZLE_NODE_REPLAYED --> Q_PUZZLE_ANY_NODE_TO_REPLAY
 
-  %% ==note==: open: a script event inside a range. Scripts run in the script step after every file, so that range cannot be solved before the script step
+  %% disabled: %% ==note==: open: a script event inside a range. Scripts run in the script step after every file, so that range cannot be solved before the script step
   %% ==note==: open: a full-file write without originalFile as the newer beacon gives no bytes to replay backward from
 
   class Q_CHOICE_PUZZLE_ROUND_INSERTED_ANY_YES,Q_CHOICE_PUZZLE_ANY_NODE_TO_REPLAY_YES yes-path
@@ -450,7 +450,8 @@ class B_NEW_6,B_NEW_8,B_NEW_9,B_NEW_10 Answered
   Q_PUZZLE_MORE_FILES --> Q_CHOICE_PUZZLE_MORE_FILES_YES --> B_PUZZLE_NEXT_FILE --> B_PUZZLE_START
   Q_PUZZLE_MORE_FILES --> Q_CHOICE_PUZZLE_MORE_FILES_NO --> B_PUZZLE_BARRIER --> B_PUZZLE_SCRIPT_STEP
 
-  B_PUZZLE_SCRIPT_STEP["Script step, separate from the puzzle loop: go through the script events of all files, oldest first. Run a script only when every input file has known bytes at that moment."]
+  %% disabled: B_PUZZLE_SCRIPT_STEP["Script step, separate from the puzzle loop: go through the script events of all files, oldest first. Run a script only when every input file has known bytes at that moment."]
+  B_PUZZLE_SCRIPT_STEP["Script step, separate from the puzzle loop. Replay the script runs of all files, newest first.\nscripts = getAllScriptRuns(jsonls);  (newest first)"]
 
   class Q_CHOICE_PUZZLE_ANY_EVENT_LEFT_YES,Q_CHOICE_PUZZLE_ANY_PAIR_LEFT_YES,Q_CHOICE_PUZZLE_EVENT_IN_PAIR_YES,Q_CHOICE_PUZZLE_NEIGHBOR_BYTES_KNOWN_YES,Q_CHOICE_PUZZLE_MORE_FILES_YES yes-path
   class Q_CHOICE_PUZZLE_ANY_EVENT_LEFT_NO,Q_CHOICE_PUZZLE_ANY_PAIR_LEFT_NO,Q_CHOICE_PUZZLE_EVENT_IN_PAIR_NO,Q_CHOICE_PUZZLE_NEIGHBOR_BYTES_KNOWN_NO,Q_CHOICE_PUZZLE_MORE_FILES_NO,B_THROW_PUZZLE_NO_RULE_FOR_EVENT_KIND,B_PUZZLE_FAIL_EDIT_NEIGHBOR_BYTES_UNKNOWN,B_PUZZLE_FAIL_EDIT_TEXT_NOT_FOUND,B_PUZZLE_FAIL_EDIT_TEXT_FOUND_MANY_TIMES no-path
@@ -459,7 +460,8 @@ class B_NEW_6,B_NEW_8,B_NEW_9,B_NEW_10 Answered
   class B_PUZZLE_INSERT_EVENT,B_PUZZLE_SCRIPT_STEP action
 
   B_RANGE_TAKE_FIRST["Take the newest range:\nnewer = puzzle[0];  (the on-disk state)\nolder = the next beacon further in history"]
-  Q_RANGE_SOLVED_SAVED{"Is this range already solved and saved in the inverse per-file repo?\n(same bytes of older, same bytes of newer, same events between them)"}
+  %% disabled: Q_RANGE_SOLVED_SAVED{"Is this range already solved and saved in the inverse per-file repo?\n(same bytes of older, same bytes of newer, same events between them)"}
+  Q_RANGE_SOLVED_SAVED{"Is this range already solved and saved, excluding any script runs between range.start (newer) and range.end (older)?\n(same bytes of older, same bytes of newer, same events between them)"}
   Q_CHOICE_RANGE_SOLVED_SAVED_YES["Yes. nothing to reconstruct here"]
   Q_CHOICE_RANGE_SOLVED_SAVED_NO["No"]
   Q_RANGE_HAS_OLDER_BEACON{"Does this range have an older beacon?"}
@@ -490,7 +492,19 @@ class B_NEW_6,B_NEW_8,B_NEW_9,B_NEW_10 Answered
   Q_CHOICE_RANGE_EDIT_NEW_TEXT_COUNT_NOT_ONCE["0 times, more than once, or the new text is empty"]
   B_RANGE_UNDO_EDIT["Run the edit in reverse: in `bytes`, replace the new text of the edit with its old text. `bytes` is now F before this edit. The next node further in history gets `bytes`.\n`bytes = undoEdit(bytes, edit);`"]
   B_RESEARCH_RANGE_BYTES_UNKNOWN["RESEARCH: this range is not solved. The nodes that are left have unknown bytes"]
-  B_RANGE_SAVE["This range is solved. Write the range into the inverse per-file repo"]
+  %% disabled: B_RANGE_SAVE["This range is solved. Write the range into the inverse per-file repo"]
+  B_RANGE_SAVE["Write the range and its range status into the inverse per-file repo"]
+  Q_RANGE_HAS_SCRIPT_RUNS{"does this range contain any script runs?"}
+  Q_CHOICE_RANGE_HAS_SCRIPT_RUNS_YES["Yes"]
+  Q_CHOICE_RANGE_HAS_SCRIPT_RUNS_NO["No"]
+  B_RANGE_STATUS_PENDING_SCRIPTS["range status is 'solved pending unreplayed script runs'"]
+  B_RANGE_STATUS_SOLVED["range status is 'solved'"]
+  Q_RANGE_MISMATCH_HAS_SCRIPT_RUNS{"The bytes do not match.\ndoes this range contain any script runs?"}
+  Q_CHOICE_RANGE_MISMATCH_HAS_SCRIPT_RUNS_YES["Yes. a script run can be the cause. no 'user edit' node"]
+  Q_CHOICE_RANGE_MISMATCH_HAS_SCRIPT_RUNS_NO["No"]
+  Q_RANGE_NOT_APPLIED_HAS_SCRIPT_RUNS{"This edit does not apply.\ndoes this range contain any script runs?"}
+  Q_CHOICE_RANGE_NOT_APPLIED_HAS_SCRIPT_RUNS_YES["Yes. a script run can be the cause. no 'user edit' node. the script step replays the rest of this range"]
+  Q_CHOICE_RANGE_NOT_APPLIED_HAS_SCRIPT_RUNS_NO["No"]
   Q_RANGE_ANY_LEFT{"Is there a range further in history?"}
   Q_CHOICE_RANGE_ANY_LEFT_YES["Yes"]
   Q_CHOICE_RANGE_ANY_LEFT_NO["No"]
@@ -504,13 +518,26 @@ class B_NEW_6,B_NEW_8,B_NEW_9,B_NEW_10 Answered
   Q_RANGE_ANY_EDIT_LEFT --> Q_CHOICE_RANGE_ANY_EDIT_LEFT_YES --> B_RANGE_TAKE_NEXT_EDIT --> Q_RANGE_EDIT_TEXT_COUNT
   Q_RANGE_ANY_EDIT_LEFT --> Q_CHOICE_RANGE_ANY_EDIT_LEFT_NO --> Q_RANGE_BYTES_EQUAL_NEWER
   Q_RANGE_EDIT_TEXT_COUNT --> Q_CHOICE_RANGE_EDIT_TEXT_COUNT_ONCE --> B_RANGE_APPLY_EDIT --> Q_RANGE_ANY_EDIT_LEFT
-  Q_RANGE_EDIT_TEXT_COUNT --> Q_CHOICE_RANGE_EDIT_TEXT_COUNT_NOT_ONCE --> B_RANGE_INSERT_USER_EDIT_BEFORE_EDIT --> B_RANGE_BACKWARD_START
-  Q_RANGE_BYTES_EQUAL_NEWER --> Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_YES --> B_RANGE_SAVE
-  Q_RANGE_BYTES_EQUAL_NEWER --> Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_NO --> B_RANGE_INSERT_USER_EDIT_BEFORE_NEWER --> B_RANGE_SAVE
-  Q_RANGE_BYTES_EQUAL_NEWER --> Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_CANNOT_TELL --> B_RANGE_SAVE
+  %% disabled: Q_RANGE_EDIT_TEXT_COUNT --> Q_CHOICE_RANGE_EDIT_TEXT_COUNT_NOT_ONCE --> B_RANGE_INSERT_USER_EDIT_BEFORE_EDIT --> B_RANGE_BACKWARD_START
+  %% disabled: Q_RANGE_BYTES_EQUAL_NEWER --> Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_YES --> B_RANGE_SAVE
+  %% disabled: Q_RANGE_BYTES_EQUAL_NEWER --> Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_NO --> B_RANGE_INSERT_USER_EDIT_BEFORE_NEWER --> B_RANGE_SAVE
+  %% disabled: Q_RANGE_BYTES_EQUAL_NEWER --> Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_CANNOT_TELL --> B_RANGE_SAVE
+  Q_RANGE_EDIT_TEXT_COUNT --> Q_CHOICE_RANGE_EDIT_TEXT_COUNT_NOT_ONCE --> Q_RANGE_NOT_APPLIED_HAS_SCRIPT_RUNS
+  Q_RANGE_NOT_APPLIED_HAS_SCRIPT_RUNS --> Q_CHOICE_RANGE_NOT_APPLIED_HAS_SCRIPT_RUNS_YES --> B_RANGE_STATUS_PENDING_SCRIPTS
+  Q_RANGE_NOT_APPLIED_HAS_SCRIPT_RUNS --> Q_CHOICE_RANGE_NOT_APPLIED_HAS_SCRIPT_RUNS_NO --> B_RANGE_INSERT_USER_EDIT_BEFORE_EDIT --> B_RANGE_BACKWARD_START
+  Q_RANGE_BYTES_EQUAL_NEWER --> Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_YES --> Q_RANGE_HAS_SCRIPT_RUNS
+  Q_RANGE_BYTES_EQUAL_NEWER --> Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_CANNOT_TELL --> Q_RANGE_HAS_SCRIPT_RUNS
+  Q_RANGE_BYTES_EQUAL_NEWER --> Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_NO --> Q_RANGE_MISMATCH_HAS_SCRIPT_RUNS
+  Q_RANGE_MISMATCH_HAS_SCRIPT_RUNS --> Q_CHOICE_RANGE_MISMATCH_HAS_SCRIPT_RUNS_YES --> B_RANGE_STATUS_PENDING_SCRIPTS
+  Q_RANGE_MISMATCH_HAS_SCRIPT_RUNS --> Q_CHOICE_RANGE_MISMATCH_HAS_SCRIPT_RUNS_NO --> B_RANGE_INSERT_USER_EDIT_BEFORE_NEWER --> B_RANGE_STATUS_SOLVED
+  Q_RANGE_HAS_SCRIPT_RUNS --> Q_CHOICE_RANGE_HAS_SCRIPT_RUNS_YES --> B_RANGE_STATUS_PENDING_SCRIPTS
+  Q_RANGE_HAS_SCRIPT_RUNS --> Q_CHOICE_RANGE_HAS_SCRIPT_RUNS_NO --> B_RANGE_STATUS_SOLVED
+  B_RANGE_STATUS_PENDING_SCRIPTS --> B_RANGE_SAVE
+  B_RANGE_STATUS_SOLVED --> B_RANGE_SAVE
   B_RANGE_BACKWARD_START --> Q_RANGE_ANY_EDIT_LEFT_BACKWARD
   Q_RANGE_ANY_EDIT_LEFT_BACKWARD --> Q_CHOICE_RANGE_ANY_EDIT_LEFT_BACKWARD_YES --> B_RANGE_TAKE_NEXT_EDIT_BACKWARD --> Q_RANGE_EDIT_NEW_TEXT_COUNT
-  Q_RANGE_ANY_EDIT_LEFT_BACKWARD --> Q_CHOICE_RANGE_ANY_EDIT_LEFT_BACKWARD_NO --> B_RANGE_SAVE
+  %% disabled: Q_RANGE_ANY_EDIT_LEFT_BACKWARD --> Q_CHOICE_RANGE_ANY_EDIT_LEFT_BACKWARD_NO --> B_RANGE_SAVE
+  Q_RANGE_ANY_EDIT_LEFT_BACKWARD --> Q_CHOICE_RANGE_ANY_EDIT_LEFT_BACKWARD_NO --> Q_RANGE_HAS_SCRIPT_RUNS
   Q_RANGE_EDIT_NEW_TEXT_COUNT --> Q_CHOICE_RANGE_EDIT_NEW_TEXT_COUNT_ONCE --> B_RANGE_UNDO_EDIT --> Q_RANGE_ANY_EDIT_LEFT_BACKWARD
   Q_RANGE_EDIT_NEW_TEXT_COUNT --> Q_CHOICE_RANGE_EDIT_NEW_TEXT_COUNT_NOT_ONCE --> B_RESEARCH_RANGE_BYTES_UNKNOWN --> Q_RANGE_ANY_LEFT
   B_RANGE_SAVE --> Q_RANGE_ANY_LEFT
@@ -523,7 +550,53 @@ class B_NEW_6,B_NEW_8,B_NEW_9,B_NEW_10 Answered
   class Q_CHOICE_PUZZLE_EVENTS_LEFT_IN_ROUND_NO,Q_CHOICE_PUZZLE_EVENT_BEFORE_OLDEST_NO,Q_CHOICE_RANGE_SOLVED_SAVED_NO,Q_CHOICE_RANGE_HAS_OLDER_BEACON_NO,Q_CHOICE_RANGE_ANY_EDIT_LEFT_NO,Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_NO,Q_CHOICE_RANGE_ANY_EDIT_LEFT_BACKWARD_NO,Q_CHOICE_RANGE_ANY_LEFT_NO,Q_CHOICE_RANGE_EDIT_TEXT_COUNT_NOT_ONCE,Q_CHOICE_RANGE_EDIT_NEW_TEXT_COUNT_NOT_ONCE,B_RESEARCH_RANGE_BYTES_UNKNOWN no-path
   class Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_CANNOT_TELL,B_PUZZLE_PICK_OLDER_EVENT,B_PUZZLE_REMOVE_OLDER_EVENT,B_RANGE_TAKE_FIRST,B_RANGE_START_BYTES,B_RANGE_TAKE_NEXT_EDIT,B_RANGE_BACKWARD_START,B_RANGE_TAKE_NEXT_EDIT_BACKWARD,B_RANGE_TAKE_NEXT information
   class B_PUZZLE_INSERT_AFTER_OLDEST,B_RANGE_APPLY_EDIT,B_RANGE_UNDO_EDIT,B_RANGE_INSERT_USER_EDIT_BEFORE_EDIT,B_RANGE_INSERT_USER_EDIT_BEFORE_NEWER,B_RANGE_SAVE action
+
+  B_SCRIPT_ROUND_START["Start a round:\nranAny = false;\ni = 0;"]
+  Q_SCRIPT_ANY_LEFT_IN_ROUND{"if (i < scripts.size())\nIs there a script run left to look at in this round?"}
+  Q_CHOICE_SCRIPT_ANY_LEFT_IN_ROUND_YES["Yes"]
+  Q_CHOICE_SCRIPT_ANY_LEFT_IN_ROUND_NO["No"]
+  B_SCRIPT_TAKE["Take the script run:\nscript = scripts[i];"]
+  Q_SCRIPT_INPUTS_KNOWN{"Does every input file of the script have known bytes at the time of the script run?"}
+  Q_CHOICE_SCRIPT_INPUTS_KNOWN_YES["Yes"]
+  Q_CHOICE_SCRIPT_INPUTS_KNOWN_NO["No"]
+  B_SCRIPT_WAITS["This script run waits for its input files. Look at it again in the next round\n++i;"]
+  B_SCRIPT_RUN["Replay the script in the docker sandbox with those input files"]
+  B_SCRIPT_INSERT_NODE["For each file F that the script wrote: insert the script run as a node into F's puzzle. The node gets the bytes that the script made. The script node is now a beacon"]
+  B_SCRIPT_REPLAY_RANGE["For each file F that the script wrote: replay the edits between the script node and the newer beacon, oldest first (same steps as the range replay)"]
+  Q_SCRIPT_BYTES_EQUAL_NEWER{"Do bytes equal what the newer beacon saw?"}
+  Q_CHOICE_SCRIPT_BYTES_EQUAL_NEWER_YES["Yes"]
+  Q_CHOICE_SCRIPT_BYTES_EQUAL_NEWER_NO["No"]
+  B_SCRIPT_REPLAYABLE["The script run is replayable correctly. The range from the script node to the newer beacon is solved. Write it into the inverse per-file repo"]
+  B_RESEARCH_SCRIPT_OUTPUT_DIFFERS["RESEARCH: the bytes that the script made do not lead to the newer beacon"]
+  B_SCRIPT_REMOVE["Remove the script run from the list\nscriptsToRun.remove(script);\nranAny = true;"]
+  Q_SCRIPT_ANY_LEFT{"is 'scripts.size()' > 0 ?"}
+  Q_CHOICE_SCRIPT_ANY_LEFT_YES["Yes"]
+  Q_CHOICE_SCRIPT_ANY_LEFT_NO["No. every script run is replayed"]
+  Q_SCRIPT_ROUND_RAN_ANY{"if (ranAny)\nDid this round replay at least one script run?"}
+  Q_CHOICE_SCRIPT_ROUND_RAN_ANY_YES["Yes"]
+  Q_CHOICE_SCRIPT_ROUND_RAN_ANY_NO["No"]
+  B_RESEARCH_SCRIPTS_WAIT_FOREVER["RESEARCH: the script runs that are left wait for input files that never get known bytes"]
+  B_SCRIPT_STEP_DONE["The script step is finished"]
+
+  B_PUZZLE_SCRIPT_STEP --> B_SCRIPT_ROUND_START --> Q_SCRIPT_ANY_LEFT_IN_ROUND
+  Q_SCRIPT_ANY_LEFT_IN_ROUND --> Q_CHOICE_SCRIPT_ANY_LEFT_IN_ROUND_YES --> B_SCRIPT_TAKE --> Q_SCRIPT_INPUTS_KNOWN
+  Q_SCRIPT_ANY_LEFT_IN_ROUND --> Q_CHOICE_SCRIPT_ANY_LEFT_IN_ROUND_NO --> Q_SCRIPT_ANY_LEFT
+  Q_SCRIPT_INPUTS_KNOWN --> Q_CHOICE_SCRIPT_INPUTS_KNOWN_NO --> B_SCRIPT_WAITS --> Q_SCRIPT_ANY_LEFT_IN_ROUND
+  Q_SCRIPT_INPUTS_KNOWN --> Q_CHOICE_SCRIPT_INPUTS_KNOWN_YES --> B_SCRIPT_RUN --> B_SCRIPT_INSERT_NODE --> B_SCRIPT_REPLAY_RANGE --> Q_SCRIPT_BYTES_EQUAL_NEWER
+  Q_SCRIPT_BYTES_EQUAL_NEWER --> Q_CHOICE_SCRIPT_BYTES_EQUAL_NEWER_YES --> B_SCRIPT_REPLAYABLE --> B_SCRIPT_REMOVE
+  Q_SCRIPT_BYTES_EQUAL_NEWER --> Q_CHOICE_SCRIPT_BYTES_EQUAL_NEWER_NO --> B_RESEARCH_SCRIPT_OUTPUT_DIFFERS --> B_SCRIPT_REMOVE
+  B_SCRIPT_REMOVE --> Q_SCRIPT_ANY_LEFT_IN_ROUND
+  Q_SCRIPT_ANY_LEFT --> Q_CHOICE_SCRIPT_ANY_LEFT_NO --> B_SCRIPT_STEP_DONE
+  Q_SCRIPT_ANY_LEFT --> Q_CHOICE_SCRIPT_ANY_LEFT_YES --> Q_SCRIPT_ROUND_RAN_ANY
+  Q_SCRIPT_ROUND_RAN_ANY --> Q_CHOICE_SCRIPT_ROUND_RAN_ANY_YES --> B_SCRIPT_ROUND_START
+  Q_SCRIPT_ROUND_RAN_ANY --> Q_CHOICE_SCRIPT_ROUND_RAN_ANY_NO --> B_RESEARCH_SCRIPTS_WAIT_FOREVER --> B_SCRIPT_STEP_DONE
+
+  class Q_RANGE_HAS_SCRIPT_RUNS,Q_RANGE_MISMATCH_HAS_SCRIPT_RUNS,Q_RANGE_NOT_APPLIED_HAS_SCRIPT_RUNS,Q_SCRIPT_ANY_LEFT_IN_ROUND,Q_SCRIPT_INPUTS_KNOWN,Q_SCRIPT_BYTES_EQUAL_NEWER,Q_SCRIPT_ANY_LEFT,Q_SCRIPT_ROUND_RAN_ANY question
+  class Q_CHOICE_RANGE_HAS_SCRIPT_RUNS_YES,Q_CHOICE_RANGE_MISMATCH_HAS_SCRIPT_RUNS_YES,Q_CHOICE_RANGE_NOT_APPLIED_HAS_SCRIPT_RUNS_YES,Q_CHOICE_SCRIPT_ANY_LEFT_IN_ROUND_YES,Q_CHOICE_SCRIPT_INPUTS_KNOWN_YES,Q_CHOICE_SCRIPT_BYTES_EQUAL_NEWER_YES,Q_CHOICE_SCRIPT_ANY_LEFT_YES,Q_CHOICE_SCRIPT_ROUND_RAN_ANY_YES yes-path
+  class Q_CHOICE_RANGE_HAS_SCRIPT_RUNS_NO,Q_CHOICE_RANGE_MISMATCH_HAS_SCRIPT_RUNS_NO,Q_CHOICE_RANGE_NOT_APPLIED_HAS_SCRIPT_RUNS_NO,Q_CHOICE_SCRIPT_ANY_LEFT_IN_ROUND_NO,Q_CHOICE_SCRIPT_INPUTS_KNOWN_NO,Q_CHOICE_SCRIPT_BYTES_EQUAL_NEWER_NO,Q_CHOICE_SCRIPT_ANY_LEFT_NO,Q_CHOICE_SCRIPT_ROUND_RAN_ANY_NO,B_RESEARCH_SCRIPT_OUTPUT_DIFFERS,B_RESEARCH_SCRIPTS_WAIT_FOREVER no-path
+  class B_RANGE_STATUS_PENDING_SCRIPTS,B_RANGE_STATUS_SOLVED,B_SCRIPT_ROUND_START,B_SCRIPT_TAKE,B_SCRIPT_WAITS,B_SCRIPT_REMOVE,B_SCRIPT_STEP_DONE information
+  class B_SCRIPT_RUN,B_SCRIPT_INSERT_NODE,B_SCRIPT_REPLAY_RANGE,B_SCRIPT_REPLAYABLE action
 %%%%====
 %% DO NOT MODIFY - AUTOMATICALLY GENERATED DURING EVERY SAVE
-%% {"lastSelectedNodeId":"B_PUZZLE_SCRIPT_STEP","outputScrollLeft":1077,"outputScrollTop":10211,"mainZoomPercent":60}
+%% {"lastSelectedNodeId":"B_SCRIPT_REMOVE","outputScrollLeft":1306.5,"outputScrollTop":12447.5,"mainZoomPercent":60}
 %%%%====
