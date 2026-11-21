@@ -190,6 +190,17 @@ export enum GuessCategory {
     HasGuessSteps = "has-guess-steps",
 }
 
+// Why a progress bar puzzle of one file stops before the bytes at the end match the file on disk now.
+export enum PuzzleFailureReason {
+    BornAfterStart = "born-after-start",
+    EditOldTextNotFound = "edit-old-text-not-found",
+    EditOldTextFoundManyTimes = "edit-old-text-found-many-times",
+    ScriptMayWrite = "script-may-write",
+    UserEditNotice = "user-edit-notice",
+    FinalHashMismatch = "final-hash-mismatch",
+    NoEvents = "no-events",
+}
+
 export enum TuiCommand {
     MoveSelectionUp = "moveSelectionUp",
     MoveSelectionDown = "moveSelectionDown",
