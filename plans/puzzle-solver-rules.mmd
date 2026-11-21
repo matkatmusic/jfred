@@ -451,7 +451,8 @@ class B_NEW_6,B_NEW_8,B_NEW_9,B_NEW_10 Answered
   Q_PUZZLE_MORE_FILES --> Q_CHOICE_PUZZLE_MORE_FILES_NO --> B_PUZZLE_BARRIER --> B_PUZZLE_SCRIPT_STEP
 
   %% disabled: B_PUZZLE_SCRIPT_STEP["Script step, separate from the puzzle loop: go through the script events of all files, oldest first. Run a script only when every input file has known bytes at that moment."]
-  B_PUZZLE_SCRIPT_STEP["Script step, separate from the puzzle loop. Replay the script runs of all files, newest first.\nscripts = getAllScriptRuns(jsonls);  (newest first)"]
+  %% disabled: B_PUZZLE_SCRIPT_STEP["Script step, separate from the puzzle loop. Replay the script runs of all files, newest first.\nscripts = getAllScriptRuns(jsonls);  (newest first)"]
+  B_PUZZLE_SCRIPT_STEP["Script step, separate from the puzzle loop. Replay the script runs of all files, newest first.\nscriptsToRun = getAllScriptRuns(jsonls);  (newest first)"]
 
   class Q_CHOICE_PUZZLE_ANY_EVENT_LEFT_YES,Q_CHOICE_PUZZLE_ANY_PAIR_LEFT_YES,Q_CHOICE_PUZZLE_EVENT_IN_PAIR_YES,Q_CHOICE_PUZZLE_NEIGHBOR_BYTES_KNOWN_YES,Q_CHOICE_PUZZLE_MORE_FILES_YES yes-path
   class Q_CHOICE_PUZZLE_ANY_EVENT_LEFT_NO,Q_CHOICE_PUZZLE_ANY_PAIR_LEFT_NO,Q_CHOICE_PUZZLE_EVENT_IN_PAIR_NO,Q_CHOICE_PUZZLE_NEIGHBOR_BYTES_KNOWN_NO,Q_CHOICE_PUZZLE_MORE_FILES_NO,B_THROW_PUZZLE_NO_RULE_FOR_EVENT_KIND,B_PUZZLE_FAIL_EDIT_NEIGHBOR_BYTES_UNKNOWN,B_PUZZLE_FAIL_EDIT_TEXT_NOT_FOUND,B_PUZZLE_FAIL_EDIT_TEXT_FOUND_MANY_TIMES no-path
@@ -551,15 +552,21 @@ class B_NEW_6,B_NEW_8,B_NEW_9,B_NEW_10 Answered
   class Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_CANNOT_TELL,B_PUZZLE_PICK_OLDER_EVENT,B_PUZZLE_REMOVE_OLDER_EVENT,B_RANGE_TAKE_FIRST,B_RANGE_START_BYTES,B_RANGE_TAKE_NEXT_EDIT,B_RANGE_BACKWARD_START,B_RANGE_TAKE_NEXT_EDIT_BACKWARD,B_RANGE_TAKE_NEXT information
   class B_PUZZLE_INSERT_AFTER_OLDEST,B_RANGE_APPLY_EDIT,B_RANGE_UNDO_EDIT,B_RANGE_INSERT_USER_EDIT_BEFORE_EDIT,B_RANGE_INSERT_USER_EDIT_BEFORE_NEWER,B_RANGE_SAVE action
 
-  B_SCRIPT_ROUND_START["Start a round:\nranAny = false;\ni = 0;"]
-  Q_SCRIPT_ANY_LEFT_IN_ROUND{"if (i < scripts.size())\nIs there a script run left to look at in this round?"}
+  %% disabled: B_SCRIPT_ROUND_START["Start a round:\nranAny = false;\ni = 0;"]
+  %% disabled: B_SCRIPT_ROUND_START["Start at the top of 'scriptsToRun' again:\nranAny = false;\ni = 0;"]
+  B_SCRIPT_ROUND_START["Start at the top of 'scriptsToRun':\ndidRun = false;\ni = 0;"]
+  %% disabled: Q_SCRIPT_ANY_LEFT_IN_ROUND{"if (i < scripts.size())\nIs there a script run left to look at in this round?"}
+  Q_SCRIPT_ANY_LEFT_IN_ROUND{"if (i < scriptsToRun.size())\nIs there a script run left in 'scriptsToRun' to look at?"}
   Q_CHOICE_SCRIPT_ANY_LEFT_IN_ROUND_YES["Yes"]
-  Q_CHOICE_SCRIPT_ANY_LEFT_IN_ROUND_NO["No"]
-  B_SCRIPT_TAKE["Take the script run:\nscript = scripts[i];"]
+  %% disabled: Q_CHOICE_SCRIPT_ANY_LEFT_IN_ROUND_NO["No"]
+  Q_CHOICE_SCRIPT_ANY_LEFT_IN_ROUND_NO["No. every script run in 'scriptsToRun' was looked at, and none ran"]
+  %% disabled: B_SCRIPT_TAKE["Take the script run:\nscript = scripts[i];"]
+  B_SCRIPT_TAKE["Prepare to run the script:\nscript = scriptsToRun[i];"]
   Q_SCRIPT_INPUTS_KNOWN{"Does every input file of the script have known bytes at the time of the script run?"}
   Q_CHOICE_SCRIPT_INPUTS_KNOWN_YES["Yes"]
   Q_CHOICE_SCRIPT_INPUTS_KNOWN_NO["No"]
-  B_SCRIPT_WAITS["This script run waits for its input files. Look at it again in the next round\n++i;"]
+  %% disabled: B_SCRIPT_WAITS["This script run waits for its input files. Look at it again in the next round\n++i;"]
+  B_SCRIPT_WAITS["This script run waits for its input files. It stays in 'scriptsToRun'\n++i;"]
   B_SCRIPT_RUN["Replay the script in the docker sandbox with those input files"]
   B_SCRIPT_INSERT_NODE["For each file F that the script wrote: insert the script run as a node into F's puzzle. The node gets the bytes that the script made. The script node is now a beacon"]
   B_SCRIPT_REPLAY_RANGE["For each file F that the script wrote: replay the edits between the script node and the newer beacon, oldest first (same steps as the range replay)"]
@@ -568,12 +575,17 @@ class B_NEW_6,B_NEW_8,B_NEW_9,B_NEW_10 Answered
   Q_CHOICE_SCRIPT_BYTES_EQUAL_NEWER_NO["No"]
   B_SCRIPT_REPLAYABLE["The script run is replayable correctly. The range from the script node to the newer beacon is solved. Write it into the inverse per-file repo"]
   B_RESEARCH_SCRIPT_OUTPUT_DIFFERS["RESEARCH: the bytes that the script made do not lead to the newer beacon"]
-  B_SCRIPT_REMOVE["Remove the script run from the list\nscriptsToRun.remove(script);\nranAny = true;"]
-  Q_SCRIPT_ANY_LEFT{"is 'scripts.size()' > 0 ?"}
+  %% disabled: B_SCRIPT_REMOVE["Remove the script run from the list\nscriptsToRun.remove(script);\nranAny = true;"]
+  B_SCRIPT_REMOVE["The script run ran. Remove it from the list\ndidRun = true;\nscriptsToRun.remove(i);"]
+  %% disabled: Q_SCRIPT_ANY_LEFT{"is 'scripts.size()' > 0 ?"}
+  Q_SCRIPT_ANY_LEFT{"is 'scriptsToRun.size()' > 0 ?"}
   Q_CHOICE_SCRIPT_ANY_LEFT_YES["Yes"]
   Q_CHOICE_SCRIPT_ANY_LEFT_NO["No. every script run is replayed"]
-  Q_SCRIPT_ROUND_RAN_ANY{"if (ranAny)\nDid this round replay at least one script run?"}
-  Q_CHOICE_SCRIPT_ROUND_RAN_ANY_YES["Yes"]
+  %% disabled: Q_SCRIPT_ROUND_RAN_ANY{"if (ranAny)\nDid this round replay at least one script run?"}
+  %% disabled: Q_SCRIPT_ROUND_RAN_ANY{"if (ranAny)\nDid this walk through 'scriptsToRun' replay at least one script run?"}
+  Q_SCRIPT_ROUND_RAN_ANY{"if (didRun)\nDid a script run in this walk through 'scriptsToRun'?"}
+  %% disabled: Q_CHOICE_SCRIPT_ROUND_RAN_ANY_YES["Yes"]
+  Q_CHOICE_SCRIPT_ROUND_RAN_ANY_YES["Yes. try running again, from the top of 'scriptsToRun'"]
   Q_CHOICE_SCRIPT_ROUND_RAN_ANY_NO["No"]
   B_RESEARCH_SCRIPTS_WAIT_FOREVER["RESEARCH: the script runs that are left wait for input files that never get known bytes"]
   B_SCRIPT_STEP_DONE["The script step is finished"]
@@ -585,7 +597,8 @@ class B_NEW_6,B_NEW_8,B_NEW_9,B_NEW_10 Answered
   Q_SCRIPT_INPUTS_KNOWN --> Q_CHOICE_SCRIPT_INPUTS_KNOWN_YES --> B_SCRIPT_RUN --> B_SCRIPT_INSERT_NODE --> B_SCRIPT_REPLAY_RANGE --> Q_SCRIPT_BYTES_EQUAL_NEWER
   Q_SCRIPT_BYTES_EQUAL_NEWER --> Q_CHOICE_SCRIPT_BYTES_EQUAL_NEWER_YES --> B_SCRIPT_REPLAYABLE --> B_SCRIPT_REMOVE
   Q_SCRIPT_BYTES_EQUAL_NEWER --> Q_CHOICE_SCRIPT_BYTES_EQUAL_NEWER_NO --> B_RESEARCH_SCRIPT_OUTPUT_DIFFERS --> B_SCRIPT_REMOVE
-  B_SCRIPT_REMOVE --> Q_SCRIPT_ANY_LEFT_IN_ROUND
+  %% disabled: B_SCRIPT_REMOVE --> Q_SCRIPT_ANY_LEFT_IN_ROUND
+  B_SCRIPT_REMOVE --> Q_SCRIPT_ANY_LEFT
   Q_SCRIPT_ANY_LEFT --> Q_CHOICE_SCRIPT_ANY_LEFT_NO --> B_SCRIPT_STEP_DONE
   Q_SCRIPT_ANY_LEFT --> Q_CHOICE_SCRIPT_ANY_LEFT_YES --> Q_SCRIPT_ROUND_RAN_ANY
   Q_SCRIPT_ROUND_RAN_ANY --> Q_CHOICE_SCRIPT_ROUND_RAN_ANY_YES --> B_SCRIPT_ROUND_START
@@ -598,5 +611,5 @@ class B_NEW_6,B_NEW_8,B_NEW_9,B_NEW_10 Answered
   class B_SCRIPT_RUN,B_SCRIPT_INSERT_NODE,B_SCRIPT_REPLAY_RANGE,B_SCRIPT_REPLAYABLE action
 %%%%====
 %% DO NOT MODIFY - AUTOMATICALLY GENERATED DURING EVERY SAVE
-%% {"lastSelectedNodeId":"B_SCRIPT_REMOVE","outputScrollLeft":1306.5,"outputScrollTop":12447.5,"mainZoomPercent":60}
+%% {"lastSelectedNodeId":"Q_INSIDE_REPO_AT_START","outputScrollLeft":515.5,"outputScrollTop":97,"mainZoomPercent":60}
 %%%%====
