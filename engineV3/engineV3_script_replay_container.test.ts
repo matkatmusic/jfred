@@ -82,7 +82,8 @@ function describeFolderTree(folder: string): string[] {
 function takeHostSnapshot(): string {
     const canaryLines = describeFolderTree(canaryFolder);
     const storeLines = describeFolderTree(fakeStoreFolder);
-    const tmpFolderListing = readdirSync(tmpdir()).filter((name) => name.startsWith("jfred-canary-")).sort();
+    // const tmpFolderListing = readdirSync(tmpdir()).filter((name) => name.startsWith("jfred-canary-")).sort();
+    const tmpFolderListing = readdirSync(tmpdir()).filter((name) => join(tmpdir(), name) === canaryFolder).sort();
     return JSON.stringify({ canaryLines, storeLines, tmpFolderListing });
 }
 
