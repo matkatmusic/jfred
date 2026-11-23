@@ -1,10 +1,13 @@
 flowchart TD
   B_START["Program launched"]
-  B_START --> B_COMPLETED_FILE_RECONSTRUCTION_LIST
-  B_COMPLETED_FILE_RECONSTRUCTION_LIST --> B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES
+  %% disabled: B_START --> B_COMPLETED_FILE_RECONSTRUCTION_LIST
   B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES --> B_COMPLETED_NON_SCRIPT_REPLAYS_OF_PUZZLES
   B_COMPLETED_NON_SCRIPT_REPLAYS_OF_PUZZLES --> B_COMPLETED_SCRIPT_REPLAYS_OF_PUZZLES
   B_COMPLETED_SCRIPT_REPLAYS_OF_PUZZLES --> B_COMPLETED_SOLVED_ALL_PUZZLES
+  %% ==note==: the list is filtered for files to include or exclude.  Included files are split into 8 groups based on 3 Yes/No choices: In git, In JSONL, on disk.
+  B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT["The list of files to reconstruct has been sorted and filtered"]
+  B_COMPLETED_FILE_RECONSTRUCTION_LIST --> B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT
+  B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT --> B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES
 classDef information fill:#ffffff,stroke:#000000
 classDef Decision fill:#ffff00,stroke:#000000
 classDef Yes-path fill:#00ff00,stroke:#000000
@@ -14,10 +17,10 @@ classDef Action fill:#fc00ff,stroke:#000000
 classDef Question fill:#79d4fb,stroke:#000000
 classDef Answer fill:#5df9b5,stroke:#000000
 class B_START information
-class B_COMPLETED_FILE_RECONSTRUCTION_LIST,B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES,B_COMPLETED_NON_SCRIPT_REPLAYS_OF_PUZZLES,B_COMPLETED_SCRIPT_REPLAYS_OF_PUZZLES,B_COMPLETED_SOLVED_ALL_PUZZLES Checkpoint
+class B_COMPLETED_FILE_RECONSTRUCTION_LIST,B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES,B_COMPLETED_NON_SCRIPT_REPLAYS_OF_PUZZLES,B_COMPLETED_SCRIPT_REPLAYS_OF_PUZZLES,B_COMPLETED_SOLVED_ALL_PUZZLES,B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT Checkpoint
   %% ==note==: folder from `--project`. <br/>git path from `--repo` or derived from project folder.<br/>git commit from `--commit` or derived from current branch in git. <br/>JSONL folders from multiple `--jsonl` or derived from project folder. <br/>Snapshot folders from multiple `--snapshot` and extracted from JSONLs deemed relevant to the project.
   B_COMPLETED_FILE_RECONSTRUCTION_LIST["list of all files to reconstruct is created"]
-  
+
 
 %% ==note==: events come from git, and JSONLs.  this step just organizes the data that will be replayed and creates the initial capture of the on-disk state of the project, using Inverse-Per-File-Repos.<br/>beacons are identified. <br/>beacon layer order: commits, file history snapshot, full file read (including through Bash() tool use), full file edit/write/Update, partial file edit, script replay.
 B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES["non-replayed puzzles built for each file"]
@@ -26,7 +29,55 @@ B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES["non-replayed puzzles built 
   %% ==note==: uses the #9 algorithm from "/Users/matkatmusicllc/Desktop/claude code src/RevEng/plans/engineV3-user-loops.md"
   B_COMPLETED_SCRIPT_REPLAYS_OF_PUZZLES["script event replays completed for each file"]
   B_COMPLETED_SOLVED_ALL_PUZZLES["all puzzles solved"]
+  %% ---- gap A: B_START to B_COMPLETED_FILE_RECONSTRUCTION_LIST ----
+  B_START --> Q_JSONLS_GIVEN
+  Q_JSONLS_GIVEN{{"Was one or more JSONL folder passed in?"}}
+  Q_CHOICE_JSONLS_GIVEN_YES["Yes"]
+  Q_CHOICE_JSONLS_GIVEN_NO["No"]
+  B_USE_GIVEN_JSONLS["Use the JSONL folders that were passed in"]
+  B_DERIVE_JSONLS["Derive the JSONL folder path from the project folder"]
+  Q_JSONLS_GIVEN --> Q_CHOICE_JSONLS_GIVEN_YES --> B_USE_GIVEN_JSONLS --> Q_SNAPSHOTS_GIVEN
+  Q_JSONLS_GIVEN --> Q_CHOICE_JSONLS_GIVEN_NO --> B_DERIVE_JSONLS --> Q_SNAPSHOTS_GIVEN
+  Q_SNAPSHOTS_GIVEN{"Was a snapshot folder passed in?"}
+  Q_CHOICE_SNAPSHOTS_GIVEN_YES["Yes"]
+  Q_CHOICE_SNAPSHOTS_GIVEN_NO["No"]
+  B_USE_GIVEN_SNAPSHOTS["Use the snapshot folders that were passed in"]
+  B_DERIVE_SNAPSHOTS["Derive the snapshot folder path from the project folder"]
+  Q_SNAPSHOTS_GIVEN --> Q_CHOICE_SNAPSHOTS_GIVEN_YES --> B_USE_GIVEN_SNAPSHOTS --> Q_GIT_FOLDER_GIVEN
+  Q_GIT_FOLDER_GIVEN{"Was a git folder passed in?"}
+  Q_CHOICE_GIT_FOLDER_GIVEN_YES["Yes"]
+  Q_CHOICE_GIT_FOLDER_GIVEN_NO["No"]
+  B_USE_GIVEN_GIT_FOLDER["Use the git folder that was passed in"]
+  B_DERIVE_GIT_FOLDER["Derive the git folder from the project folder"]
+  Q_GIT_FOLDER_GIVEN --> Q_CHOICE_GIT_FOLDER_GIVEN_YES --> B_USE_GIVEN_GIT_FOLDER --> Q_GIT_HASH_GIVEN
+  Q_GIT_FOLDER_GIVEN --> Q_CHOICE_GIT_FOLDER_GIVEN_NO --> B_DERIVE_GIT_FOLDER --> Q_GIT_HASH_GIVEN
+  Q_GIT_HASH_GIVEN{"Was a git hash passed in?"}
+  Q_CHOICE_GIT_HASH_GIVEN_YES["Yes"]
+  Q_CHOICE_GIT_HASH_GIVEN_NO["No"]
+  B_USE_GIVEN_GIT_HASH["Use the git hash that was passed in"]
+  B_DERIVE_GIT_HASH["Derive the git hash from the git folder (current branch's HEAD)"]
+  Q_GIT_HASH_GIVEN --> Q_CHOICE_GIT_HASH_GIVEN_YES --> B_USE_GIVEN_GIT_HASH --> B_ALL_INPUTS_KNOWN
+  Q_GIT_HASH_GIVEN --> Q_CHOICE_GIT_HASH_GIVEN_NO --> B_DERIVE_GIT_HASH --> B_ALL_INPUTS_KNOWN
+  %% ==note==: source 1: all files in project folder, including in submodules. provides paths and bytes
+  %% ==note==: source 2: files named in JSONLs. provides paths and strings
+  %% ==note==: source 3: file-history snapshots matched to JSONL entries. provides bytes
+  %% ==note==: source 4: git history.  provides bytes and creation/deletion records
+  B_ALL_INPUTS_KNOWN["Now known: \nSource 1: project folder, \nSource 2: JSONL folders, \nSource 3: snapshot folders, \nSource 4: git folder & git hash"]
+  Q_SNAPSHOTS_GIVEN --> Q_CHOICE_SNAPSHOTS_GIVEN_NO
+  Q_CHOICE_SNAPSHOTS_GIVEN_NO --> B_DERIVE_SNAPSHOTS
+  B_DERIVE_SNAPSHOTS --> B_NEW_4
+  B_ALL_INPUTS_KNOWN --> B_COMPLETED_FILE_RECONSTRUCTION_LIST
+  B_NEW_4["file-history snapshot path is pulled from JSONL file"]
+  B_NEW_4 --> Q_GIT_FOLDER_GIVEN
+  class B_USE_GIVEN_GIT_HASH,B_DERIVE_GIT_HASH,B_USE_GIVEN_GIT_FOLDER,B_DERIVE_GIT_FOLDER,B_USE_GIVEN_SNAPSHOTS,B_DERIVE_SNAPSHOTS,B_USE_GIVEN_JSONLS,B_DERIVE_JSONLS,B_NEW_4 information
+  class Q_CHOICE_JSONLS_GIVEN_YES,Q_CHOICE_SNAPSHOTS_GIVEN_YES,Q_CHOICE_GIT_FOLDER_GIVEN_YES,Q_CHOICE_GIT_HASH_GIVEN_YES Yes-path
+  class Q_CHOICE_JSONLS_GIVEN_NO,Q_CHOICE_SNAPSHOTS_GIVEN_NO,Q_CHOICE_GIT_FOLDER_GIVEN_NO,Q_CHOICE_GIT_HASH_GIVEN_NO No-path
+  class Q_JSONLS_GIVEN,Q_SNAPSHOTS_GIVEN,Q_GIT_FOLDER_GIVEN,Q_GIT_HASH_GIVEN Decision
+  class B_ALL_INPUTS_KNOWN,B_USE_GIVEN_GIT_HASH,B_DERIVE_GIT_HASH,B_USE_GIVEN_GIT_FOLDER,B_DERIVE_GIT_FOLDER,B_USE_GIVEN_SNAPSHOTS,B_DERIVE_SNAPSHOTS,B_USE_GIVEN_JSONLS,B_DERIVE_JSONLS,B_NEW_4 information
+%% ==size==: B_USE_GIVEN_JSONLS 296 96
+%% ==size==: B_DERIVE_JSONLS 304 120
+%% ==size==: Q_JSONLS_GIVEN 441 118
 %%%%====
 %% DO NOT MODIFY - AUTOMATICALLY GENERATED DURING EVERY SAVE
-%% {"lastSelectedNodeId":"B_COMPLETED_FILE_RECONSTRUCTION_LIST","outputScrollLeft":0,"outputScrollTop":340,"mainZoomPercent":100}
+%% {"lastSelectedNodeId":"B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT","outputScrollLeft":185.5,"outputScrollTop":2611,"mainZoomPercent":100}
 %%%%====
