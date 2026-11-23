@@ -7,7 +7,18 @@ flowchart TD
   %% ==note==: the list is filtered for files to include or exclude.  Included files are split into 8 groups based on 3 Yes/No choices: In git, In JSONL, on disk.
   B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT["The list of files to reconstruct has been sorted and filtered"]
   %% disabled: B_COMPLETED_FILE_RECONSTRUCTION_LIST --> B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT
-  B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT --> B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES
+  %% disabled: B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT --> B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES
+  B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT --> B_CREATE_INVERSE_PER_FILE_REPO
+  B_CREATE_INVERSE_PER_FILE_REPO --> B_COLLECT_EVENTS_OF_FILE
+  B_BUILD_GIT_BEACON_LAYER["Layer 1: collect the git beacons, sorted newest to oldest, insert into puzzle at correct timestamp"]
+  B_COLLECT_EVENTS_OF_FILE --> B_BUILD_GIT_BEACON_LAYER
+  B_BUILD_GIT_BEACON_LAYER --> B_COLLECT_SNAPSHOT_BEACONS
+  B_COLLECT_SNAPSHOT_BEACONS --> B_COLLECT_FULL_FILE_READS
+  B_COLLECT_FULL_FILE_READS --> B_COLLECT_FULL_EDITS
+  B_COLLECT_FULL_EDITS --> B_COLLECT_PARTIAL_EDITS
+  B_COLLECT_PARTIAL_EDITS --> B_COLLECT_BASH_PARTIAL_SCRIPT_READS
+  B_COLLECT_BASH_PARTIAL_SCRIPT_READS --> B_COLLECT_SCRIPT_WRITES
+  B_COLLECT_SCRIPT_WRITES --> B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES
 classDef information fill:#ffffff,stroke:#000000
 classDef Decision fill:#ffff00,stroke:#000000
 classDef Yes-path fill:#00ff00,stroke:#000000
@@ -23,7 +34,7 @@ class B_COMPLETED_FILE_RECONSTRUCTION_LIST,B_COMPLETED_CREATE_AND_POPULATE_NONRE
 
 
 %% ==note==: events come from git, and JSONLs.  this step just organizes the data that will be replayed and creates the initial capture of the on-disk state of the project, using Inverse-Per-File-Repos.<br/>beacons are identified. <br/>beacon layer order: commits, file history snapshot, full file read (including through Bash() tool use), full file edit/write/Update, partial file edit, script replay.
-B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES["non-replayed puzzles built for each file"]
+B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES["non-replayed puzzles built for each file, IPFR contains initial commit (on-disk files only)"]
   %% ==note==: for each beacon layer, for each beacon found, an inverting commit is added to the inverse-per-file-repo for that file in the correct timestamp order.  This is where the #8 algorithm is used ("/Users/matkatmusicllc/Desktop/claude code src/RevEng/plans/engineV3-user-loops.md")
   B_COMPLETED_NON_SCRIPT_REPLAYS_OF_PUZZLES["non-script event replays completed for each file"]
   %% ==note==: uses the #9 algorithm from "/Users/matkatmusicllc/Desktop/claude code src/RevEng/plans/engineV3-user-loops.md"
@@ -76,17 +87,44 @@ B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES["non-replayed puzzles built 
   class Q_CHOICE_JSONLS_GIVEN_NO,Q_CHOICE_SNAPSHOTS_GIVEN_NO,Q_CHOICE_GIT_FOLDER_GIVEN_NO,Q_CHOICE_GIT_HASH_GIVEN_NO No-path
   class Q_JSONLS_GIVEN,Q_SNAPSHOTS_GIVEN,Q_GIT_FOLDER_GIVEN,Q_GIT_HASH_GIVEN Decision
   class B_ALL_INPUTS_KNOWN,B_USE_GIVEN_GIT_HASH,B_DERIVE_GIT_HASH,B_USE_GIVEN_GIT_FOLDER,B_DERIVE_GIT_FOLDER,B_USE_GIVEN_SNAPSHOTS,B_DERIVE_SNAPSHOTS,B_USE_GIVEN_JSONLS,B_DERIVE_JSONLS,B_NEW_4 information
-  class B_COLLECT_FILE_NAMES_INTO_LIST Action
+  class B_COLLECT_FILE_NAMES_INTO_LIST,B_BUILD_GIT_BEACON_LAYER,B_COLLECT_SNAPSHOT_BEACONS,B_COLLECT_FULL_FILE_READS,B_COLLECT_FULL_EDITS,B_COLLECT_PARTIAL_EDITS,B_COLLECT_BASH_PARTIAL_SCRIPT_READS,B_COLLECT_SCRIPT_WRITES Action
   %% ---- gap B: B_COMPLETED_FILE_RECONSTRUCTION_LIST to B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT ----
   B_ANSWER_THREE_QUESTIONS_PER_FILE["For each file in the list, answer 3 Yes/No questions: in git? in JSONL? on disk?"]
   B_PUT_FILES_INTO_EIGHT_GROUPS["Put each file into 1 of the 8 groups, based on its 3 answers"]
   B_DECIDE_INCLUDE_OR_EXCLUDE_PER_GROUP["For each group, decide: include or exclude its files"]
   B_COMPLETED_FILE_RECONSTRUCTION_LIST --> B_ANSWER_THREE_QUESTIONS_PER_FILE --> B_PUT_FILES_INTO_EIGHT_GROUPS --> B_DECIDE_INCLUDE_OR_EXCLUDE_PER_GROUP --> B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT
-  class B_ANSWER_THREE_QUESTIONS_PER_FILE,B_PUT_FILES_INTO_EIGHT_GROUPS,B_DECIDE_INCLUDE_OR_EXCLUDE_PER_GROUP Action
-%% ==size==: B_USE_GIVEN_JSONLS 296 96
-%% ==size==: B_DERIVE_JSONLS 304 120
+  class B_ANSWER_THREE_QUESTIONS_PER_FILE,B_PUT_FILES_INTO_EIGHT_GROUPS,B_DECIDE_INCLUDE_OR_EXCLUDE_PER_GROUP,B_BUILD_GIT_BEACON_LAYER,B_COLLECT_SNAPSHOT_BEACONS,B_COLLECT_FULL_FILE_READS,B_COLLECT_FULL_EDITS,B_COLLECT_PARTIAL_EDITS,B_COLLECT_BASH_PARTIAL_SCRIPT_READS,B_COLLECT_SCRIPT_WRITES Action
+  %% ---- gap C: B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT to B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES ----
+  B_CREATE_INVERSE_PER_FILE_REPO["For each included file, create its inverse-per-file-repo. The first capture is the on-disk state of the file"]
+  B_COLLECT_EVENTS_OF_FILE["Collect the events of the file from git and from the JSONLs, sort by timestamp (newest first), and into layers for order-of-processing"]
+  class B_CREATE_INVERSE_PER_FILE_REPO,B_COLLECT_EVENTS_OF_FILE,B_MARK_BEACON_EVENTS,B_ORDER_BEACONS_BY_LAYER,B_BUILD_GIT_BEACON_LAYER,B_COLLECT_SNAPSHOT_BEACONS,B_COLLECT_FULL_FILE_READS,B_COLLECT_FULL_EDITS,B_COLLECT_PARTIAL_EDITS,B_COLLECT_BASH_PARTIAL_SCRIPT_READS,B_COLLECT_SCRIPT_WRITES Action
 %% ==size==: Q_JSONLS_GIVEN 441 118
+  B_COLLECT_SNAPSHOT_BEACONS["Layer 2: Collect the snapshot beacons from the JSONLs, sorted newest to oldest, insert into puzzle at correct timestamp"]
+  B_COLLECT_FULL_FILE_READS["Layer 3: collect full file reads from JSONL tool call events (including Bash() events that read a file), sorted newest to oldest, insert into puzzle at correct timestamp"]
+  B_COLLECT_FULL_EDITS["Layer 4: collect all full Edit() tool call events from the JSONL, sorted newest to oldest, insert into puzzle at correct timestamp"]
+  B_COLLECT_PARTIAL_EDITS["Layer 5: collect all partial Edit() tool call events from the JSONL, sorted newest to oldest, insert into puzzle at correct timestamp"]
+  B_COLLECT_BASH_PARTIAL_SCRIPT_READS["Layer 6: collect script runs that read part of a file, sorted newest to oldest, insert into puzzle at correct timestamp"]
+  B_COLLECT_SCRIPT_WRITES["Layer 7: collect script runs that wrote to a file, sorted newest to oldest, insert into puzzle at correct timestamp"]
+%% ==size==: B_COLLECT_EVENTS_OF_FILE 593 72
+%% ==size==: B_BUILD_GIT_BEACON_LAYER 444 72
+%% ==size==: B_COLLECT_SNAPSHOT_BEACONS 502 72
+%% ==size==: B_COLLECT_FULL_FILE_READS 552 79
+%% ==size==: B_COLLECT_FULL_EDITS 563 72
+%% ==size==: B_COLLECT_PARTIAL_EDITS 585 72
+%% ==size==: B_COLLECT_BASH_PARTIAL_SCRIPT_READS 605 72
+%% ==size==: B_COLLECT_SCRIPT_WRITES 538 72
+%% ==size==: B_CREATE_INVERSE_PER_FILE_REPO 574 72
+%% ==size==: B_DECIDE_INCLUDE_OR_EXCLUDE_PER_GROUP 411 72
+%% ==size==: B_PUT_FILES_INTO_EIGHT_GROUPS 255 72
+%% ==size==: B_ANSWER_THREE_QUESTIONS_PER_FILE 305 72
+%% ==size==: B_COLLECT_FILE_NAMES_INTO_LIST 377 72
+%% ==size==: B_DERIVE_JSONLS 304 72
+%% ==size==: B_USE_GIVEN_JSONLS 296 72
+%% ==size==: B_ALL_INPUTS_KNOWN 281 149
+%% ==size==: B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES 486 72
+%% ==size==: B_COMPLETED_NON_SCRIPT_REPLAYS_OF_PUZZLES 396 72
+%% ==size==: B_COMPLETED_SCRIPT_REPLAYS_OF_PUZZLES 422 72
 %%%%====
 %% DO NOT MODIFY - AUTOMATICALLY GENERATED DURING EVERY SAVE
-%% {"lastSelectedNodeId":"B_PUT_FILES_INTO_EIGHT_GROUPS","outputScrollLeft":189.5,"outputScrollTop":3089,"mainZoomPercent":100}
+%% {"lastSelectedNodeId":"B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES","outputScrollLeft":189.5,"outputScrollTop":4301.5,"mainZoomPercent":100}
 %%%%====
