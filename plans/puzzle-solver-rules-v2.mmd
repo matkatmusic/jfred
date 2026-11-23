@@ -8,9 +8,9 @@ flowchart TD
   B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT["The list of files to reconstruct has been sorted and filtered"]
   %% disabled: B_COMPLETED_FILE_RECONSTRUCTION_LIST --> B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT
   %% disabled: B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT --> B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES
-  B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT --> B_CREATE_INVERSE_PER_FILE_REPO
+  %% disabled: B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT --> B_CREATE_INVERSE_PER_FILE_REPO
   B_CREATE_INVERSE_PER_FILE_REPO --> B_COLLECT_EVENTS_OF_FILE
-  B_BUILD_GIT_BEACON_LAYER["Layer 1: collect the git beacons, sorted newest to oldest, insert into puzzle at correct timestamp"]
+  B_BUILD_GIT_BEACON_LAYER["Layer 1: collect the git beacons, sorted newest to oldest, insert into puzzle at correct timestamp<br/>#96;gitBeacons = getGitBeacons(repo, file);#96;<br/>#96;gitBeacons.sort(newestToOldest);#96;<br/>#96;for( gitEvent in gitBeacons)#96;<br/>#96;puzzle.insertSorted(gitEvent, SortType::ByTimestamp, gitEvent.timestamp);#96;"]
   B_COLLECT_EVENTS_OF_FILE --> B_BUILD_GIT_BEACON_LAYER
   B_BUILD_GIT_BEACON_LAYER --> B_COLLECT_SNAPSHOT_BEACONS
   B_COLLECT_SNAPSHOT_BEACONS --> B_COLLECT_FULL_FILE_READS
@@ -18,9 +18,34 @@ flowchart TD
   B_COLLECT_FULL_EDITS --> B_COLLECT_PARTIAL_EDITS
   B_COLLECT_PARTIAL_EDITS --> B_COLLECT_BASH_PARTIAL_SCRIPT_READS
   B_COLLECT_BASH_PARTIAL_SCRIPT_READS --> B_COLLECT_SCRIPT_WRITES
-  B_COLLECT_SCRIPT_WRITES --> B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES
+  %% disabled: B_COLLECT_SCRIPT_WRITES --> B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES
   Q_MORE_EVENTS_IN_RANGE --> Q_CHOICE_MORE_EVENTS_IN_RANGE_YES
-  Q_CHOICE_MORE_EVENTS_IN_RANGE_YES --> B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT
+  %% disabled: Q_CHOICE_MORE_EVENTS_IN_RANGE_YES --> B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT
+  Q_NO_GIT_NO_JSONL_NO_DISK{{"is this file: - missing from git, - missing from JSONLs, - missing from disk?"}}
+  Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_Y["Yes, missing from all 3 places"]
+  Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_N["No, include in processing"]
+  B_PUT_FILES_INTO_EIGHT_GROUPS --> Q_NO_GIT_NO_JSONL_NO_DISK
+  Q_NO_GIT_NO_JSONL_NO_DISK --> Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_Y
+  Q_NO_GIT_NO_JSONL_NO_DISK --> Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_N
+  B_COMPLETED_FILE_RECONSTRUCTION_LIST --> B_SORT_EACH_FILE_INTO_GROUPS
+  B_SORT_EACH_FILE_INTO_GROUPS --> B_ANSWER_THREE_QUESTIONS_PER_FILE
+  B_ANSWER_THREE_QUESTIONS_PER_FILE --> B_PUT_FILES_INTO_EIGHT_GROUPS
+  Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_Y --> B_MISSING_SO_EXCLUDE_FROM_PROCESSING
+  %% disabled: Q_MORE_FILES_TO_CHECK_TO_INCLUDE{{"#96;if( i > candidateFiles.size() - 1 ) {...#96;"}}
+  Q_MORE_FILES_TO_CHECK_TO_INCLUDE{{"#96;if( i == candidateFiles.size() - 1 ) {...#96;"}}
+  Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_Y["Yes, all done including/excluding #96;candidateFiles#96;!!"]
+  Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_N["No, there are more files to check"]
+  Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_N --> Q_MORE_FILES_TO_CHECK_TO_INCLUDE
+  Q_MORE_FILES_TO_CHECK_TO_INCLUDE --> Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_Y
+  Q_MORE_FILES_TO_CHECK_TO_INCLUDE --> Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_N
+  Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_N --> B_SORT_EACH_FILE_INTO_GROUPS
+  Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_Y --> B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT
+  %% disabled: B_MISSING_SO_EXCLUDE_FROM_PROCESSING --> B_SORT_EACH_FILE_INTO_GROUPS
+  B_MISSING_SO_EXCLUDE_FROM_PROCESSING --> Q_MORE_FILES_TO_CHECK_TO_INCLUDE
+  B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES --> B_SPLIT_PUZZLE_INTO_RANGES
+  B_TAKE_NEXT_RANGE_OF_FILE --> B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT
+  B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT --> Q_MORE_EVENTS_IN_RANGE
+  B_SPLIT_PUZZLE_INTO_RANGES --> B_BUILD_RANGE_FOR_FILE
 classDef information fill:#ffffff,stroke:#000000
 classDef Decision fill:#ffff00,stroke:#000000
 classDef Yes-path fill:#00ff00,stroke:#000000
@@ -86,32 +111,57 @@ B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES["non-replayed puzzles built 
   B_NEW_4["file-history snapshot path is pulled from JSONL file"]
   B_NEW_4 --> Q_GIT_FOLDER_GIVEN
   class B_USE_GIVEN_GIT_HASH,B_DERIVE_GIT_HASH,B_USE_GIVEN_GIT_FOLDER,B_DERIVE_GIT_FOLDER,B_USE_GIVEN_SNAPSHOTS,B_DERIVE_SNAPSHOTS,B_USE_GIVEN_JSONLS,B_DERIVE_JSONLS,B_NEW_4 information
-  class Q_CHOICE_JSONLS_GIVEN_YES,Q_CHOICE_SNAPSHOTS_GIVEN_YES,Q_CHOICE_GIT_FOLDER_GIVEN_YES,Q_CHOICE_GIT_HASH_GIVEN_YES Yes-path
-  class Q_CHOICE_JSONLS_GIVEN_NO,Q_CHOICE_SNAPSHOTS_GIVEN_NO,Q_CHOICE_GIT_FOLDER_GIVEN_NO,Q_CHOICE_GIT_HASH_GIVEN_NO No-path
-  class Q_JSONLS_GIVEN,Q_SNAPSHOTS_GIVEN,Q_GIT_FOLDER_GIVEN,Q_GIT_HASH_GIVEN Decision
+  class Q_CHOICE_JSONLS_GIVEN_YES,Q_CHOICE_SNAPSHOTS_GIVEN_YES,Q_CHOICE_GIT_FOLDER_GIVEN_YES,Q_CHOICE_GIT_HASH_GIVEN_YES,Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_N,Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_Y Yes-path
+  class Q_CHOICE_JSONLS_GIVEN_NO,Q_CHOICE_SNAPSHOTS_GIVEN_NO,Q_CHOICE_GIT_FOLDER_GIVEN_NO,Q_CHOICE_GIT_HASH_GIVEN_NO,Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_Y,Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_N No-path
+  class Q_JSONLS_GIVEN,Q_SNAPSHOTS_GIVEN,Q_GIT_FOLDER_GIVEN,Q_GIT_HASH_GIVEN,Q_NO_GIT_NO_JSONL_NO_DISK,Q_MORE_FILES_TO_CHECK_TO_INCLUDE Decision
   class B_ALL_INPUTS_KNOWN,B_USE_GIVEN_GIT_HASH,B_DERIVE_GIT_HASH,B_USE_GIVEN_GIT_FOLDER,B_DERIVE_GIT_FOLDER,B_USE_GIVEN_SNAPSHOTS,B_DERIVE_SNAPSHOTS,B_USE_GIVEN_JSONLS,B_DERIVE_JSONLS,B_NEW_4 information
-  class B_COLLECT_FILE_NAMES_INTO_LIST,B_BUILD_GIT_BEACON_LAYER,B_COLLECT_SNAPSHOT_BEACONS,B_COLLECT_FULL_FILE_READS,B_COLLECT_FULL_EDITS,B_COLLECT_PARTIAL_EDITS,B_COLLECT_BASH_PARTIAL_SCRIPT_READS,B_COLLECT_SCRIPT_WRITES,B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT Action
+  class B_COLLECT_FILE_NAMES_INTO_LIST,B_BUILD_GIT_BEACON_LAYER,B_COLLECT_SNAPSHOT_BEACONS,B_COLLECT_FULL_FILE_READS,B_COLLECT_FULL_EDITS,B_COLLECT_PARTIAL_EDITS,B_COLLECT_BASH_PARTIAL_SCRIPT_READS,B_COLLECT_SCRIPT_WRITES,B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT,B_MISSING_SO_EXCLUDE_FROM_PROCESSING Action
   %% ---- gap B: B_COMPLETED_FILE_RECONSTRUCTION_LIST to B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT ----
-  B_ANSWER_THREE_QUESTIONS_PER_FILE["For each file in the list, answer 3 Yes/No questions: in git? in JSONL? on disk?"]
-  B_PUT_FILES_INTO_EIGHT_GROUPS["Put each file into 1 of the 8 groups, based on its 3 answers"]
-  B_DECIDE_INCLUDE_OR_EXCLUDE_PER_GROUP["For each group, decide: include or exclude its files"]
-  B_COMPLETED_FILE_RECONSTRUCTION_LIST --> B_ANSWER_THREE_QUESTIONS_PER_FILE --> B_PUT_FILES_INTO_EIGHT_GROUPS --> B_DECIDE_INCLUDE_OR_EXCLUDE_PER_GROUP --> B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT
-  class B_ANSWER_THREE_QUESTIONS_PER_FILE,B_PUT_FILES_INTO_EIGHT_GROUPS,B_DECIDE_INCLUDE_OR_EXCLUDE_PER_GROUP,B_BUILD_GIT_BEACON_LAYER,B_COLLECT_SNAPSHOT_BEACONS,B_COLLECT_FULL_FILE_READS,B_COLLECT_FULL_EDITS,B_COLLECT_PARTIAL_EDITS,B_COLLECT_BASH_PARTIAL_SCRIPT_READS,B_COLLECT_SCRIPT_WRITES,B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT Action
+  %% disabled: B_ANSWER_THREE_QUESTIONS_PER_FILE["For each file in the list, answer 3 Yes/No questions: in git? in JSONL? on disk?"]
+  B_ANSWER_THREE_QUESTIONS_PER_FILE["Answer 3 Yes/No questions for this file: in git? in JSONL? on disk?"]
+  %% disabled: B_PUT_FILES_INTO_EIGHT_GROUPS["Put each file into 1 of the 8 groups, based on its 3 answers"]
+  B_PUT_FILES_INTO_EIGHT_GROUPS["Put this file into 1 of the 8 groups, based on its 3 answers"]
+  %% disabled: B_DECIDE_INCLUDE_OR_EXCLUDE_PER_GROUP["For each group, decide: include or exclude its files"]
+  %% disabled: B_SORT_EACH_FILE_INTO_GROUPS["#96;for( i = 0; i < candidateFiles.size() ) { ...#96;"]
+  B_SORT_EACH_FILE_INTO_GROUPS["#96;for( i = 0; i < candidateFiles.size(); ++i ) { ...#96;"]
+  %% disabled: B_COMPLETED_FILE_RECONSTRUCTION_LIST --> B_ANSWER_THREE_QUESTIONS_PER_FILE --> B_PUT_FILES_INTO_EIGHT_GROUPS --> B_DECIDE_INCLUDE_OR_EXCLUDE_PER_GROUP --> B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT
+  class B_MISSING_SO_EXCLUDE_FROM_PROCESSING Action
+  class Q_NO_GIT_NO_JSONL_NO_DISK,Q_MORE_FILES_TO_CHECK_TO_INCLUDE Decision
+  class Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_N,Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_Y Yes-path
+  class Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_Y,Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_N No-path
+  class B_ANSWER_THREE_QUESTIONS_PER_FILE,B_PUT_FILES_INTO_EIGHT_GROUPS,B_BUILD_GIT_BEACON_LAYER,B_COLLECT_SNAPSHOT_BEACONS,B_COLLECT_FULL_FILE_READS,B_COLLECT_FULL_EDITS,B_COLLECT_PARTIAL_EDITS,B_COLLECT_BASH_PARTIAL_SCRIPT_READS,B_COLLECT_SCRIPT_WRITES,B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT,B_MISSING_SO_EXCLUDE_FROM_PROCESSING Action
   %% ---- gap C: B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT to B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES ----
-  B_CREATE_INVERSE_PER_FILE_REPO["For each included file, create its inverse-per-file-repo. The first capture is the on-disk state of the file"]
-  B_COLLECT_EVENTS_OF_FILE["Collect the events of the file from git and from the JSONLs, sort by timestamp (newest first), and into layers for order-of-processing"]
-  class B_CREATE_INVERSE_PER_FILE_REPO,B_COLLECT_EVENTS_OF_FILE,B_BUILD_GIT_BEACON_LAYER,B_COLLECT_SNAPSHOT_BEACONS,B_COLLECT_FULL_FILE_READS,B_COLLECT_FULL_EDITS,B_COLLECT_PARTIAL_EDITS,B_COLLECT_BASH_PARTIAL_SCRIPT_READS,B_COLLECT_SCRIPT_WRITES,B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT Action
+  %% disabled: B_CREATE_INVERSE_PER_FILE_REPO["For each included file, create its inverse-per-file-repo. The first capture is the on-disk state of the file"]
+  B_CREATE_INVERSE_PER_FILE_REPO["Create the inverse-per-file-repo of this file. The first capture is the on-disk state of this file"]
+  %% disabled: B_COLLECT_EVENTS_OF_FILE["Collect the events of the file from git and from the JSONLs, sort by timestamp (newest first), and into layers for order-of-processing"]
+  B_COLLECT_EVENTS_OF_FILE["Collect the events of this file from git and from the JSONLs, sort by timestamp (newest first), and into layers for order-of-processing"]
+  B_TAKE_NEXT_INCLUDED_FILE["Take the next included file:<br/>#96;for( file in filesToReconstruct ) { ...#96;"]
+  Q_MORE_INCLUDED_FILES_WITHOUT_PUZZLE{{"Are there more included files without a puzzle?"}}
+  Q_CHOICE_MORE_INCLUDED_FILES_WITHOUT_PUZZLE_YES["Yes. Go back for the next file"]
+  Q_CHOICE_MORE_INCLUDED_FILES_WITHOUT_PUZZLE_NO["No. Every included file has its puzzle. Move on"]
+  B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT --> B_TAKE_NEXT_INCLUDED_FILE --> B_CREATE_INVERSE_PER_FILE_REPO
+  B_COLLECT_SCRIPT_WRITES --> Q_MORE_INCLUDED_FILES_WITHOUT_PUZZLE
+  Q_MORE_INCLUDED_FILES_WITHOUT_PUZZLE --> Q_CHOICE_MORE_INCLUDED_FILES_WITHOUT_PUZZLE_YES --> B_TAKE_NEXT_INCLUDED_FILE
+  Q_MORE_INCLUDED_FILES_WITHOUT_PUZZLE --> Q_CHOICE_MORE_INCLUDED_FILES_WITHOUT_PUZZLE_NO --> B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES
+%% class B_TAKE_NEXT_INCLUDED_FILE Action
+  class Q_MORE_INCLUDED_FILES_WITHOUT_PUZZLE,Q_NO_GIT_NO_JSONL_NO_DISK,Q_MORE_FILES_TO_CHECK_TO_INCLUDE Decision
+  class Q_CHOICE_MORE_INCLUDED_FILES_WITHOUT_PUZZLE_YES,Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_N,Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_Y Yes-path
+  class Q_CHOICE_MORE_INCLUDED_FILES_WITHOUT_PUZZLE_NO,Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_Y,Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_N No-path
+  class B_CREATE_INVERSE_PER_FILE_REPO,B_COLLECT_EVENTS_OF_FILE,B_BUILD_GIT_BEACON_LAYER,B_COLLECT_SNAPSHOT_BEACONS,B_COLLECT_FULL_FILE_READS,B_COLLECT_FULL_EDITS,B_COLLECT_PARTIAL_EDITS,B_COLLECT_BASH_PARTIAL_SCRIPT_READS,B_COLLECT_SCRIPT_WRITES,B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT,B_MISSING_SO_EXCLUDE_FROM_PROCESSING Action
   %% ---- gap D: B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES to B_COMPLETED_NON_SCRIPT_REPLAYS_OF_PUZZLES ----
   %% disabled: B_SPLIT_PUZZLE_INTO_RANGES["Split the puzzle of each file into ranges. A range goes from one beacon to the next older beacon"]
   B_SPLIT_PUZZLE_INTO_RANGES["Split the puzzle of this file into ranges. A range goes from one beacon to the next older beacon"]
-  B_TAKE_NEXT_RANGE_OF_FILE["Take the next range of this file, newest range first"]
+  %% disabled: B_TAKE_NEXT_RANGE_OF_FILE["Take the next range of this file, newest range first"]
+  B_TAKE_NEXT_RANGE_OF_FILE["Take the next range of this file, newest range first<br/>#96;eventIndex = rangeEvents.size();#96;"]
   Q_MORE_RANGES_FOR_FILE{{"Are there more ranges for this file?"}}
   Q_CHOICE_MORE_RANGES_FOR_FILE_YES["Yes. Go back for the next range"]
   Q_CHOICE_MORE_RANGES_FOR_FILE_NO["No. All ranges of this file are replayed. Move on"]
   %% disabled: B_REPLAY_NON_SCRIPT_EVENTS_OF_RANGE["For each range: replay the non-script events of the range, from the older beacon to the newer beacon"]
   %% disabled: B_REPLAY_NON_SCRIPT_EVENTS_OF_RANGE["For each range: replay the next non-script event of the range, from the older beacon to the newer beacon"]
-  B_REPLAY_NON_SCRIPT_EVENTS_OF_RANGE["Forward-Replay non-script #96;rangeEvents[i]#96; of this range, starting from the older beacon to the newer beacon.<br/>#96;i = rangeEvents.size();#96;<br/>#96;while(true) {...#96;"]
-  Q_MORE_EVENTS_IN_RANGE{{"Are there more events in this range to replay (excluding script events)?<br/>#96;if( i >= 0 && rangeEvents[i].isScriptRun() == false ) { ...#96;"}}
+  %% disabled: B_REPLAY_NON_SCRIPT_EVENTS_OF_RANGE["Forward-Replay non-script #96;rangeEvents[i]#96; of this range, starting from the older beacon to the newer beacon.<br/>#96;i = rangeEvents.size();#96;<br/>#96;while(true) {...#96;"]
+  B_REPLAY_NON_SCRIPT_EVENTS_OF_RANGE["Forward-Replay non-script #96;rangeEvents[eventIndex]#96; of this range, starting from the older beacon to the newer beacon.<br/>#96;replay(rangeEvents[eventIndex]);#96;"]
+  %% disabled: Q_MORE_EVENTS_IN_RANGE{{"Are there more events in this range to replay (excluding script events)?<br/>#96;if( i >= 0 && rangeEvents[i].isScriptRun() == false ) { ...#96;"}}
+  Q_MORE_EVENTS_IN_RANGE{{"Are there more events in this range to replay (excluding script events)?<br/>#96;if( eventIndex >= 0 ) { ...#96;"}}
   Q_CHOICE_MORE_EVENTS_IN_RANGE_YES["Yes"]
   Q_CHOICE_MORE_EVENTS_IN_RANGE_NO["No"]
   Q_RANGE_BYTES_EQUAL_NEWER_BEACON{{"Are the replayed bytes equal to the bytes of the newer beacon?"}}
@@ -120,7 +170,8 @@ B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES["non-replayed puzzles built 
   B_INSERT_PRESUMED_USER_EDIT_NODE["Insert a presumed-user-edit node into the range (it is possibly a script run)"]
   %% disabled: B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES --> B_SPLIT_PUZZLE_INTO_RANGES --> B_REPLAY_NON_SCRIPT_EVENTS_OF_RANGE --> Q_RANGE_BYTES_EQUAL_NEWER_BEACON
   %% disabled: B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES --> B_SPLIT_PUZZLE_INTO_RANGES --> B_REPLAY_NON_SCRIPT_EVENTS_OF_RANGE --> Q_MORE_EVENTS_IN_RANGE
-  B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES --> B_SPLIT_PUZZLE_INTO_RANGES --> B_TAKE_NEXT_RANGE_OF_FILE --> B_REPLAY_NON_SCRIPT_EVENTS_OF_RANGE --> Q_MORE_EVENTS_IN_RANGE
+  %% disabled: B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES --> B_SPLIT_PUZZLE_INTO_RANGES --> B_TAKE_NEXT_RANGE_OF_FILE --> B_REPLAY_NON_SCRIPT_EVENTS_OF_RANGE --> Q_MORE_EVENTS_IN_RANGE
+  Q_CHOICE_MORE_EVENTS_IN_RANGE_YES --> B_REPLAY_NON_SCRIPT_EVENTS_OF_RANGE --> B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT
   Q_MORE_EVENTS_IN_RANGE --> Q_CHOICE_MORE_EVENTS_IN_RANGE_NO --> Q_RANGE_BYTES_EQUAL_NEWER_BEACON
   %% disabled: Q_RANGE_BYTES_EQUAL_NEWER_BEACON --> Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_BEACON_YES --> B_COMPLETED_NON_SCRIPT_REPLAYS_OF_PUZZLES
   Q_RANGE_BYTES_EQUAL_NEWER_BEACON --> Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_BEACON_YES --> Q_MORE_RANGES_FOR_FILE
@@ -128,17 +179,17 @@ B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES["non-replayed puzzles built 
   Q_RANGE_BYTES_EQUAL_NEWER_BEACON --> Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_BEACON_NO --> B_INSERT_PRESUMED_USER_EDIT_NODE --> Q_MORE_RANGES_FOR_FILE
   Q_MORE_RANGES_FOR_FILE --> Q_CHOICE_MORE_RANGES_FOR_FILE_YES --> B_TAKE_NEXT_RANGE_OF_FILE
   Q_MORE_RANGES_FOR_FILE --> Q_CHOICE_MORE_RANGES_FOR_FILE_NO --> B_COMPLETED_NON_SCRIPT_REPLAYS_OF_PUZZLES
-  class B_SPLIT_PUZZLE_INTO_RANGES,B_REPLAY_NON_SCRIPT_EVENTS_OF_RANGE,B_INSERT_PRESUMED_USER_EDIT_NODE,B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT Action
-  class Q_RANGE_BYTES_EQUAL_NEWER_BEACON Decision
-  class Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_BEACON_YES Yes-path
-  class Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_BEACON_NO No-path
-  class Q_MORE_EVENTS_IN_RANGE Decision
-  class Q_CHOICE_MORE_EVENTS_IN_RANGE_YES Yes-path
-  class Q_CHOICE_MORE_EVENTS_IN_RANGE_NO No-path
+  class B_SPLIT_PUZZLE_INTO_RANGES,B_REPLAY_NON_SCRIPT_EVENTS_OF_RANGE,B_INSERT_PRESUMED_USER_EDIT_NODE,B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT,B_MISSING_SO_EXCLUDE_FROM_PROCESSING Action
+  class Q_RANGE_BYTES_EQUAL_NEWER_BEACON,Q_NO_GIT_NO_JSONL_NO_DISK,Q_MORE_FILES_TO_CHECK_TO_INCLUDE Decision
+  class Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_BEACON_YES,Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_N,Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_Y Yes-path
+  class Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_BEACON_NO,Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_Y,Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_N No-path
+  class Q_MORE_EVENTS_IN_RANGE,Q_NO_GIT_NO_JSONL_NO_DISK,Q_MORE_FILES_TO_CHECK_TO_INCLUDE Decision
+  class Q_CHOICE_MORE_EVENTS_IN_RANGE_YES,Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_N,Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_Y Yes-path
+  class Q_CHOICE_MORE_EVENTS_IN_RANGE_NO,Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_Y,Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_N No-path
 %% class B_TAKE_NEXT_RANGE_OF_FILE Action
-  class Q_MORE_RANGES_FOR_FILE Decision
-  class Q_CHOICE_MORE_RANGES_FOR_FILE_YES Yes-path
-  class Q_CHOICE_MORE_RANGES_FOR_FILE_NO No-path
+  class Q_MORE_RANGES_FOR_FILE,Q_NO_GIT_NO_JSONL_NO_DISK,Q_MORE_FILES_TO_CHECK_TO_INCLUDE Decision
+  class Q_CHOICE_MORE_RANGES_FOR_FILE_YES,Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_N,Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_Y Yes-path
+  class Q_CHOICE_MORE_RANGES_FOR_FILE_NO,Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_Y,Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_N No-path
   %% ---- gap E: B_COMPLETED_NON_SCRIPT_REPLAYS_OF_PUZZLES to B_COMPLETED_SCRIPT_REPLAYS_OF_PUZZLES ----
   B_PICK_NEXT_SCRIPT_RUN["Take the script runs, newest first. Pick the first one whose input files all have known bytes"]
   B_REPLAY_SCRIPT_RUN_IN_DOCKER["Replay the script run in the docker sandbox"]
@@ -150,19 +201,25 @@ B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES["non-replayed puzzles built 
   B_COMPLETED_NON_SCRIPT_REPLAYS_OF_PUZZLES --> B_PICK_NEXT_SCRIPT_RUN --> B_REPLAY_SCRIPT_RUN_IN_DOCKER --> Q_SCRIPT_BYTES_EQUAL_NEWER_BEACON
   Q_SCRIPT_BYTES_EQUAL_NEWER_BEACON --> Q_CHOICE_SCRIPT_BYTES_EQUAL_NEWER_BEACON_YES --> B_ADD_INVERTING_COMMIT_OF_SCRIPT_RUN --> B_COMPLETED_SCRIPT_REPLAYS_OF_PUZZLES
   Q_SCRIPT_BYTES_EQUAL_NEWER_BEACON --> Q_CHOICE_SCRIPT_BYTES_EQUAL_NEWER_BEACON_NO --> B_SEND_SCRIPT_RUN_TO_RESEARCH --> B_COMPLETED_SCRIPT_REPLAYS_OF_PUZZLES
-  class B_PICK_NEXT_SCRIPT_RUN,B_REPLAY_SCRIPT_RUN_IN_DOCKER,B_ADD_INVERTING_COMMIT_OF_SCRIPT_RUN,B_SEND_SCRIPT_RUN_TO_RESEARCH,B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT Action
-  class Q_SCRIPT_BYTES_EQUAL_NEWER_BEACON Decision
-  class Q_CHOICE_SCRIPT_BYTES_EQUAL_NEWER_BEACON_YES Yes-path
-  class Q_CHOICE_SCRIPT_BYTES_EQUAL_NEWER_BEACON_NO No-path
-class B_TAKE_NEXT_RANGE_OF_FILE loop-start
+  class B_PICK_NEXT_SCRIPT_RUN,B_REPLAY_SCRIPT_RUN_IN_DOCKER,B_ADD_INVERTING_COMMIT_OF_SCRIPT_RUN,B_SEND_SCRIPT_RUN_TO_RESEARCH,B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT,B_MISSING_SO_EXCLUDE_FROM_PROCESSING Action
+  class Q_SCRIPT_BYTES_EQUAL_NEWER_BEACON,Q_NO_GIT_NO_JSONL_NO_DISK,Q_MORE_FILES_TO_CHECK_TO_INCLUDE Decision
+  class Q_CHOICE_SCRIPT_BYTES_EQUAL_NEWER_BEACON_YES,Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_N,Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_Y Yes-path
+  class Q_CHOICE_SCRIPT_BYTES_EQUAL_NEWER_BEACON_NO,Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_Y,Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_N No-path
+class B_TAKE_NEXT_RANGE_OF_FILE,B_TAKE_NEXT_INCLUDED_FILE,B_SORT_EACH_FILE_INTO_GROUPS,B_BUILD_RANGE_FOR_FILE loop-start
 %% class B_TAKE_NEXT_RANGE_OF_FILE loop-start
 %% ==size==: Q_JSONLS_GIVEN 441 118
-  B_COLLECT_SNAPSHOT_BEACONS["Layer 2: Collect the snapshot beacons from the JSONLs, sorted newest to oldest, insert into puzzle at correct timestamp"]
-  B_COLLECT_FULL_FILE_READS["Layer 3: collect full file reads from JSONL tool call events (including Bash() events that read a file), sorted newest to oldest, insert into puzzle at correct timestamp"]
-  B_COLLECT_FULL_EDITS["Layer 4: collect all full Edit() tool call events from the JSONL, sorted newest to oldest, insert into puzzle at correct timestamp"]
-  B_COLLECT_PARTIAL_EDITS["Layer 5: collect all partial Edit() tool call events from the JSONL, sorted newest to oldest, insert into puzzle at correct timestamp"]
-  B_COLLECT_BASH_PARTIAL_SCRIPT_READS["Layer 6: collect script runs that read part of a file, sorted newest to oldest, insert into puzzle at correct timestamp"]
-  B_COLLECT_SCRIPT_WRITES["Layer 7: collect script runs that wrote to a file, sorted newest to oldest, insert into puzzle at correct timestamp"]
+  %% disabled: B_COLLECT_SNAPSHOT_BEACONS["Layer 2: Collect the snapshot beacons from the JSONLs, sorted newest to oldest, insert into puzzle at correct timestamp"]
+  B_COLLECT_SNAPSHOT_BEACONS["Layer 2: Collect the snapshot beacons from the JSONLs, sorted newest to oldest, insert into puzzle at correct timestamp<br/>#96;snapshotBeacons = getSnapshotBeacons(jsonls, file);#96;<br/>#96;snapshotBeacons.sort(newestToOldest);#96;<br/>#96;for( snapshotEvent in snapshotBeacons)#96;<br/>#96;puzzle.insertSorted(snapshotEvent, SortType::ByTimestamp, snapshotEvent.timestamp);#96;"]
+  %% disabled: B_COLLECT_FULL_FILE_READS["Layer 3: collect full file reads from JSONL tool call events (including Bash() events that read a file), sorted newest to oldest, insert into puzzle at correct timestamp"]
+  B_COLLECT_FULL_FILE_READS["Layer 3: collect full file reads from JSONL tool call events (including Bash() events that read a file), sorted newest to oldest, insert into puzzle at correct timestamp<br/>#96;fullFileReads = getFullFileReads(jsonls, file);#96;<br/>#96;fullFileReads.sort(newestToOldest);#96;<br/>#96;for( fullFileReadEvent in fullFileReads)#96;<br/>#96;puzzle.insertSorted(fullFileReadEvent, SortType::ByTimestamp, fullFileReadEvent.timestamp);#96;"]
+  %% disabled: B_COLLECT_FULL_EDITS["Layer 4: collect all full Edit() tool call events from the JSONL, sorted newest to oldest, insert into puzzle at correct timestamp"]
+  B_COLLECT_FULL_EDITS["Layer 4: collect all full Edit() tool call events from the JSONL, sorted newest to oldest, insert into puzzle at correct timestamp<br/>#96;fullEdits = getFullEdits(jsonls, file);#96;<br/>#96;fullEdits.sort(newestToOldest);#96;<br/>#96;for( fullEditEvent in fullEdits)#96;<br/>#96;puzzle.insertSorted(fullEditEvent, SortType::ByTimestamp, fullEditEvent.timestamp);#96;"]
+  %% disabled: B_COLLECT_PARTIAL_EDITS["Layer 5: collect all partial Edit() tool call events from the JSONL, sorted newest to oldest, insert into puzzle at correct timestamp"]
+  B_COLLECT_PARTIAL_EDITS["Layer 5: collect all partial Edit() tool call events from the JSONL, sorted newest to oldest, insert into puzzle at correct timestamp<br/>#96;partialEdits = getPartialEdits(jsonls, file);#96;<br/>#96;partialEdits.sort(newestToOldest);#96;<br/>#96;for( partialEditEvent in partialEdits)#96;<br/>#96;puzzle.insertSorted(partialEditEvent, SortType::ByTimestamp, partialEditEvent.timestamp);#96;"]
+  %% disabled: B_COLLECT_BASH_PARTIAL_SCRIPT_READS["Layer 6: collect script runs that read part of a file, sorted newest to oldest, insert into puzzle at correct timestamp"]
+  B_COLLECT_BASH_PARTIAL_SCRIPT_READS["Layer 6: collect script runs that read part of a file, sorted newest to oldest, insert into puzzle at correct timestamp<br/>#96;partialScriptReads = getPartialScriptReads(jsonls, file);#96;<br/>#96;partialScriptReads.sort(newestToOldest);#96;<br/>#96;for( partialScriptReadEvent in partialScriptReads)#96;<br/>#96;puzzle.insertSorted(partialScriptReadEvent, SortType::ByTimestamp, partialScriptReadEvent.timestamp);#96;"]
+  %% disabled: B_COLLECT_SCRIPT_WRITES["Layer 7: collect script runs that wrote to a file, sorted newest to oldest, insert into puzzle at correct timestamp"]
+  B_COLLECT_SCRIPT_WRITES["Layer 7: collect script runs that wrote to a file, sorted newest to oldest, insert into puzzle at correct timestamp<br/>#96;scriptWrites = getScriptWrites(jsonls, file);#96;<br/>#96;scriptWrites.sort(newestToOldest);#96;<br/>#96;for( scriptWriteEvent in scriptWrites)#96;<br/>#96;puzzle.insertSorted(scriptWriteEvent, SortType::ByTimestamp, scriptWriteEvent.timestamp);#96;"]
 %% ==size==: B_COLLECT_EVENTS_OF_FILE 593 72
 %% ==size==: B_BUILD_GIT_BEACON_LAYER 444 72
 %% ==size==: B_COLLECT_SNAPSHOT_BEACONS 502 72
@@ -172,7 +229,6 @@ class B_TAKE_NEXT_RANGE_OF_FILE loop-start
 %% ==size==: B_COLLECT_BASH_PARTIAL_SCRIPT_READS 605 72
 %% ==size==: B_COLLECT_SCRIPT_WRITES 538 72
 %% ==size==: B_CREATE_INVERSE_PER_FILE_REPO 574 72
-%% ==size==: B_DECIDE_INCLUDE_OR_EXCLUDE_PER_GROUP 411 72
 %% ==size==: B_PUT_FILES_INTO_EIGHT_GROUPS 255 72
 %% ==size==: B_ANSWER_THREE_QUESTIONS_PER_FILE 305 72
 %% ==size==: B_COLLECT_FILE_NAMES_INTO_LIST 377 72
@@ -187,9 +243,14 @@ class B_TAKE_NEXT_RANGE_OF_FILE loop-start
 %% ==size==: Q_RANGE_BYTES_EQUAL_NEWER_BEACON 350 118
 %% ==size==: B_TAKE_NEXT_RANGE_OF_FILE 435 72
 %% ==size==: Q_MORE_EVENTS_IN_RANGE 440 118
-  B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT["Advance to next non-script event<br/>#96;while( events[i].isScript() == false ) { --i; }#96;"]
-  B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT --> B_REPLAY_NON_SCRIPT_EVENTS_OF_RANGE
+  %% disabled: B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT["Advance to next non-script event<br/>#96;while( events[i].isScript() == false ) { --i; }#96;"]
+  B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT["Advance to next non-script event<br/>#96;--eventIndex;#96;<br/>#96;while( eventIndex >= 0 ) { if( rangeEvents[eventIndex].isScriptRun() == false ) { break; } --eventIndex; }#96;"]
+  %% disabled: B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT --> B_REPLAY_NON_SCRIPT_EVENTS_OF_RANGE
+%% ==size==: Q_NO_GIT_NO_JSONL_NO_DISK 451 118
+  B_MISSING_SO_EXCLUDE_FROM_PROCESSING["exclude from processing"]
+  B_BUILD_RANGE_FOR_FILE["for( i = 1; i < file.beacons.size(); ++i ) {<br/>rangeStart = file.beacons[i-1];<br/>rangeEnd = file.beacons[i];<br/>rangeEvents = getEventsBetween(rangeStart, rangeEnd);"]
+  B_BUILD_RANGE_FOR_FILE --> B_TAKE_NEXT_RANGE_OF_FILE
 %%%%====
 %% DO NOT MODIFY - AUTOMATICALLY GENERATED DURING EVERY SAVE
-%% {"lastSelectedNodeId":"Q_CHOICE_MORE_RANGES_FOR_FILE_YES","outputScrollLeft":267,"outputScrollTop":5392,"mainZoomPercent":100}
+%% {"lastSelectedNodeId":"B_REPLAY_NON_SCRIPT_EVENTS_OF_RANGE","outputScrollLeft":355.5,"outputScrollTop":6381,"mainZoomPercent":100}
 %%%%====
