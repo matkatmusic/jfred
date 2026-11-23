@@ -1,0 +1,32 @@
+flowchart TD
+  B_START["Program launched"]
+  B_START --> B_COMPLETED_FILE_RECONSTRUCTION_LIST
+  B_COMPLETED_FILE_RECONSTRUCTION_LIST --> B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES
+  B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES --> B_COMPLETED_NON_SCRIPT_REPLAYS_OF_PUZZLES
+  B_COMPLETED_NON_SCRIPT_REPLAYS_OF_PUZZLES --> B_COMPLETED_SCRIPT_REPLAYS_OF_PUZZLES
+  B_COMPLETED_SCRIPT_REPLAYS_OF_PUZZLES --> B_COMPLETED_SOLVED_ALL_PUZZLES
+classDef information fill:#ffffff,stroke:#000000
+classDef Decision fill:#ffff00,stroke:#000000
+classDef Yes-path fill:#00ff00,stroke:#000000
+classDef No-path fill:#ff0000,stroke:#000000
+classDef Checkpoint fill:#ff8000,stroke:#000000
+classDef Action fill:#fc00ff,stroke:#000000
+classDef Question fill:#79d4fb,stroke:#000000
+classDef Answer fill:#5df9b5,stroke:#000000
+class B_START information
+class B_COMPLETED_FILE_RECONSTRUCTION_LIST,B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES,B_COMPLETED_NON_SCRIPT_REPLAYS_OF_PUZZLES,B_COMPLETED_SCRIPT_REPLAYS_OF_PUZZLES,B_COMPLETED_SOLVED_ALL_PUZZLES Checkpoint
+  %% ==note==: folder from `--project`. <br/>git path from `--repo` or derived from project folder.<br/>git commit from `--commit` or derived from current branch in git. <br/>JSONL folders from multiple `--jsonl` or derived from project folder. <br/>Snapshot folders from multiple `--snapshot` and extracted from JSONLs deemed relevant to the project.
+  B_COMPLETED_FILE_RECONSTRUCTION_LIST["list of all files to reconstruct is created"]
+  
+
+%% ==note==: events come from git, and JSONLs.  this step just organizes the data that will be replayed and creates the initial capture of the on-disk state of the project, using Inverse-Per-File-Repos.<br/>beacons are identified. <br/>beacon layer order: commits, file history snapshot, full file read (including through Bash() tool use), full file edit/write/Update, partial file edit, script replay.
+B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES["non-replayed puzzles built for each file"]
+  %% ==note==: for each beacon layer, for each beacon found, an inverting commit is added to the inverse-per-file-repo for that file in the correct timestamp order.  This is where the #8 algorithm is used ("/Users/matkatmusicllc/Desktop/claude code src/RevEng/plans/engineV3-user-loops.md")
+  B_COMPLETED_NON_SCRIPT_REPLAYS_OF_PUZZLES["non-script event replays completed for each file"]
+  %% ==note==: uses the #9 algorithm from "/Users/matkatmusicllc/Desktop/claude code src/RevEng/plans/engineV3-user-loops.md"
+  B_COMPLETED_SCRIPT_REPLAYS_OF_PUZZLES["script event replays completed for each file"]
+  B_COMPLETED_SOLVED_ALL_PUZZLES["all puzzles solved"]
+%%%%====
+%% DO NOT MODIFY - AUTOMATICALLY GENERATED DURING EVERY SAVE
+%% {"lastSelectedNodeId":"B_COMPLETED_FILE_RECONSTRUCTION_LIST","outputScrollLeft":0,"outputScrollTop":340,"mainZoomPercent":100}
+%%%%====
