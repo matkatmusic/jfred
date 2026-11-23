@@ -171,7 +171,8 @@ function buildPuzzleFromReplay(file: OnDiskFile, replay: ForwardReplay): Progres
 type SolveContext = { allJSONLs: Path[]; gitRepo: Path; commitHash: string; snapshotFolders: Path[] };
 
 // One GitCommit beacon per commit that touches the file; a delete commit has no bytes.
-function createGitHopEvents(path: Path, context: SolveContext): FileEvent[] {
+// function createGitHopEvents(path: Path, context: SolveContext): FileEvent[] {
+function createGitHopEvents(path: Path, context: Pick<SolveContext, "gitRepo">): FileEvent[] {
     return listGitHopsForFile(context.gitRepo, path).map((gitHop) => {
         const commitBoundary = readEarliestBoundary(context.gitRepo, new Uuid(gitHop.commit));
         let bytes: string | undefined;
@@ -183,6 +184,11 @@ function createGitHopEvents(path: Path, context: SolveContext): FileEvent[] {
         }
         return createEvent(FileEventType.GitCommit, commitBoundary.instant, undefined, { commitHash: commitBoundary.commit, bytes });
     });
+}
+
+// Layer 1 of the puzzle (B_BUILD_GIT_BEACON_LAYER): the git beacons of one file, newest first.
+export function getGitBeacons(repo: Path, file: Path): FileEvent[] {
+    return createGitHopEvents(file, { gitRepo: repo }).reverse();
 }
 
 // The replay of one path up to (not including) the instant `until`; no instant means up to now.
