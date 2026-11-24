@@ -136,7 +136,7 @@ B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES["non-replayed puzzles built 
   Q_CHOICE_MORE_RANGES_FOR_FILE_YES["Yes. Build the next range"]
   Q_CHOICE_MORE_RANGES_FOR_FILE_NO["No. All ranges of this file are replayed. Move on to next file to replay."]
   B_REPLAY_NON_SCRIPT_EVENTS_OF_RANGE["Forward-Replay non-script #96;rangeEvents[eventIndex]#96; of this range, starting from the older beacon to the newer beacon.<br/>#96;bytes = replay(bytes, rangeEvents[eventIndex]);#96;"]
-  Q_MORE_EVENTS_IN_RANGE{{"Are there more events in this range between #96;eventIndex#96; and the newer beacon (excluding script events)?<br/>#96;if( eventIndex >= 0 ) { ...#96;"}}
+  Q_MORE_EVENTS_IN_RANGE{{"Are there more events in this range between #96;eventIndex#96; and the newer beacon?<br/>#96;if( eventIndex >= 0 ) { ...#96;"}}
   Q_CHOICE_MORE_EVENTS_IN_RANGE_YES["Yes"]
   Q_CHOICE_MORE_EVENTS_IN_RANGE_NO["No"]
   Q_RANGE_BYTES_EQUAL_NEWER_BEACON{{"Are the replayed bytes equal to the bytes of the newer beacon?<br/>#96;if( bytes == rangeStart.bytes ) { ...#96;"}}
@@ -148,23 +148,40 @@ B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES["non-replayed puzzles built 
   Q_CHOICE_RANGE_HOLDS_SCRIPT_RUN_YES["Yes. Walk from both ends, up to the script run"]
   Q_CHOICE_RANGE_HOLDS_SCRIPT_RUN_NO["No. Walk forward only"]
   B_START_BACKWARD_WALK["Start the backward walk at the bytes of the newer beacon<br/>#96;bytes = rangeStart.bytes;#96;<br/>#96;eventIndex = 0;#96;"]
-  B_MARK_SCRIPT_RUN_WAITS["The events between the two stop points wait for the script layer<br/>#96;range.result = RangeResult::WaitsForScriptRun;#96;"]
+  B_MARK_SCRIPT_RUN_WAITS["Keep the bytes that the newest script run must make. The events between the two stop points wait for the script layer<br/>#96;range.bytesAfterNewestScriptRun = bytes;#96;<br/>#96;range.result = RangeResult::WaitsForScriptRun;#96;"]
+  Q_BACKWARD_EVENT_IS_SCRIPT_RUN{{"Is the event at #96;eventIndex#96; a script run?<br/>#96;if( rangeEvents[eventIndex].isScriptRun() ) { ...#96;"}}
+  Q_CHOICE_BACKWARD_EVENT_IS_SCRIPT_RUN_YES["Yes. The backward walk stops here"]
+  Q_CHOICE_BACKWARD_EVENT_IS_SCRIPT_RUN_NO["No. Undo this event"]
+  B_UNDO_EVENT_OF_RANGE["Undo #96;rangeEvents[eventIndex]#96;. The bytes become the bytes from before this event<br/>#96;bytes = undo(bytes, rangeEvents[eventIndex]);#96;"]
+  B_ADVANCE_TO_NEXT_OLDER_EVENT["Go to the next older event<br/>#96;++eventIndex;#96;"]
+  Q_FORWARD_EVENT_IS_SCRIPT_RUN{{"Is the event at #96;eventIndex#96; a script run?<br/>#96;if( rangeEvents[eventIndex].isScriptRun() ) { ...#96;"}}
+  Q_CHOICE_FORWARD_EVENT_IS_SCRIPT_RUN_YES["Yes. The forward walk stops here"]
+  Q_CHOICE_FORWARD_EVENT_IS_SCRIPT_RUN_NO["No. Replay this event"]
+  B_KEEP_BYTES_BEFORE_OLDEST_SCRIPT_RUN["Keep the bytes from just before the oldest script run<br/>#96;range.bytesBeforeOldestScriptRun = bytes;#96;"]
   B_WRITE_RANGE_TO_INVERSE_PER_FILE_REPO["Write this range and its result to the inverse-per-file-repo of this file<br/>#96;writeRangeToInversePerFileRepo(file, rangeStart, rangeEnd, range.result);#96;"]
   B_ADVANCE_TO_NEXT_RANGE["Go to the next range<br/>#96;++i;#96;"]
   Q_MORE_FILES_FOR_RANGES{{"Are there more included files without replayed ranges?"}}
   Q_CHOICE_MORE_FILES_FOR_RANGES_YES["Yes. Go back for the next file"]
   Q_CHOICE_MORE_FILES_FOR_RANGES_NO["No. The ranges of every included file are replayed. Move on to replaying scripts."]
-  Q_CHOICE_MORE_EVENTS_IN_RANGE_YES --> B_REPLAY_NON_SCRIPT_EVENTS_OF_RANGE --> B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT
+  Q_CHOICE_MORE_EVENTS_IN_RANGE_YES --> Q_FORWARD_EVENT_IS_SCRIPT_RUN
+  Q_FORWARD_EVENT_IS_SCRIPT_RUN --> Q_CHOICE_FORWARD_EVENT_IS_SCRIPT_RUN_NO --> B_REPLAY_NON_SCRIPT_EVENTS_OF_RANGE --> B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT
+  Q_FORWARD_EVENT_IS_SCRIPT_RUN --> Q_CHOICE_FORWARD_EVENT_IS_SCRIPT_RUN_YES --> B_KEEP_BYTES_BEFORE_OLDEST_SCRIPT_RUN --> B_WRITE_RANGE_TO_INVERSE_PER_FILE_REPO
   Q_MORE_EVENTS_IN_RANGE --> Q_CHOICE_MORE_EVENTS_IN_RANGE_NO --> Q_RANGE_BYTES_EQUAL_NEWER_BEACON
   Q_RANGE_BYTES_EQUAL_NEWER_BEACON --> Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_BEACON_YES --> B_MARK_RANGE_RECONSTRUCTED --> B_WRITE_RANGE_TO_INVERSE_PER_FILE_REPO
   Q_RANGE_BYTES_EQUAL_NEWER_BEACON --> Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_BEACON_NO --> B_INSERT_PRESUMED_USER_EDIT_NODE --> B_WRITE_RANGE_TO_INVERSE_PER_FILE_REPO
-  Q_RANGE_HOLDS_SCRIPT_RUN --> Q_CHOICE_RANGE_HOLDS_SCRIPT_RUN_YES --> B_START_BACKWARD_WALK --> B_MARK_SCRIPT_RUN_WAITS --> B_WRITE_RANGE_TO_INVERSE_PER_FILE_REPO
+  Q_RANGE_HOLDS_SCRIPT_RUN --> Q_CHOICE_RANGE_HOLDS_SCRIPT_RUN_YES --> B_START_BACKWARD_WALK --> Q_BACKWARD_EVENT_IS_SCRIPT_RUN
+  Q_BACKWARD_EVENT_IS_SCRIPT_RUN --> Q_CHOICE_BACKWARD_EVENT_IS_SCRIPT_RUN_NO --> B_UNDO_EVENT_OF_RANGE --> B_ADVANCE_TO_NEXT_OLDER_EVENT --> Q_BACKWARD_EVENT_IS_SCRIPT_RUN
+  Q_BACKWARD_EVENT_IS_SCRIPT_RUN --> Q_CHOICE_BACKWARD_EVENT_IS_SCRIPT_RUN_YES --> B_MARK_SCRIPT_RUN_WAITS --> B_TAKE_NEXT_RANGE_OF_FILE
   Q_RANGE_HOLDS_SCRIPT_RUN --> Q_CHOICE_RANGE_HOLDS_SCRIPT_RUN_NO --> B_TAKE_NEXT_RANGE_OF_FILE
   B_WRITE_RANGE_TO_INVERSE_PER_FILE_REPO --> B_ADVANCE_TO_NEXT_RANGE
   class B_MARK_RANGE_RECONSTRUCTED,B_START_BACKWARD_WALK,B_MARK_SCRIPT_RUN_WAITS,B_WRITE_RANGE_TO_INVERSE_PER_FILE_REPO Action
   class Q_RANGE_HOLDS_SCRIPT_RUN Decision
   class Q_CHOICE_RANGE_HOLDS_SCRIPT_RUN_YES Yes-path
   class Q_CHOICE_RANGE_HOLDS_SCRIPT_RUN_NO No-path
+  class B_UNDO_EVENT_OF_RANGE,B_ADVANCE_TO_NEXT_OLDER_EVENT,B_KEEP_BYTES_BEFORE_OLDEST_SCRIPT_RUN Action
+  class Q_BACKWARD_EVENT_IS_SCRIPT_RUN,Q_FORWARD_EVENT_IS_SCRIPT_RUN Decision
+  class Q_CHOICE_BACKWARD_EVENT_IS_SCRIPT_RUN_YES,Q_CHOICE_FORWARD_EVENT_IS_SCRIPT_RUN_YES Yes-path
+  class Q_CHOICE_BACKWARD_EVENT_IS_SCRIPT_RUN_NO,Q_CHOICE_FORWARD_EVENT_IS_SCRIPT_RUN_NO No-path
   Q_MORE_RANGES_FOR_FILE --> Q_CHOICE_MORE_RANGES_FOR_FILE_YES --> B_BUILD_RANGE_FOR_FILE
   Q_MORE_RANGES_FOR_FILE --> Q_CHOICE_MORE_RANGES_FOR_FILE_NO --> Q_MORE_FILES_FOR_RANGES
   B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES --> B_TAKE_NEXT_FILE_FOR_RANGES --> B_SPLIT_PUZZLE_INTO_RANGES --> Q_MORE_RANGES_FOR_FILE
@@ -187,7 +204,7 @@ B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES["non-replayed puzzles built 
   class Q_CHOICE_MORE_RANGES_FOR_FILE_YES,Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_N,Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_Y Yes-path
   class Q_CHOICE_MORE_RANGES_FOR_FILE_NO,Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_Y,Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_N No-path
   %% ---- gap E: B_COMPLETED_NON_SCRIPT_REPLAYS_OF_PUZZLES to B_COMPLETED_SCRIPT_REPLAYS_OF_PUZZLES ----
-  B_PICK_NEXT_SCRIPT_RUN["Take the script runs, newest first. Pick the first one whose input files all have known bytes"]
+  B_PICK_NEXT_SCRIPT_RUN["Take the script runs, oldest first. Pick the first one whose input files all have known bytes<br/>#96;scriptRuns = getScriptRuns(puzzles);#96;<br/>#96;scriptRuns.sort(oldestToNewest);#96;<br/>#96;for( run in scriptRuns ) {#96;<br/>#96;if( allKnown(run.inputFiles, bytesJustBefore(run.timestamp)) ) {#96;<br/>#96;pick = run; break;#96;<br/>#96;}#96;<br/>#96;}#96;"]
   B_REPLAY_SCRIPT_RUN_IN_DOCKER["Replay the script run in the docker sandbox"]
   Q_SCRIPT_BYTES_EQUAL_NEWER_BEACON{{"Do the bytes that the script made, plus the edits after it, equal the bytes of the next newer beacon?"}}
   Q_CHOICE_SCRIPT_BYTES_EQUAL_NEWER_BEACON_YES["Yes"]
@@ -228,7 +245,7 @@ class B_TAKE_NEXT_RANGE_OF_FILE,B_TAKE_NEXT_INCLUDED_FILE,B_SORT_EACH_FILE_INTO_
 %% ==size==: B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES 486 72
 %% ==size==: B_COMPLETED_NON_SCRIPT_REPLAYS_OF_PUZZLES 396 72
 %% ==size==: B_SPLIT_PUZZLE_INTO_RANGES 607 72
-  B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT["Advance to next non-script event closer to now:<br/>#96;--eventIndex;#96;<br/>#96;while( eventIndex >= 0 ) {#96; <br/>#96;  if( rangeEvents[eventIndex].isScriptRun() == false ) {#96;<br/>#96;    break;#96; <br/>#96;  }#96; <br/>#96;  --eventIndex;#96; <br/>#96;}#96;"]
+  B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT["Advance to the next event closer to now:<br/>#96;--eventIndex;#96;"]
 %% ==size==: Q_NO_GIT_NO_JSONL_NO_DISK 451 118
   B_MISSING_SO_EXCLUDE_FROM_PROCESSING["exclude from processing"]
   B_BUILD_RANGE_FOR_FILE["Build the range<br/>#96;rangeStart = file.beacons[i-1]; // newer beacon#96;<br/>#96;rangeEnd = file.beacons[i]; // older beacon#96;<br/>#96;rangeEvents = getEventsBetween(puzzle, rangeStart, rangeEnd); // newest first#96;"]
