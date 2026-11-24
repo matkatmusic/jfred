@@ -75,9 +75,13 @@ test("test_the_speed_row_with_the_h_key_and_the_current_speed_fits_in_the_96_inn
     assert.equal(frameLines[3]!.length, 100);
 });
 
-test("test_the_actions_row_ends_with_the_play_script_key", () => {
+// test("test_the_actions_row_ends_with_the_play_script_key", () => {
+//     const rows = buildHotKeyRows(loadKeyBox(KEYMAP_FILE, KeyBox.Global), JumpSpeed.Event);
+//     assert.equal(formatHotKeyRowText(rows[3]!), "Actions: v: View file  g: reconstruct file until Earliest  c: engine console  p: play script");
+// });
+test("test_the_actions_row_ends_with_the_play_script_key_and_the_quit_key", () => {
     const rows = buildHotKeyRows(loadKeyBox(KEYMAP_FILE, KeyBox.Global), JumpSpeed.Event);
-    assert.equal(formatHotKeyRowText(rows[3]!), "Actions: v: View file  g: reconstruct file until Earliest  c: engine console  p: play script");
+    assert.equal(formatHotKeyRowText(rows[3]!), "Actions: v: View file  g: reconstruct file until Earliest  c: engine console  p: play script  q: quit");
 });
 
 test("test_the_navigation_row_has_no_warning_at_any_speed", () => {

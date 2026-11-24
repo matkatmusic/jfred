@@ -18,7 +18,8 @@ const WHITE_TEXT_START = "\x1b[37m";
 const ANSI_PATTERN = /\x1b\[[0-9;]*m/g;
 
 function drawBox(lines: DiffDisplayLine[], scrollTop: number, rowCount: number, columns: number): string {
-    const props = { lines, scrollTop, rowCount, columns, textColor: "white", lineNumberColor: "gray", newerOnlyBackgroundColor: "green", markerOnlyBackgroundColor: "red", changedBackgroundColor: "yellow" };
+    // const props = { lines, scrollTop, rowCount, columns, textColor: "white", lineNumberColor: "gray", newerOnlyBackgroundColor: "green", markerOnlyBackgroundColor: "red", changedBackgroundColor: "yellow" };
+    const props = { lines, scrollTop, rowCount, columns, textColor: "white", lineNumberColor: "gray", newerOnlyBackgroundColor: "green", markerOnlyBackgroundColor: "red" };
     return render(createElement(DiffBox, props)).lastFrame()!;
 }
 
@@ -62,13 +63,27 @@ test("test_each_side_shows_its_own_line_number_before_the_text", () => {
 });
 
 test("test_changed_only_newer_and_only_marker_rows_have_their_own_background_colors", () => {
-    // Scenario: one row of each kind, with the backgrounds green, red and yellow.
+    // Scenario: one row of each kind, with the backgrounds green and red.
     const frame = drawBox(LINES, 0, 8, 40);
-    // the changed texts have the yellow background on both sides.
-    assert.ok(frame.includes(`${YELLOW_BACKGROUND_START}`));
     // the newer-only side has the green background; the marker-only side has the red background.
     assert.ok(frame.includes(GREEN_BACKGROUND_START));
     assert.ok(frame.includes(RED_BACKGROUND_START));
+});
+
+test("test_a_changed_row_is_green_on_the_newer_side_and_red_on_the_marker_side", () => {
+    // Scenario: only a changed row shows: the newer text "three" is left, the marker text "two" is right.
+    const frame = drawBox([makeLine(DiffRowKind.Changed, "three", "two", 2, 2)], 0, 8, 40);
+    const changedRow = frame.split("\n").find((row) => row.includes("three"))!;
+    const newerPart = changedRow.slice(0, changedRow.indexOf("three"));
+    const markerPart = changedRow.slice(changedRow.indexOf("three"), changedRow.indexOf("two"));
+    // the left side has the green background and no red background.
+    assert.ok(newerPart.includes(GREEN_BACKGROUND_START));
+    assert.ok(!newerPart.includes(RED_BACKGROUND_START));
+    // the right side has the red background and no green background.
+    assert.ok(markerPart.includes(RED_BACKGROUND_START));
+    assert.ok(!markerPart.includes(GREEN_BACKGROUND_START));
+    // no side has the old yellow background.
+    assert.ok(!changedRow.includes(YELLOW_BACKGROUND_START));
 });
 
 test("test_a_same_row_has_no_background", () => {
@@ -96,8 +111,9 @@ test("test_a_token_color_is_replaced_by_the_text_color_on_a_row_with_a_backgroun
 });
 
 test("test_the_diff_backgrounds_of_the_keymap_are_dark_colors_that_a_256_color_terminal_draws_unchanged", () => {
-    // Scenario: the three diff background colors of keymap.json.
-    const backgroundColors = [TUI_COLORS.diffBox.newerOnlyBackgroundColor, TUI_COLORS.diffBox.markerOnlyBackgroundColor, TUI_COLORS.diffBox.changedBackgroundColor];
+    // Scenario: the two diff background colors of keymap.json.
+    // const backgroundColors = [TUI_COLORS.diffBox.newerOnlyBackgroundColor, TUI_COLORS.diffBox.markerOnlyBackgroundColor, TUI_COLORS.diffBox.changedBackgroundColor];
+    const backgroundColors = [TUI_COLORS.diffBox.newerOnlyBackgroundColor, TUI_COLORS.diffBox.markerOnlyBackgroundColor];
     for (const backgroundColor of backgroundColors) {
         const channels = [1, 3, 5].map((start) => parseInt(backgroundColor.slice(start, start + 2), 16));
         // every channel is a level of the 256 color cube, and none is lighter than 0x5f.

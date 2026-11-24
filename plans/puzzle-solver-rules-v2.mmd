@@ -5,7 +5,18 @@ flowchart TD
   B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT["The list of files to reconstruct has been sorted and filtered"]
   B_CREATE_INVERSE_PER_FILE_REPO --> B_COLLECT_EVENTS_OF_FILE
   B_BUILD_GIT_BEACON_LAYER["Layer 1: collect the git beacons, sorted newest to oldest, insert into puzzle at correct timestamp<br/>#96;#96;#96;<br/>gitBeacons = getGitBeacons(repo, file);<br/>gitBeacons.sort(newestToOldest);<br/>for( gitEvent in gitBeacons)<br/>puzzle.insertSorted(gitEvent, SortType::ByTimestamp, gitEvent.timestamp);<br/>#96;#96;#96;"]
-  B_COLLECT_EVENTS_OF_FILE --> B_BUILD_GIT_BEACON_LAYER
+  B_LIST_LAYERS_IN_PROCESSING_ORDER["The layers go into the puzzle in this order. Layers 6, 7 and 9 come from script runs. The non-script replay stops at layers 6 and 7, and the script queue replays them later. Layers 8 and 9 hold moves: they are only collected, and their replay is a later round<br/>#96;#96;#96;<br/>enum class Layer { GitBeacons = 1, SnapshotBeacons, FullFileReads, FullEdits, PartialEdits, PartialScriptReads, ScriptWrites, GitMoves, ScriptMoves };<br/>firstScriptLayer = Layer::PartialScriptReads;<br/>#96;#96;#96;"]
+  Q_LAYERS_ONE_TO_THREE_PROVEN{{"Does the stored result of this file say that layers 1 to 3 are already proven?<br/>#96;#96;#96;<br/>if( isLayerProven(file, 3) ) { ...<br/>#96;#96;#96;"}}
+  Q_CHOICE_LAYERS_ONE_TO_THREE_PROVEN_YES["Yes. Skip layers 1 to 3 and keep their inverse-per-file-repo commits"]
+  Q_CHOICE_LAYERS_ONE_TO_THREE_PROVEN_NO["No. Build layers 1 to 3"]
+  B_LOAD_PROVEN_LAYERS_INTO_PUZZLE["Read the events of layers 1 to 3 back from the inverse-per-file-repo into the puzzle. No commit is written<br/>#96;#96;#96;<br/>puzzle.insertAll(readEventsOfLayers(inverseRepo, 1, 3));<br/>#96;#96;#96;"]
+  B_COLLECT_EVENTS_OF_FILE --> B_LIST_LAYERS_IN_PROCESSING_ORDER --> Q_LAYERS_ONE_TO_THREE_PROVEN
+  Q_LAYERS_ONE_TO_THREE_PROVEN --> Q_CHOICE_LAYERS_ONE_TO_THREE_PROVEN_NO --> B_BUILD_GIT_BEACON_LAYER
+  Q_LAYERS_ONE_TO_THREE_PROVEN --> Q_CHOICE_LAYERS_ONE_TO_THREE_PROVEN_YES --> B_LOAD_PROVEN_LAYERS_INTO_PUZZLE --> B_COLLECT_FULL_EDITS
+  class B_LIST_LAYERS_IN_PROCESSING_ORDER,B_LOAD_PROVEN_LAYERS_INTO_PUZZLE Action
+  class Q_LAYERS_ONE_TO_THREE_PROVEN Decision
+  class Q_CHOICE_LAYERS_ONE_TO_THREE_PROVEN_YES Yes-path
+  class Q_CHOICE_LAYERS_ONE_TO_THREE_PROVEN_NO No-path
   B_BUILD_GIT_BEACON_LAYER --> B_COLLECT_SNAPSHOT_BEACONS
   B_COLLECT_SNAPSHOT_BEACONS --> B_COLLECT_FULL_FILE_READS
   B_COLLECT_FULL_FILE_READS --> B_COLLECT_FULL_EDITS
@@ -45,7 +56,7 @@ classDef Answer fill:#5df9b5,stroke:#000000
 classDef loop-start fill:#943dff,stroke:#000000
 class B_START information
 class B_COMPLETED_FILE_RECONSTRUCTION_LIST,B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES,B_COMPLETED_NON_SCRIPT_REPLAYS_OF_PUZZLES,B_COMPLETED_SCRIPT_REPLAYS_OF_PUZZLES,B_COMPLETED_SOLVED_ALL_PUZZLES,B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT Checkpoint
-  %% ==note==: folder from `--project`. <br/>git path from `--repo` or derived from project folder.<br/>git commit from `--commit` or derived from current branch in git. <br/>JSONL folders from multiple `--jsonl` or derived from project folder. <br/>Snapshot folders from multiple `--snapshot` and extracted from JSONLs deemed relevant to the project.
+  %% ==note==: folder from `--project`. <br/>git path from `--repo` or derived from project folder.<br/>git commit from `--commit` or derived from current branch in git. <br/>JSONL folders from multiple `--jsonl` or derived from project folder. <br/>Snapshot folders from multiple `--snapshot` and extracted from JSONLs deemed relevant to the project. <br/>optional: one file from `--file`. Only this file is reconstructed.
   B_COMPLETED_FILE_RECONSTRUCTION_LIST["list of all files to reconstruct is created"]
 
 
@@ -94,7 +105,24 @@ B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES["non-replayed puzzles built 
   Q_CHOICE_SNAPSHOTS_GIVEN_NO --> B_DERIVE_SNAPSHOTS
   B_DERIVE_SNAPSHOTS --> B_NEW_4
   B_COLLECT_FILE_NAMES_INTO_LIST["Collect the file names from git, the JSONLs, and the disk into one list"]
-  B_ALL_INPUTS_KNOWN --> B_COLLECT_FILE_NAMES_INTO_LIST --> B_COMPLETED_FILE_RECONSTRUCTION_LIST
+  Q_FILE_GIVEN{{"Was a single file passed in with --file?"}}
+  Q_CHOICE_FILE_GIVEN_YES["Yes"]
+  Q_CHOICE_FILE_GIVEN_NO["No"]
+  B_USE_GIVEN_FILE["Use only the file that was passed in. It does not pass the include filter (the 8 groups), because the full run made its inverse-per-file-repo only for an included file<br/>#96;#96;#96;<br/>filesToReconstruct = [fileFromArgs];<br/>#96;#96;#96;"]
+  Q_GIVEN_FILE_HAS_REPO{{"Does the inverse-per-file-repo of this file exist?<br/>#96;#96;#96;<br/>if( inverseRepoExists(fileFromArgs) ) { ...<br/>#96;#96;#96;"}}
+  Q_CHOICE_GIVEN_FILE_HAS_REPO_YES["Yes. Do not create it again. Start at the events of this file. The file has its puzzle after the layers, so the file loop below does not take it"]
+  Q_CHOICE_GIVEN_FILE_HAS_REPO_NO["No. The full run did not include this file"]
+  B_COMPLETED_PROGRAM_STOPPED_BY_ERROR["The engine throws an error: the inverse-per-file-repo of the given file is missing"]
+  B_ALL_INPUTS_KNOWN --> Q_FILE_GIVEN
+  Q_FILE_GIVEN --> Q_CHOICE_FILE_GIVEN_NO --> B_COLLECT_FILE_NAMES_INTO_LIST --> B_COMPLETED_FILE_RECONSTRUCTION_LIST
+  Q_FILE_GIVEN --> Q_CHOICE_FILE_GIVEN_YES --> B_USE_GIVEN_FILE --> Q_GIVEN_FILE_HAS_REPO
+  Q_GIVEN_FILE_HAS_REPO --> Q_CHOICE_GIVEN_FILE_HAS_REPO_YES --> B_COLLECT_EVENTS_OF_FILE
+  Q_GIVEN_FILE_HAS_REPO --> Q_CHOICE_GIVEN_FILE_HAS_REPO_NO --> B_COMPLETED_PROGRAM_STOPPED_BY_ERROR
+  class Q_FILE_GIVEN,Q_GIVEN_FILE_HAS_REPO Decision
+  class Q_CHOICE_FILE_GIVEN_YES,Q_CHOICE_GIVEN_FILE_HAS_REPO_YES Yes-path
+  class Q_CHOICE_FILE_GIVEN_NO,Q_CHOICE_GIVEN_FILE_HAS_REPO_NO No-path
+  class B_COMPLETED_PROGRAM_STOPPED_BY_ERROR Checkpoint
+  class B_USE_GIVEN_FILE information
   B_NEW_4["file-history snapshot path is pulled from JSONL file"]
   B_NEW_4 --> Q_GIT_FOLDER_GIVEN
   class B_USE_GIVEN_GIT_HASH,B_DERIVE_GIT_HASH,B_USE_GIVEN_GIT_FOLDER,B_DERIVE_GIT_FOLDER,B_USE_GIVEN_SNAPSHOTS,B_DERIVE_SNAPSHOTS,B_USE_GIVEN_JSONLS,B_DERIVE_JSONLS,B_NEW_4 information
@@ -121,7 +149,12 @@ B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES["non-replayed puzzles built 
   Q_CHOICE_MORE_INCLUDED_FILES_WITHOUT_PUZZLE_YES["Yes. Go back for the next file"]
   Q_CHOICE_MORE_INCLUDED_FILES_WITHOUT_PUZZLE_NO["No. Every included file has its puzzle. Move on to replaying non-script events, in layer order (commits first, snapshots, full edits, etc..)"]
   B_COMPLETED_SORTING_FILES_TO_RECONSTRUCT --> B_TAKE_NEXT_INCLUDED_FILE --> B_CREATE_INVERSE_PER_FILE_REPO
-  B_COLLECT_SCRIPT_WRITES --> Q_MORE_INCLUDED_FILES_WITHOUT_PUZZLE
+  B_COLLECT_GIT_MOVES["Layer 8: collect the moves of this file that git recorded (a rename commit), sorted newest to oldest, insert into puzzle at correct timestamp. A move names the old path and the new path, and its time is the commit time<br/>#96;#96;#96;<br/>gitMoves = getGitMoves(repo, file);<br/>gitMoves.sort(newestToOldest);<br/>for( gitMove in gitMoves)<br/>puzzle.insertSorted(gitMove, SortType::ByTimestamp, gitMove.timestamp);<br/>#96;#96;#96;"]
+  B_COLLECT_SCRIPT_MOVES["Layer 9: collect the script runs that moved or renamed this file with mv, git mv, shutil.move or os.rename, sorted newest to oldest, insert into puzzle at correct timestamp. A move names the old path and the new path, and its time is the time of the script run<br/>#96;#96;#96;<br/>scriptMoves = getScriptMoves(jsonls, file);<br/>scriptMoves.sort(newestToOldest);<br/>for( scriptMove in scriptMoves)<br/>puzzle.insertSorted(scriptMove, SortType::ByTimestamp, scriptMove.timestamp);<br/>#96;#96;#96;"]
+  B_DROP_REPEATED_MOVES["Drop a git move when a script move has the same old path and new path and comes before it, with no other move of these two paths between them. Keep the script move, because its time is exact<br/>#96;#96;#96;<br/>puzzle.removeRepeatedMoves(scriptMoves, gitMoves);<br/>#96;#96;#96;"]
+  B_COLLECT_SCRIPT_WRITES --> B_COLLECT_GIT_MOVES --> B_COLLECT_SCRIPT_MOVES
+  B_COLLECT_SCRIPT_MOVES --> B_DROP_REPEATED_MOVES --> Q_MORE_INCLUDED_FILES_WITHOUT_PUZZLE
+  class B_COLLECT_GIT_MOVES,B_COLLECT_SCRIPT_MOVES,B_DROP_REPEATED_MOVES Action
   Q_MORE_INCLUDED_FILES_WITHOUT_PUZZLE --> Q_CHOICE_MORE_INCLUDED_FILES_WITHOUT_PUZZLE_YES --> B_TAKE_NEXT_INCLUDED_FILE
   Q_MORE_INCLUDED_FILES_WITHOUT_PUZZLE --> Q_CHOICE_MORE_INCLUDED_FILES_WITHOUT_PUZZLE_NO --> B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES
 %% class B_TAKE_NEXT_INCLUDED_FILE Action
@@ -205,7 +238,8 @@ B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES["non-replayed puzzles built 
   class Q_CHOICE_MORE_RANGES_FOR_FILE_YES,Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_N,Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_Y,Q_CHOICE_MORE_INCLUDED_FILES_WITHOUT_PUZZLE_NO Yes-path
   class Q_CHOICE_MORE_RANGES_FOR_FILE_NO,Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_Y,Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_N,Q_CHOICE_MORE_INCLUDED_FILES_WITHOUT_PUZZLE_YES No-path
   %% ---- gap E: B_COMPLETED_NON_SCRIPT_REPLAYS_OF_PUZZLES to B_COMPLETED_SCRIPT_REPLAYS_OF_PUZZLES ----
-  B_BUILD_SCRIPT_QUEUE["Put every script run of every puzzle into one queue. Ranges go newest first. Inside one range, the script runs go oldest first, because a script run needs the bytes that the script run before it made<br/>#96;#96;#96;<br/>scriptQueue = getScriptRuns(puzzles);<br/>scriptQueue.sort(newestRangeFirst_thenOldestScriptFirst);<br/>reattemptedList = new Map<script, int>();<br/>needsAttention = [];<br/>#96;#96;#96;"]
+  B_SET_INPUT_FILES_OF_SCRIPT_RUNS["Find the input files of every script run. A script run that names its files gets those files: bucket specific. A glob, a folder walk, or no file name gives every project file: bucket all. A range is bucket specific only when every script run in it is bucket specific, else the range is bucket all<br/>#96;#96;#96;<br/>setInputFilesOfScriptRuns(puzzles);<br/>// script.inputBucket = specific or all<br/>// script.inputFiles = the named files, or every project file<br/>// range.inputBucket = specific if every script run of the range is specific, else all<br/>#96;#96;#96;"]
+  B_BUILD_SCRIPT_QUEUE["Put every script run of every puzzle into one queue. The bucket decides the order of the ranges only: ranges of bucket specific go first, then ranges of bucket all. Inside a bucket, ranges go newest first. Inside one range, the script runs always go oldest first, whatever their own bucket is, because a script run needs the bytes that the script run before it made<br/>#96;#96;#96;<br/>scriptQueue = getScriptRuns(puzzles);<br/>scriptQueue.sort(specificRangesFirst_thenNewestRangeFirst_thenOldestScriptFirst);<br/>reattemptedList = new Map<script, int>();<br/>needsAttention = [];<br/>#96;#96;#96;"]
   Q_SCRIPT_QUEUE_HAS_RUN{{"Is a script run left in the queue?<br/>#96;#96;#96;<br/>if( scriptQueue.size() > 0 ) { ...<br/>#96;#96;#96;"}}
   Q_CHOICE_SCRIPT_QUEUE_HAS_RUN_YES["Yes. Take the next script run"]
   Q_CHOICE_SCRIPT_QUEUE_HAS_RUN_NO["No. Every script run is done or on the needs-attention list. Move on"]
@@ -218,29 +252,48 @@ B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES["non-replayed puzzles built 
   Q_CHOICE_SCRIPT_REATTEMPTED_TOO_OFTEN_NO["No. Try it again later, after other script runs filled in their puzzles"]
   B_PUT_SCRIPT_ON_NEEDS_ATTENTION_LIST["Put this script run on the needs-attention list<br/>#96;#96;#96;<br/>needsAttention.push_back(script);<br/>#96;#96;#96;"]
   B_PUSH_SCRIPT_BACK["Put this script run at the back of the queue<br/>#96;#96;#96;<br/>scriptQueue.push_back(script);<br/>reattemptedList[script] += 1;<br/>#96;#96;#96;"]
-  B_REPLAY_SCRIPT_RUN_IN_DOCKER["Replay the script run in the docker sandbox"]
-  Q_SCRIPT_BYTES_EQUAL_NEWER_BEACON{{"Do the bytes that the script made, plus the edits after it, equal the bytes of the next newer beacon?"}}
-  Q_CHOICE_SCRIPT_BYTES_EQUAL_NEWER_BEACON_YES["Yes"]
-  Q_CHOICE_SCRIPT_BYTES_EQUAL_NEWER_BEACON_NO["No"]
-  B_ADD_INVERTING_COMMIT_OF_SCRIPT_RUN["Add the inverting commit of the script run to the inverse-per-file-repo. <br/>The range is solved"]
-  B_SEND_SCRIPT_RUN_TO_RESEARCH["Send the script run to research"]
-  B_COMPLETED_NON_SCRIPT_REPLAYS_OF_PUZZLES --> B_BUILD_SCRIPT_QUEUE --> Q_SCRIPT_QUEUE_HAS_RUN
-  Q_SCRIPT_QUEUE_HAS_RUN --> Q_CHOICE_SCRIPT_QUEUE_HAS_RUN_NO --> B_COMPLETED_SCRIPT_REPLAYS_OF_PUZZLES
+  B_REPLAY_SCRIPT_RUN_IN_DOCKER["Start one throw-away sandbox container for this script run. It has no network, a read-only disk, and no folder of the host except the store, read-only. The wrapper inside writes the input files, runs the script, and lists the files that the script changed<br/>#96;#96;#96;<br/>response = runInSandbox(request);<br/>#96;#96;#96;"]
+  B_BUILD_SCRIPT_REPLAY_REQUEST["Build one request from this script run. The inputs are the bytes of the input files of the script run from just before the script ran. The script gets 60 seconds<br/>#96;#96;#96;<br/>request.source = script.code;<br/>request.cwd = script.cwd;<br/>request.inputs = getBytesOfFilesJustBefore(puzzles, script.inputFiles, script.timestamp);<br/>request.timeoutSeconds = 60;<br/>#96;#96;#96;"]
+  Q_DOCKER_READY{{"Is docker running and is the sandbox image there?<br/>#96;#96;#96;<br/>if( dockerIsReady() ) { ...<br/>#96;#96;#96;"}}
+  Q_CHOICE_DOCKER_READY_YES["Yes. Run the script in the sandbox"]
+  Q_CHOICE_DOCKER_READY_NO["No. Docker is off or the image is missing. This script run cannot run now"]
+  B_READ_CHANGED_FILES_OF_SCRIPT_RUN["Read the bytes that the script run left in this file. If the script failed or ran too long, there are no bytes<br/>#96;#96;#96;<br/>bytes = response.changedFiles[file].text;<br/>if( response.exitCode != 0 || response.timedOut ) { bytes = none; }<br/>#96;#96;#96;"]
+  Q_SCRIPT_IS_NEWEST_OF_RANGE{{"Is this the newest script run of its range?<br/>#96;#96;#96;<br/>if( script == getNewestScriptRun(range) ) { ...<br/>#96;#96;#96;"}}
+  Q_CHOICE_SCRIPT_IS_NEWEST_OF_RANGE_YES["Yes. Compare its bytes with the bytes that the backward walk kept"]
+  Q_CHOICE_SCRIPT_IS_NEWEST_OF_RANGE_NO["No. A newer script run of this range comes after it"]
+  B_KEEP_BYTES_BEFORE_NEXT_NEWER_SCRIPT_RUN["Replay the edits between this script run and the next newer script run of the range. Keep the bytes: they are the input of the next newer script run. No commit is written yet<br/>#96;#96;#96;<br/>bytes = replayEventsUpToNextNewerScriptRun(range, script, bytes);<br/>range.bytesBeforeNextNewerScriptRun = bytes;<br/>#96;#96;#96;"]
+  Q_SCRIPT_BYTES_EQUAL_BACKWARD_WALK_BYTES{{"Do the bytes that the newest script run made equal the bytes that the backward walk kept?<br/>#96;#96;#96;<br/>if( bytes == range.bytesAfterNewestScriptRun ) { ...<br/>#96;#96;#96;"}}
+  Q_CHOICE_SCRIPT_BYTES_EQUAL_BACKWARD_WALK_BYTES_YES["Yes"]
+  Q_CHOICE_SCRIPT_BYTES_EQUAL_BACKWARD_WALK_BYTES_NO["No"]
+  B_ADD_INVERTING_COMMIT_OF_SCRIPT_RUN["Add the inverting commits of every script run of this range, and of the edits between them, to the inverse-per-file-repo. <br/>The range is solved"]
+  B_SEND_SCRIPT_RUN_TO_RESEARCH["Send the script run to research: its bytes differ from the bytes of the backward walk, so a developer must look at it"]
+  Q_FILES_NEED_ATTENTION{{"Does any file need attention? A file needs attention when a script run of it is on the needs-attention list, or one of its ranges still waits for a script run. All other files are complete<br/>#96;#96;#96;<br/>needsAttentionFiles = getFilesWithUnsolvedRange(puzzles, needsAttention);<br/>completeFiles = getFilesWithoutUnsolvedRange(puzzles, needsAttention);<br/>if( !needsAttentionFiles.empty() ) { ...<br/>#96;#96;#96;"}}
+  Q_CHOICE_FILES_NEED_ATTENTION_YES["Yes. Some files need attention. The complete files stay as they are"]
+  Q_CHOICE_FILES_NEED_ATTENTION_NO["No. Every file is complete"]
+  B_FIND_OUT_WHY_REPLAY_FAILED["Find out why the replay failed. A developer takes one file from the needs-attention list and looks at its ranges and its stored layer. The developer fixes the engine and runs the program again with --file for that file<br/>#96;#96;#96;<br/>runProgram(project, jsonls, repo, --file needsAttentionFiles[0]);<br/>#96;#96;#96;"]
+  B_COMPLETED_NON_SCRIPT_REPLAYS_OF_PUZZLES --> B_SET_INPUT_FILES_OF_SCRIPT_RUNS --> B_BUILD_SCRIPT_QUEUE --> Q_SCRIPT_QUEUE_HAS_RUN
+  Q_SCRIPT_QUEUE_HAS_RUN --> Q_CHOICE_SCRIPT_QUEUE_HAS_RUN_NO --> Q_FILES_NEED_ATTENTION
+  Q_FILES_NEED_ATTENTION --> Q_CHOICE_FILES_NEED_ATTENTION_NO --> B_COMPLETED_SCRIPT_REPLAYS_OF_PUZZLES
+  Q_FILES_NEED_ATTENTION --> Q_CHOICE_FILES_NEED_ATTENTION_YES --> B_FIND_OUT_WHY_REPLAY_FAILED --> B_START
   Q_SCRIPT_QUEUE_HAS_RUN --> Q_CHOICE_SCRIPT_QUEUE_HAS_RUN_YES --> B_TAKE_FRONT_SCRIPT_RUN --> Q_SCRIPT_INPUTS_KNOWN
-  Q_SCRIPT_INPUTS_KNOWN --> Q_CHOICE_SCRIPT_INPUTS_KNOWN_YES --> B_REPLAY_SCRIPT_RUN_IN_DOCKER --> Q_SCRIPT_BYTES_EQUAL_NEWER_BEACON
+  Q_SCRIPT_INPUTS_KNOWN --> Q_CHOICE_SCRIPT_INPUTS_KNOWN_YES --> B_BUILD_SCRIPT_REPLAY_REQUEST --> Q_DOCKER_READY
+  Q_DOCKER_READY --> Q_CHOICE_DOCKER_READY_YES --> B_REPLAY_SCRIPT_RUN_IN_DOCKER --> B_READ_CHANGED_FILES_OF_SCRIPT_RUN --> Q_SCRIPT_IS_NEWEST_OF_RANGE
+  Q_DOCKER_READY --> Q_CHOICE_DOCKER_READY_NO --> B_PUT_SCRIPT_ON_NEEDS_ATTENTION_LIST
   Q_SCRIPT_INPUTS_KNOWN --> Q_CHOICE_SCRIPT_INPUTS_KNOWN_NO --> Q_SCRIPT_REATTEMPTED_TOO_OFTEN
   Q_SCRIPT_REATTEMPTED_TOO_OFTEN --> Q_CHOICE_SCRIPT_REATTEMPTED_TOO_OFTEN_YES --> B_PUT_SCRIPT_ON_NEEDS_ATTENTION_LIST --> Q_SCRIPT_QUEUE_HAS_RUN
   Q_SCRIPT_REATTEMPTED_TOO_OFTEN --> Q_CHOICE_SCRIPT_REATTEMPTED_TOO_OFTEN_NO --> B_PUSH_SCRIPT_BACK --> Q_SCRIPT_QUEUE_HAS_RUN
-  Q_SCRIPT_BYTES_EQUAL_NEWER_BEACON --> Q_CHOICE_SCRIPT_BYTES_EQUAL_NEWER_BEACON_YES --> B_ADD_INVERTING_COMMIT_OF_SCRIPT_RUN --> Q_SCRIPT_QUEUE_HAS_RUN
-  Q_SCRIPT_BYTES_EQUAL_NEWER_BEACON --> Q_CHOICE_SCRIPT_BYTES_EQUAL_NEWER_BEACON_NO --> B_SEND_SCRIPT_RUN_TO_RESEARCH --> Q_SCRIPT_QUEUE_HAS_RUN
-  class B_BUILD_SCRIPT_QUEUE,B_TAKE_FRONT_SCRIPT_RUN,B_PUT_SCRIPT_ON_NEEDS_ATTENTION_LIST,B_PUSH_SCRIPT_BACK Action
-  class Q_SCRIPT_QUEUE_HAS_RUN,Q_SCRIPT_INPUTS_KNOWN,Q_SCRIPT_REATTEMPTED_TOO_OFTEN Decision
-  class Q_CHOICE_SCRIPT_QUEUE_HAS_RUN_YES,Q_CHOICE_SCRIPT_INPUTS_KNOWN_YES,Q_CHOICE_SCRIPT_REATTEMPTED_TOO_OFTEN_YES Yes-path
-  class Q_CHOICE_SCRIPT_QUEUE_HAS_RUN_NO,Q_CHOICE_SCRIPT_INPUTS_KNOWN_NO,Q_CHOICE_SCRIPT_REATTEMPTED_TOO_OFTEN_NO No-path
+  Q_SCRIPT_IS_NEWEST_OF_RANGE --> Q_CHOICE_SCRIPT_IS_NEWEST_OF_RANGE_NO --> B_KEEP_BYTES_BEFORE_NEXT_NEWER_SCRIPT_RUN --> Q_SCRIPT_QUEUE_HAS_RUN
+  Q_SCRIPT_IS_NEWEST_OF_RANGE --> Q_CHOICE_SCRIPT_IS_NEWEST_OF_RANGE_YES --> Q_SCRIPT_BYTES_EQUAL_BACKWARD_WALK_BYTES
+  Q_SCRIPT_BYTES_EQUAL_BACKWARD_WALK_BYTES --> Q_CHOICE_SCRIPT_BYTES_EQUAL_BACKWARD_WALK_BYTES_YES --> B_ADD_INVERTING_COMMIT_OF_SCRIPT_RUN --> Q_SCRIPT_QUEUE_HAS_RUN
+  Q_SCRIPT_BYTES_EQUAL_BACKWARD_WALK_BYTES --> Q_CHOICE_SCRIPT_BYTES_EQUAL_BACKWARD_WALK_BYTES_NO --> B_SEND_SCRIPT_RUN_TO_RESEARCH --> B_PUT_SCRIPT_ON_NEEDS_ATTENTION_LIST
+  class B_FIND_OUT_WHY_REPLAY_FAILED,B_KEEP_BYTES_BEFORE_NEXT_NEWER_SCRIPT_RUN,B_BUILD_SCRIPT_REPLAY_REQUEST,B_READ_CHANGED_FILES_OF_SCRIPT_RUN,B_BUILD_SCRIPT_QUEUE,B_SET_INPUT_FILES_OF_SCRIPT_RUNS,B_TAKE_FRONT_SCRIPT_RUN,B_PUT_SCRIPT_ON_NEEDS_ATTENTION_LIST,B_PUSH_SCRIPT_BACK Action
+  class Q_FILES_NEED_ATTENTION,Q_DOCKER_READY,Q_SCRIPT_QUEUE_HAS_RUN,Q_SCRIPT_INPUTS_KNOWN,Q_SCRIPT_REATTEMPTED_TOO_OFTEN Decision
+  class Q_CHOICE_FILES_NEED_ATTENTION_YES,Q_CHOICE_DOCKER_READY_YES,Q_CHOICE_SCRIPT_QUEUE_HAS_RUN_YES,Q_CHOICE_SCRIPT_INPUTS_KNOWN_YES,Q_CHOICE_SCRIPT_REATTEMPTED_TOO_OFTEN_YES Yes-path
+  class Q_CHOICE_FILES_NEED_ATTENTION_NO,Q_CHOICE_DOCKER_READY_NO,Q_CHOICE_SCRIPT_QUEUE_HAS_RUN_NO,Q_CHOICE_SCRIPT_INPUTS_KNOWN_NO,Q_CHOICE_SCRIPT_REATTEMPTED_TOO_OFTEN_NO No-path
   class B_REPLAY_SCRIPT_RUN_IN_DOCKER,B_ADD_INVERTING_COMMIT_OF_SCRIPT_RUN,B_SEND_SCRIPT_RUN_TO_RESEARCH,B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT,B_MISSING_SO_EXCLUDE_FROM_PROCESSING Action
-  class Q_SCRIPT_BYTES_EQUAL_NEWER_BEACON,Q_NO_GIT_NO_JSONL_NO_DISK,Q_MORE_FILES_TO_CHECK_TO_INCLUDE Decision
-  class Q_CHOICE_SCRIPT_BYTES_EQUAL_NEWER_BEACON_YES,Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_N,Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_Y,Q_CHOICE_MORE_INCLUDED_FILES_WITHOUT_PUZZLE_NO Yes-path
-  class Q_CHOICE_SCRIPT_BYTES_EQUAL_NEWER_BEACON_NO,Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_Y,Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_N,Q_CHOICE_MORE_INCLUDED_FILES_WITHOUT_PUZZLE_YES No-path
+  class Q_SCRIPT_IS_NEWEST_OF_RANGE,Q_SCRIPT_BYTES_EQUAL_BACKWARD_WALK_BYTES,Q_NO_GIT_NO_JSONL_NO_DISK,Q_MORE_FILES_TO_CHECK_TO_INCLUDE Decision
+  class Q_CHOICE_SCRIPT_IS_NEWEST_OF_RANGE_YES,Q_CHOICE_SCRIPT_BYTES_EQUAL_BACKWARD_WALK_BYTES_YES,Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_N,Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_Y,Q_CHOICE_MORE_INCLUDED_FILES_WITHOUT_PUZZLE_NO Yes-path
+  class Q_CHOICE_SCRIPT_IS_NEWEST_OF_RANGE_NO,Q_CHOICE_SCRIPT_BYTES_EQUAL_BACKWARD_WALK_BYTES_NO,Q_CHOICE_NO_GIT_NO_JSONL_NO_DISK_Y,Q_CHOICE_MORE_FILES_TO_CHECK_TO_INCLUDE_N,Q_CHOICE_MORE_INCLUDED_FILES_WITHOUT_PUZZLE_YES No-path
 class B_TAKE_NEXT_RANGE_OF_FILE,B_TAKE_NEXT_INCLUDED_FILE,B_SORT_EACH_FILE_INTO_GROUPS,B_BUILD_RANGE_FOR_FILE loop-start
 %% class B_TAKE_NEXT_RANGE_OF_FILE loop-start
 %% ==size==: Q_JSONLS_GIVEN 441 118
@@ -295,5 +348,5 @@ class B_TAKE_NEXT_RANGE_OF_FILE,B_TAKE_NEXT_INCLUDED_FILE,B_SORT_EACH_FILE_INTO_
 %% ==size==: B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES 505 56
 %%%%====
 %% DO NOT MODIFY - AUTOMATICALLY GENERATED DURING EVERY SAVE
-%% {"lastSelectedNodeId":"B_ADD_INVERTING_COMMIT_OF_SCRIPT_RUN","outputScrollLeft":712.5,"outputScrollTop":6667,"mainZoomPercent":100}
+%% {"lastSelectedNodeId":null,"outputScrollLeft":2407.5,"outputScrollTop":6371,"mainZoomPercent":100}
 %%%%====

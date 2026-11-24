@@ -17,21 +17,23 @@ const { HotKeysBox } = await import("../engineV3/tui/engineV3_tui_hotkeys_box.ts
 const KEYMAP_FILE = new Path(join(import.meta.dirname, "..", "engineV3", "tui", "keymap.json"));
 const DIM_START = "\x1b[2m";
 
-test("test_the_file_view_rows_name_only_the_eight_file_view_keys", () => {
+test("test_the_file_view_rows_name_only_the_nine_file_view_keys", () => {
     // Scenario: the rows of the file view box.
     const rows = buildFileViewHotKeyRows(loadKeyBox(KEYMAP_FILE, KeyBox.FileView), []);
-    // two rows hold the scroll keys, diff and close, then the marker keys.
-    assert.equal(formatHotKeyRowText(rows[0]!), "View file: Up: scroll up, Down: scroll down, f: diff, c: close");
+    // two rows hold the scroll keys, diff, close and quit, then the marker keys.
+    // assert.equal(formatHotKeyRowText(rows[0]!), "View file: Up: scroll up, Down: scroll down, f: diff, c: close");
+    assert.equal(formatHotKeyRowText(rows[0]!), "View file: Up: scroll up, Down: scroll down, f: diff, c: close, q: quit");
     assert.equal(formatHotKeyRowText(rows[1]!), "Marker: Right: towards earlier, Left: towards Now, d: step by 1 day, w: step by 1 week");
     assert.equal(rows.length, 2);
 });
 
-test("test_the_console_row_names_scroll_close_and_open_log_folder", () => {
+test("test_the_console_row_names_scroll_close_open_log_folder_and_quit", () => {
     // Scenario: the rows of the console box.
     const rows = buildConsoleHotKeyRows(loadKeyBox(KEYMAP_FILE, KeyBox.Console), []);
     // one row.
     assert.equal(rows.length, 1);
-    assert.equal(formatHotKeyRowText(rows[0]!), "Console: Up: scroll up, Down: scroll down, c: close, o: open log folder");
+    // assert.equal(formatHotKeyRowText(rows[0]!), "Console: Up: scroll up, Down: scroll down, c: close, o: open log folder");
+    assert.equal(formatHotKeyRowText(rows[0]!), "Console: Up: scroll up, Down: scroll down, c: close, o: open log folder, q: quit");
 });
 
 test("test_only_the_listed_commands_are_disabled", () => {

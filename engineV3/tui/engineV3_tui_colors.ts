@@ -10,7 +10,7 @@ export type TuiColors = {
     barRows: { undoneSoFarColor: string; dotColors: Record<BarDotKind, string> };
     markerBox: { borderColor: string; markedColor: string; arrowColor: string; timeColor: string };
     fileViewBox: { lineNumberColor: string; textColor: string; tokenColors: Record<string, string> };
-    diffBox: { textColor: string; lineNumberColor: string; newerOnlyBackgroundColor: string; markerOnlyBackgroundColor: string; changedBackgroundColor: string };
+    diffBox: { textColor: string; lineNumberColor: string; newerOnlyBackgroundColor: string; markerOnlyBackgroundColor: string };
     consoleBox: { summaryColor: string; rawColor: string };
 };
 

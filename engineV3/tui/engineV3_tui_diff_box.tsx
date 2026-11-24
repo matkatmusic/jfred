@@ -17,13 +17,20 @@ export type DiffBoxProps = {
     lineNumberColor: string;
     newerOnlyBackgroundColor: string;
     markerOnlyBackgroundColor: string;
-    changedBackgroundColor: string;
+    // changedBackgroundColor: string;
 };
 
 // undefined: the row has no background.
 function pickBackgroundColor(kind: DiffRowKind, sideName: DiffSideName, props: DiffBoxProps): string | undefined {
+    // if (kind === DiffRowKind.Changed) {
+    //     return props.changedBackgroundColor;
+    // }
+    // a changed row is green on the newer side and red on the marker side
     if (kind === DiffRowKind.Changed) {
-        return props.changedBackgroundColor;
+        if (sideName === DiffSideName.Newer) {
+            return props.newerOnlyBackgroundColor;
+        }
+        return props.markerOnlyBackgroundColor;
     }
     if (kind === DiffRowKind.OnlyNewer) {
         if (sideName === DiffSideName.Newer) {

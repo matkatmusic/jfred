@@ -16,6 +16,7 @@ import { DocumentResponseKind } from "../src/structures/vocabulary_views.ts";
 import { InverseRepoMode, OtherFilesPolicy } from "../src/structures/vocabulary.ts";
 import { StateConfidence, StateMoment, createProvenState, getTextJustBeforeInstant, listKnownStatesForFile, type FileKnownState } from "./engineV3_file_known_states.ts";
 import { buildInverseRepoByEventKind, createInverseRepo, listInverseCommits } from "./engineV3_inverse_repo.ts";
+import { buildInverseRepoFromGitBeacons } from "./buildInverseRepoFromGitBeaconsMain.ts";
 import { createFileStep } from "./engineV3_file_step.ts";
 // import { runStepCommands } from "./engineV3_step_cli.ts";
 import { runStepCommands, type StepCliSession } from "./engineV3_step_cli.ts";
@@ -347,7 +348,8 @@ export function isInverseRepoOnDemand(repoFolder: Path): boolean {
 }
 
 // export function buildOnDemandInverseReposForFiles(projectFolder: Path, projectFiles: ProjectFile[], jsonlsFolders: Path[], storeFolder: Path, diskNowInstant: Date, reportProgress: ProgressSink): FileInverseRepoResult[] {
-export function buildOnDemandInverseReposForFiles(projectFolder: Path, projectFiles: ProjectFile[], jsonlsFolders: Path[], storeFolder: Path, diskNowInstant: Date, reportProgress: ProgressSink, earliestBoundary?: EarliestBoundary): FileInverseRepoResult[] {
+// export function buildOnDemandInverseReposForFiles(projectFolder: Path, projectFiles: ProjectFile[], jsonlsFolders: Path[], storeFolder: Path, diskNowInstant: Date, reportProgress: ProgressSink, earliestBoundary?: EarliestBoundary): FileInverseRepoResult[] {
+export function buildOnDemandInverseReposForFiles(projectFolder: Path, projectFiles: ProjectFile[], jsonlsFolders: Path[], storeFolder: Path, diskNowInstant: Date, reportProgress: ProgressSink, earliestBoundary?: EarliestBoundary, gitRepoFolder?: Path): FileInverseRepoResult[] {
     const logFilesHash = getLogFilesHash(jsonlsFolders);
     const results: FileInverseRepoResult[] = [];
     for (const [index, { file, transcriptFile }] of projectFiles.entries()) {
@@ -370,7 +372,12 @@ export function buildOnDemandInverseReposForFiles(projectFolder: Path, projectFi
             mkdirSync(repoFolder.toString(), { recursive: true });
             const diskNowEvent = createEvent(FileEventType.DiskNow, getDiskModifiedInstant(file), undefined, { bytes: readDiskText(file) });
             const diskNowState = createProvenState(diskNowEvent, StateMoment.AtEvent, diskNowEvent.bytes);
-            createInverseRepo(repoFolder, basename(file.toString()), { state: diskNowState, position: 0 }, diskNowInstant);
+            if (gitRepoFolder === undefined) {
+                createInverseRepo(repoFolder, basename(file.toString()), { state: diskNowState, position: 0 }, diskNowInstant);
+            } else {
+                // Layer 1: the bar holds the on-disk commit and the git beacons only.
+                buildInverseRepoFromGitBeacons(repoFolder, gitRepoFolder, file, diskNowInstant);
+            }
             writeInverseRepoStamp(repoFolder, { inputs, eventCount: 0, stateCount: 1, commitCount: 1, unknownStateCount: 0, mode: InverseRepoMode.OnDemand });
             result = { file, repoFolder, eventCount: 0, stateCount: 1, commitCount: 1, unknownStateCount: 0, wasReused: false };
         }
@@ -535,7 +542,8 @@ if (isCliRun) {
         }
         assertStoreHasNoFullBuildRepos(settings.storeFolder, settings.projectFolder, [stepProjectFile]);
         // buildOnDemandInverseReposForFiles(settings.projectFolder, [stepProjectFile], transcriptsToParse, settings.storeFolder, new Date(), () => {});
-        buildOnDemandInverseReposForFiles(settings.projectFolder, [stepProjectFile], transcriptsToParse, settings.storeFolder, new Date(), () => {}, earliestBoundary);
+        // buildOnDemandInverseReposForFiles(settings.projectFolder, [stepProjectFile], transcriptsToParse, settings.storeFolder, new Date(), () => {}, earliestBoundary);
+        buildOnDemandInverseReposForFiles(settings.projectFolder, [stepProjectFile], transcriptsToParse, settings.storeFolder, new Date(), () => {}, earliestBoundary, earliestBoundary?.repoFolder);
         const storedCommits = listInverseCommits(inverseRepoFolder, fileName, true);
         const step = createFileStep(events, storedCommits);
         let otherFilesPolicy = OtherFilesPolicy.WalkThem;

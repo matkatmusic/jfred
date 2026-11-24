@@ -16,7 +16,7 @@ const STEP_ALL_TEXT_BY_COMMAND: Partial<Record<TuiCommand, string>> = {
 };
 const SELECTION_COMMANDS = [TuiCommand.ToggleSelection, TuiCommand.ExtendSelection, TuiCommand.ResetSelectedStores, TuiCommand.ResetAllStores];
 const SPEED_COMMANDS = [TuiCommand.SetEventSpeed, TuiCommand.ToggleDaySpeed, TuiCommand.ToggleWeekSpeed, TuiCommand.ToggleMarkerBoxScope, TuiCommand.ToggleGuessFilter];
-const ACTION_COMMANDS = [TuiCommand.ViewFile, TuiCommand.ReconstructUntilEarliest, TuiCommand.OpenConsole, TuiCommand.PlayScript];
+const ACTION_COMMANDS = [TuiCommand.ViewFile, TuiCommand.ReconstructUntilEarliest, TuiCommand.OpenConsole, TuiCommand.PlayScript, TuiCommand.Quit];
 
 function buildItems(keyBox: KeyBoxSettings, commands: TuiCommand[], showsKeyLabel: boolean, disabledCommands: TuiCommand[], textByCommand: Partial<Record<TuiCommand, string>> = {}): HotKeyItem[] {
     const entries = Object.values(keyBox.keys);
@@ -44,13 +44,13 @@ export function buildHotKeyRows(keyBox: KeyBoxSettings, speed: JumpSpeed, disabl
 
 export function buildFileViewHotKeyRows(keyBox: KeyBoxSettings, disabledCommands: TuiCommand[]): HotKeyRow[] {
     return [
-        buildKeyRow(keyBox, "View file", [TuiCommand.ScrollUp, TuiCommand.ScrollDown, TuiCommand.ToggleDiffView, TuiCommand.CloseBox], disabledCommands),
+        buildKeyRow(keyBox, "View file", [TuiCommand.ScrollUp, TuiCommand.ScrollDown, TuiCommand.ToggleDiffView, TuiCommand.CloseBox, TuiCommand.Quit], disabledCommands),
         buildKeyRow(keyBox, "Marker", [TuiCommand.ViewFileStepTowardsEarliest, TuiCommand.ViewFileStepTowardsNow, TuiCommand.ToggleDaySpeed, TuiCommand.ToggleWeekSpeed], disabledCommands),
     ];
 }
 
 export function buildConsoleHotKeyRows(keyBox: KeyBoxSettings, disabledCommands: TuiCommand[]): HotKeyRow[] {
-    return [buildKeyRow(keyBox, "Console", [TuiCommand.ScrollUp, TuiCommand.ScrollDown, TuiCommand.CloseBox, TuiCommand.OpenLogFolder], disabledCommands)];
+    return [buildKeyRow(keyBox, "Console", [TuiCommand.ScrollUp, TuiCommand.ScrollDown, TuiCommand.CloseBox, TuiCommand.OpenLogFolder, TuiCommand.Quit], disabledCommands)];
 }
 
 export function formatHotKeyItemText(item: HotKeyItem): string {

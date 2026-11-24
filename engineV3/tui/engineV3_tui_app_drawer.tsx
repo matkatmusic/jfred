@@ -110,7 +110,7 @@ export function useAppDrawer(input: AppDrawerInput): AppDrawerState {
         }
         let drawer = <FileViewBox fileName={basename(input.cursorFile.toString())} lines={viewFile.lines} scrollTop={viewFile.scrollTop} rowCount={geometry.drawerRowCount} columns={props.terminalColumns} lineNumberColor={TUI_COLORS.fileViewBox.lineNumberColor} textColor={TUI_COLORS.fileViewBox.textColor} emptyText={viewFile.isDiff ? viewFile.diffView.emptyText : NO_TEXT_EMPTY_TEXT} />;
         if (viewFile.diffView.lines.length > 0) {
-            drawer = <DiffBox lines={viewFile.diffView.lines} scrollTop={viewFile.scrollTop} rowCount={geometry.drawerRowCount} columns={props.terminalColumns} textColor={TUI_COLORS.diffBox.textColor} lineNumberColor={TUI_COLORS.diffBox.lineNumberColor} newerOnlyBackgroundColor={TUI_COLORS.diffBox.newerOnlyBackgroundColor} markerOnlyBackgroundColor={TUI_COLORS.diffBox.markerOnlyBackgroundColor} changedBackgroundColor={TUI_COLORS.diffBox.changedBackgroundColor} />;
+            drawer = <DiffBox lines={viewFile.diffView.lines} scrollTop={viewFile.scrollTop} rowCount={geometry.drawerRowCount} columns={props.terminalColumns} textColor={TUI_COLORS.diffBox.textColor} lineNumberColor={TUI_COLORS.diffBox.lineNumberColor} newerOnlyBackgroundColor={TUI_COLORS.diffBox.newerOnlyBackgroundColor} markerOnlyBackgroundColor={TUI_COLORS.diffBox.markerOnlyBackgroundColor} /* changedBackgroundColor={TUI_COLORS.diffBox.changedBackgroundColor} */ />;
         }
         return { ...base, keyBox, hotKeyRows: buildFileViewHotKeyRows(keyBox, disabledCommands), drawer, rowsHeight: geometry.rowsHeight, footerRowCount: geometry.footerRowCount, scrollDrawer: (lineCountDelta) => viewFile.scroll(lineCountDelta, geometry.visibleLineCount) };
     }

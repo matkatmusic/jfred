@@ -1,6 +1,6 @@
 // Makes the inverse repo of a linear git repo: commit 0 is the source HEAD state; each next commit reverts one source commit, newest source commit first.
 
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -71,20 +71,55 @@ function writeInverseCommit(inverseRepo: Path, treeHash: Uuid, parentHash: Commi
     return new Uuid(runJfredGit(inverseRepo, args, { env }));
 }
 
-export function makeInverseRepo(sourceRepo: Path): Path {
-    const sourceCommits = listSourceCommitsNewestFirst(sourceRepo);
+// The tree that holds only filePath, as it is in the source commit; the empty tree when the file is absent there.
+function writeSingleFileTree(inverseRepo: Path, sourceRepo: Path, commitHash: CommitHash, filePath: Path): Uuid {
+    const entryText = runJfredGit(sourceRepo, ["ls-tree", commitHash.toString(), "--", filePath.toString()]);
+    if (entryText === "") {
+        return writeEmptyTree(inverseRepo);
+    }
+    const [modeAndType, entryPath] = entryText.split("\t");
+    const [mode, objectType, blobHash] = (modeAndType ?? "").split(" ");
+    if (objectType !== "blob" || blobHash === undefined || entryPath !== filePath.toString()) {
+        throw new Error(`writeSingleFileTree: ${filePath.toString()} is not a file in ${commitHash.toString()}: ${entryText}`);
+    }
+    const indexFile = join(inverseRepo.toString(), "single-file-index");
+    rmSync(indexFile, { force: true });
+    const env = { GIT_INDEX_FILE: indexFile };
+    runJfredGit(inverseRepo, ["update-index", "--add", "--cacheinfo", `${mode},${blobHash},${filePath.toString()}`], { env });
+    return new Uuid(runJfredGit(inverseRepo, ["write-tree"], { env }));
+}
+
+// The whole tree of the source commit, or only the tree of filePath when it is given.
+function writeStateTree(inverseRepo: Path, sourceRepo: Path, commitHash: CommitHash, filePath: Path | undefined): Uuid {
+    if (filePath === undefined) {
+        return getTreeHash(sourceRepo, commitHash);
+    }
+    return writeSingleFileTree(inverseRepo, sourceRepo, commitHash, filePath);
+}
+
+function listHashesOfCommitsThatChangeFile(sourceRepo: Path, filePath: Path): string[] {
+    return runJfredGit(sourceRepo, ["log", "--format=%H", "HEAD", "--", filePath.toString()]).split("\n");
+}
+
+// With filePath: only the source commits that change that file are reverted, and every tree holds only that file.
+export function makeInverseRepo(sourceRepo: Path, filePath?: Path): Path {
+    let sourceCommits = listSourceCommitsNewestFirst(sourceRepo);
     const sourceHead = sourceCommits[0];
     if (sourceHead === undefined) {
         throw new Error(`makeInverseRepo: ${sourceRepo.toString()} has no commits`);
     }
+    if (filePath !== undefined) {
+        const hashesThatChangeFile = listHashesOfCommitsThatChangeFile(sourceRepo, filePath);
+        sourceCommits = sourceCommits.filter((sourceCommit) => hashesThatChangeFile.includes(sourceCommit.commitHash.toString()));
+    }
     const inverseRepo = createEmptyBareRepo();
     copySourceObjects(inverseRepo, sourceRepo);
     const emptyTreeHash = writeEmptyTree(inverseRepo);
-    let inverseHead = writeInverseCommit(inverseRepo, getTreeHash(sourceRepo, sourceHead.commitHash), undefined, `inverse base: state of source HEAD ${sourceHead.commitHash.toString()} ${sourceHead.subject}`, sourceHead.authorSeconds);
+    let inverseHead = writeInverseCommit(inverseRepo, writeStateTree(inverseRepo, sourceRepo, sourceHead.commitHash, filePath), undefined, `inverse base: state of source HEAD ${sourceHead.commitHash.toString()} ${sourceHead.subject}`, sourceHead.authorSeconds);
     for (const sourceCommit of sourceCommits) {
         let treeBeforeSourceCommit = emptyTreeHash;
         if (sourceCommit.parentHash !== undefined) {
-            treeBeforeSourceCommit = getTreeHash(sourceRepo, sourceCommit.parentHash);
+            treeBeforeSourceCommit = writeStateTree(inverseRepo, sourceRepo, sourceCommit.parentHash, filePath);
         }
         inverseHead = writeInverseCommit(inverseRepo, treeBeforeSourceCommit, inverseHead, `revert ${sourceCommit.commitHash.toString()} ${sourceCommit.subject}`, sourceCommit.authorSeconds);
     }

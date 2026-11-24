@@ -1,6 +1,6 @@
 // The key handling of the root component: one switch from the keymap command to the action.
 
-import { useInput, type Key } from "ink";
+import { useApp, useInput, type Key } from "ink";
 import type { Path } from "../../src/structures/domain.ts";
 import { AppBoxMode, JumpSpeed, MarkerDirection, TuiCommand } from "../../src/structures/vocabulary.ts";
 import type { AppProps, SelectionState } from "./engineV3_tui_app_types.ts";
@@ -38,8 +38,9 @@ export type AppKeyContext = {
     moveCursorByPage: (direction: 1 | -1) => void;
 };
 
-function handleConsoleKey(context: AppKeyContext, input: string, key: Key): void {
+function handleConsoleKey(context: AppKeyContext, input: string, key: Key, quit: () => void): void {
     switch (findCommandForKey(context.consoleKeymap, input, key)) {
+        case TuiCommand.Quit: return quit();
         case TuiCommand.ScrollUp: return context.scrollDrawer(-1);
         case TuiCommand.ScrollDown: return context.scrollDrawer(1);
         case TuiCommand.CloseBox: return context.closeBox();
@@ -47,8 +48,9 @@ function handleConsoleKey(context: AppKeyContext, input: string, key: Key): void
     }
 }
 
-function handleViewFileKey(context: AppKeyContext, input: string, key: Key): void {
+function handleViewFileKey(context: AppKeyContext, input: string, key: Key, quit: () => void): void {
     switch (findCommandForKey(context.fileViewKeymap, input, key)) {
+        case TuiCommand.Quit: return quit();
         case TuiCommand.ScrollUp: return context.scrollDrawer(-1);
         case TuiCommand.ScrollDown: return context.scrollDrawer(1);
         case TuiCommand.CloseBox: return context.closeBox();
@@ -62,6 +64,8 @@ function handleViewFileKey(context: AppKeyContext, input: string, key: Key): voi
 
 export function useAppKeys(context: AppKeyContext): void {
     const { props, consentQuestion, selection, speed, selectedOrCursorFiles, modelMemo } = context;
+    // exit ends the Ink app like Ctrl-C does: jfredTUI then runs shutdownTui
+    const { exit: quit } = useApp();
     useInput((input, key) => {
         if (consentQuestion !== undefined) {
             if (input === "y") {
@@ -74,12 +78,13 @@ export function useAppKeys(context: AppKeyContext): void {
             return;
         }
         if (context.boxMode === AppBoxMode.ViewFile) {
-            return handleViewFileKey(context, input, key);
+            return handleViewFileKey(context, input, key, quit);
         }
         if (context.boxMode === AppBoxMode.Console) {
-            return handleConsoleKey(context, input, key);
+            return handleConsoleKey(context, input, key, quit);
         }
         switch (findCommandForKey(props.keymap, input, key)) {
+            case TuiCommand.Quit: return quit();
             case TuiCommand.ViewFile: return context.openViewFile();
             case TuiCommand.OpenConsole: return context.openConsole();
             case TuiCommand.ReconstructUntilEarliest: return context.reconstructCursorFile();

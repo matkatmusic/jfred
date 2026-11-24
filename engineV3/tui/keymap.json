@@ -31,7 +31,7 @@
             "hljs-attr": "cyan"
         }
     },
-    "diffBox": { "textColor": "white", "lineNumberColor": "gray", "newerOnlyBackgroundColor": "#005f00", "markerOnlyBackgroundColor": "#5f0000", "changedBackgroundColor": "#5f5f00" },
+    "diffBox": { "textColor": "white", "lineNumberColor": "gray", "newerOnlyBackgroundColor": "#005f00", "markerOnlyBackgroundColor": "#5f0000" },
     "consoleBox": { "summaryColor": "yellow", "rawColor": "white" },
     "globalHotKeysBox": {
         "defaultKeyColor": "#c0c0c0",
@@ -56,7 +56,8 @@
             "viewFile": { "action": "viewFile", "input": "v", "text": "View file", "customColor": null },
             "reconstruct": { "action": "reconstructUntilEarliest", "input": "g", "text": "reconstruct file until Earliest", "customColor": null },
             "console": { "action": "openConsole", "input": "c", "text": "engine console", "customColor": null },
-            "playScript": { "action": "playScript", "input": "p", "text": "play script", "customColor": null }
+            "playScript": { "action": "playScript", "input": "p", "text": "play script", "customColor": null },
+            "quit": { "action": "quit", "input": "q", "text": "quit", "customColor": null }
         }
     },
     "fileViewHotKeysBox": {
@@ -71,7 +72,8 @@
             "right": { "action": "viewFileStepTowardsEarliest", "key": "rightArrow", "text": "towards earlier", "customColor": null },
             "left": { "action": "viewFileStepTowardsNow", "key": "leftArrow", "text": "towards Now", "customColor": null },
             "day": { "action": "toggleDaySpeed", "input": "d", "text": "step by 1 day", "customColor": null },
-            "week": { "action": "toggleWeekSpeed", "input": "w", "text": "step by 1 week", "customColor": null }
+            "week": { "action": "toggleWeekSpeed", "input": "w", "text": "step by 1 week", "customColor": null },
+            "quit": { "action": "quit", "input": "q", "text": "quit", "customColor": null }
         }
     },
     "consoleHotKeysBox": {
@@ -82,7 +84,8 @@
             "up": { "action": "scrollUp", "key": "upArrow", "text": "scroll up", "customColor": null },
             "down": { "action": "scrollDown", "key": "downArrow", "text": "scroll down", "customColor": null },
             "close": { "action": "closeBox", "input": "c", "text": "close", "customColor": null },
-            "openLogFolder": { "action": "openLogFolder", "input": "o", "text": "open log folder", "customColor": null }
+            "openLogFolder": { "action": "openLogFolder", "input": "o", "text": "open log folder", "customColor": null },
+            "quit": { "action": "quit", "input": "q", "text": "quit", "customColor": null }
         }
     }
 }

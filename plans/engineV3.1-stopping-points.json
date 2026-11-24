@@ -1,0 +1,794 @@
+{
+  "title": "engineV3.1: checkpoints of the flowchart",
+  "source": "Source: `jfred/plans/puzzle-solver-rules.mmd`, live lines only (lines that do not start with `%%`), read 2026-11-21, from `B_LAUNCH` to `B_END_REGULAR_NODE_PROCESSING`. The `Q_INSIDE_REPO_AT_START` chain (old rules R3 to R16) and the script step are not in scope: they are not reachable from `B_LAUNCH` or they are a later feature.\nThis is not a build plan: no stages, no code design, no owners.\n\nA stopping point is a node where the diagram says a result is now known or now built. A check proves that the code produces exactly that result. Every check fails when the result is wrong.\nExisting functions are named with path:line from `plans/engineV3.1-existing-code-map.md` (called \"the map\" below). `engineV3/` and `src/` are under `jfred/`.",
+  "userDecisionsIntro": "User decisions that the checks follow:",
+  "userDecisions": [
+    {
+      "id": "a",
+      "text": "A file that is not on disk: the puzzle starts with the newest beacon found in the JSONLs or in git, not with an 'absent' node."
+    },
+    {
+      "id": "b",
+      "text": "A full-file write without old text: skipped for now where no code handles it (map, Check 3: forward replay is handled, the before-state is not). First goal: a basic engine that is correct on commits and snapshots."
+    },
+    {
+      "id": "c",
+      "text": "engineV3.1 uses its own new store, apart from the store of the current solver."
+    },
+    {
+      "id": "d",
+      "text": "A file that moved: later (task 1092). Not in this list."
+    },
+    {
+      "id": "e",
+      "text": "A range with script runs gets the status 'solved pending unreplayed script runs' and no 'user edit' node."
+    }
+  ],
+  "phases": [
+    {
+      "number": 1,
+      "name": "find files",
+      "barrierNodeId": "B_PHASE_1_DONE",
+      "userWords": "The first chunk is finding all the files."
+    },
+    {
+      "number": 2,
+      "name": "find and place the events of each file",
+      "barrierNodeId": "B_PHASE_2_DONE",
+      "userWords": "The next chunk is finding all of the events for that particular file."
+    },
+    {
+      "number": 3,
+      "name": "split each puzzle into ranges",
+      "barrierNodeId": "B_PHASE_3_DONE",
+      "userWords": "The next chunk is splitting those events up into specific ranges based on beacons."
+    },
+    {
+      "number": 4,
+      "name": "replay the non-script events range by range",
+      "barrierNodeId": "B_PUZZLE_BARRIER",
+      "userWords": "The next chunk is then going through each of those ranges and trying to replay the non-script events."
+    },
+    {
+      "number": 5,
+      "name": "replay scripts",
+      "barrierNodeId": "B_SCRIPT_STEP_DONE",
+      "userWords": "Then the next chunk is to replay the script events for all of the files that a script touches."
+    }
+  ],
+  "checkpoints": [
+    {
+      "number": 1,
+      "phase": 1,
+      "nodeId": "B_NEW_6",
+      "text": "Verify hash exists in git, Verify snapshots mentioned in JSONLs exist. Verify Project folder exists.",
+      "writtenBy": "user",
+      "status": "not locked",
+      "snapshotLookup": {
+        "realCounts": {
+          "measuredOn": "2026-11-21, read only. A Python script in the scratchpad read every JSONL of each folder once. The lookup rule is the one of findExistingBackupFile: a name is 'found' when <snapshot folder>/<JSONL file name without .jsonl>/<name> exists, or the same path under <snapshot folder>/file-history/. 'uniqueNamedBackups' counts each pair of session and name once.",
+          "FX-INPUTS": {
+            "jsonlFiles": 15,
+            "snapshotFolder": "/Users/matkatmusicllc/.claude/file-history",
+            "snapshotRecords": 211,
+            "backupEntries": 1134,
+            "nullBackupEntries": 49,
+            "namedReferences": 1085,
+            "uniqueNamedBackups": 255,
+            "found": 255,
+            "foundOnlyInAnotherSessionFolder": 0,
+            "missing": 0,
+            "fileHistoryDeltaRecords": 211,
+            "deltaNullBackups": 83,
+            "deltaUniqueNamedBackups": 128,
+            "deltaFound": 128,
+            "deltaMissing": 0
+          },
+          "scenarios": [
+            {
+              "name": "s1-delete-file",
+              "jsonlFiles": 1,
+              "snapshotRecords": 7,
+              "backupEntries": 9,
+              "nullBackupEntries": 7,
+              "uniqueNamedBackups": 2,
+              "found": 2,
+              "foundOnlyInAnotherSessionFolder": 0,
+              "missing": 0
+            },
+            {
+              "name": "s49-delete-recreate",
+              "jsonlFiles": 1,
+              "snapshotRecords": 8,
+              "backupEntries": 11,
+              "nullBackupEntries": 5,
+              "uniqueNamedBackups": 3,
+              "found": 3,
+              "foundOnlyInAnotherSessionFolder": 0,
+              "missing": 0
+            },
+            {
+              "name": "s4-overwrite-file",
+              "jsonlFiles": 1,
+              "snapshotRecords": 7,
+              "backupEntries": 9,
+              "nullBackupEntries": 3,
+              "uniqueNamedBackups": 4,
+              "found": 4,
+              "foundOnlyInAnotherSessionFolder": 0,
+              "missing": 0
+            },
+            {
+              "name": "s12-write-conv-only-rewrite",
+              "jsonlFiles": 1,
+              "snapshotRecords": 8,
+              "backupEntries": 11,
+              "nullBackupEntries": 3,
+              "uniqueNamedBackups": 4,
+              "found": 4,
+              "foundOnlyInAnotherSessionFolder": 0,
+              "missing": 0
+            },
+            {
+              "name": "s7-minimal-code-restore",
+              "jsonlFiles": 1,
+              "snapshotRecords": 7,
+              "backupEntries": 9,
+              "nullBackupEntries": 5,
+              "uniqueNamedBackups": 2,
+              "found": 2,
+              "foundOnlyInAnotherSessionFolder": 0,
+              "missing": 0
+            },
+            {
+              "name": "s13-multi-edit-code-restore-read",
+              "jsonlFiles": 1,
+              "snapshotRecords": 9,
+              "backupEntries": 13,
+              "nullBackupEntries": 3,
+              "uniqueNamedBackups": 4,
+              "found": 4,
+              "foundOnlyInAnotherSessionFolder": 0,
+              "missing": 0
+            },
+            {
+              "name": "s16-multi-edit-code-restore-re-edit",
+              "jsonlFiles": 1,
+              "snapshotRecords": 8,
+              "backupEntries": 11,
+              "nullBackupEntries": 3,
+              "uniqueNamedBackups": 5,
+              "found": 5,
+              "foundOnlyInAnotherSessionFolder": 0,
+              "missing": 0
+            },
+            {
+              "name": "s15-user-edit-then-conv-rewind",
+              "jsonlFiles": 1,
+              "snapshotRecords": 8,
+              "backupEntries": 11,
+              "nullBackupEntries": 3,
+              "uniqueNamedBackups": 2,
+              "found": 2,
+              "foundOnlyInAnotherSessionFolder": 0,
+              "missing": 0
+            },
+            {
+              "name": "s18-user-edit-no-rewind",
+              "jsonlFiles": 1,
+              "snapshotRecords": 7,
+              "backupEntries": 9,
+              "nullBackupEntries": 3,
+              "uniqueNamedBackups": 3,
+              "found": 3,
+              "foundOnlyInAnotherSessionFolder": 0,
+              "missing": 0
+            },
+            {
+              "name": "s20-user-edit-code-rewind",
+              "jsonlFiles": 1,
+              "snapshotRecords": 9,
+              "backupEntries": 13,
+              "nullBackupEntries": 3,
+              "uniqueNamedBackups": 5,
+              "found": 5,
+              "foundOnlyInAnotherSessionFolder": 0,
+              "missing": 0
+            },
+            {
+              "name": "s21-multiple-user-edits",
+              "jsonlFiles": 1,
+              "snapshotRecords": 8,
+              "backupEntries": 11,
+              "nullBackupEntries": 3,
+              "uniqueNamedBackups": 4,
+              "found": 4,
+              "foundOnlyInAnotherSessionFolder": 0,
+              "missing": 0
+            },
+            {
+              "name": "s39-git-baseline-seed",
+              "jsonlFiles": 2,
+              "snapshotRecords": 9,
+              "backupEntries": 6,
+              "nullBackupEntries": 3,
+              "uniqueNamedBackups": 2,
+              "found": 2,
+              "foundOnlyInAnotherSessionFolder": 0,
+              "missing": 0
+            },
+            {
+              "name": "s40-git-baseline-user-edits",
+              "jsonlFiles": 2,
+              "snapshotRecords": 10,
+              "backupEntries": 6,
+              "nullBackupEntries": 3,
+              "uniqueNamedBackups": 2,
+              "found": 2,
+              "foundOnlyInAnotherSessionFolder": 0,
+              "missing": 0
+            },
+            {
+              "name": "s58-concurrent-over-git-baseline",
+              "jsonlFiles": 2,
+              "snapshotRecords": 13,
+              "backupEntries": 13,
+              "nullBackupEntries": 3,
+              "uniqueNamedBackups": 6,
+              "found": 6,
+              "foundOnlyInAnotherSessionFolder": 0,
+              "missing": 0
+            },
+            {
+              "name": "s5-bash-redirect",
+              "jsonlFiles": 1,
+              "snapshotRecords": 6,
+              "backupEntries": 4,
+              "nullBackupEntries": 1,
+              "uniqueNamedBackups": 3,
+              "found": 3,
+              "foundOnlyInAnotherSessionFolder": 0,
+              "missing": 0
+            },
+            {
+              "name": "s24-script-rename-functions",
+              "jsonlFiles": 1,
+              "snapshotRecords": 11,
+              "backupEntries": 21,
+              "nullBackupEntries": 4,
+              "uniqueNamedBackups": 7,
+              "found": 7,
+              "foundOnlyInAnotherSessionFolder": 0,
+              "missing": 0
+            },
+            {
+              "name": "s53-concurrent-two-agents",
+              "jsonlFiles": 2,
+              "snapshotRecords": 11,
+              "backupEntries": 7,
+              "nullBackupEntries": 1,
+              "uniqueNamedBackups": 5,
+              "found": 5,
+              "foundOnlyInAnotherSessionFolder": 0,
+              "missing": 0
+            },
+            {
+              "name": "s56-concurrent-with-user-edit",
+              "jsonlFiles": 2,
+              "snapshotRecords": 11,
+              "backupEntries": 7,
+              "nullBackupEntries": 1,
+              "uniqueNamedBackups": 4,
+              "found": 4,
+              "foundOnlyInAnotherSessionFolder": 0,
+              "missing": 0
+            },
+            {
+              "name": "s78-sayqueued-read-beacon",
+              "jsonlFiles": 1,
+              "snapshotRecords": 8,
+              "backupEntries": 15,
+              "nullBackupEntries": 6,
+              "uniqueNamedBackups": 3,
+              "found": 3,
+              "foundOnlyInAnotherSessionFolder": 0,
+              "missing": 0
+            },
+            {
+              "name": "s63-compact-basic",
+              "jsonlFiles": 1,
+              "snapshotRecords": 8,
+              "backupEntries": 6,
+              "nullBackupEntries": 1,
+              "uniqueNamedBackups": 3,
+              "found": 3,
+              "foundOnlyInAnotherSessionFolder": 0,
+              "missing": 0
+            }
+          ],
+          "scenarioNote": "The 20 scenarios have no file-history-delta records. Their snapshot folder is jfred/scenarios/file-history. The scenario JSONLs and snapshot folders are read only here."
+        },
+        "existingFunctions": [
+          "`getDefaultFileHistoryRoot` `src/reconstruction_sidecar_reader.ts:15` and `findSiblingFileHistoryRoot` `:20`: the folder rule (plain code, no stop).",
+          "`getFileHistorySnapshot` `src/structures/file-history.ts:121`, type `FileHistoryBackup` `:6` (backupFileName is a string such as 463243de4cb9498e@v1 or null; version; backupTime; realParentDir), class `FileBackupMap` `:15`: how a snapshot record names its backup files (`snapshot.trackedFileBackups`, one entry per file path).",
+          "`listBackupsOfFile` `engineV3/engineV3_replay_reverse.ts:436`: lists the backups of one file from one snapshot record. No function lists every name of a JSONL (code map `plans/engineV3.1-existing-code-map.md:36`, Gap B).",
+          "`findExistingBackupFile` `engineV3/engineV3_replay_reverse.ts:458`: the lookup. For each snapshot folder it tries <folder>/<session id>/<name>, then <folder>/file-history/<session id>/<name>, and returns undefined when none exists.",
+          "`collectBackupKnownStates` `engineV3/engineV3_replay_reverse.ts:472`: the caller. The session id is the JSONL file name without '.jsonl' (`:484`). It skips a null name and a missing file with no message (`:489`).",
+          "`findBackupOwner` `src/reconstruction_sidecar_reader.ts:115`, `buildBackupPathResolver` `:128`, `buildSidecarReader` `:147`: the second rule in `src/`. It searches every session id of the records for the name, and the read at `:154` throws when the file is missing."
+        ],
+        "openQuestions": [
+          "What does the run do with a missing snapshot? The diagram does not say. Today the engineV3 reader skips it with no message (`collectBackupKnownStates` `engineV3/engineV3_replay_reverse.ts:489`), and the reader in `src/` throws when it reads the file (`src/reconstruction_sidecar_reader.ts:154`). Not decided: stop with an error, record a research item, or skip.",
+          "Which session folder holds the copy? The engineV3 reader uses the JSONL file name as the session id (`engineV3/engineV3_replay_reverse.ts:484`). The reader in `src/` searches every session id of the records (`findBackupOwner` `src/reconstruction_sidecar_reader.ts:115`), because resumed or merged chats reuse names. Measured: 0 names are found only in another session's folder, in FX-INPUTS and in the 20 scenarios. Not decided which rule the new engine uses.",
+          "Do file-history-delta records count as snapshots named in the JSONL? FX-INPUTS has 211 of them (83 with a null backup, 128 unique names, all found). No code in `src/` or `engineV3/` reads them (only `src/structures/vocabulary.ts:20` lists the record type). The 20 scenarios have none. Not decided.",
+          "What makes two snapshot names 'the same'? Session id plus name, the name alone, or the path that was found. Today `collectBackupKnownStates` keeps a set of found paths (`seenBackupFiles`).",
+          "The recovery layout <folder>/file-history/<session id>/<name> is accepted by `findExistingBackupFile` (`engineV3/engineV3_replay_reverse.ts:455-466`) but not by `buildBackupPathResolver` (`src/reconstruction_sidecar_reader.ts:142` builds only <root>/<session id>/<name>). Not decided which layouts the new engine accepts.",
+          "Is a file 'found' when it only exists, or when it can also be read as text and is not empty? Today the reader checks only that it exists (`existsSync`). Not decided.",
+          "Where does this stop sit? Point 6 needs the snapshot names as a source of file names, and the diagram has the node B_NEW_4 (`file-history snapshot path is pulled from JSONL file`) after B_DERIVE_SNAPSHOTS, in the singular. Whether this lookup goes before point 6 or inside it, and what the node id is, is not decided. The number 2 is kept."
+        ]
+      }
+    },
+    {
+      "number": 2,
+      "phase": 1,
+      "nodeId": "B_HISTORY_COMPLETE_IN_GIT",
+      "text": "verify that every event for this file could be replayed and consistently reproduce the same bytes in the Inverse-per-file-repo for this file.",
+      "writtenBy": "user",
+      "status": "not locked"
+    },
+    {
+      "number": 3,
+      "phase": 1,
+      "nodeId": "B_GIT_TRACKED_AND_DELETED_FROM_DISK",
+      "text": "expect a file tracked in git and deleted to show as deleted in git, and the previous",
+      "writtenBy": "user",
+      "status": "not locked"
+    },
+    {
+      "number": 4,
+      "phase": 1,
+      "nodeId": "B_RECONSTRUCT_THIS_FILE_YES",
+      "text": "Every file in the found files list has at least 1 reconstruction event",
+      "writtenBy": "user",
+      "status": "not locked"
+    },
+    {
+      "number": 5,
+      "phase": 2,
+      "nodeId": "B_PUZZLE_ADD_GIT_COMMITS",
+      "text": "a minimal git-only Inverse-Per-File-Repo can be created for this file.",
+      "writtenBy": "user",
+      "status": "not locked"
+    },
+    {
+      "number": 6,
+      "phase": 2,
+      "nodeId": "B_PUZZLE_LIST_EVENTS",
+      "text": "a mentioned-in-JSONLs file F has at least 1 event in the events list.",
+      "writtenBy": "user",
+      "status": "not locked"
+    },
+    {
+      "number": 7,
+      "phase": 2,
+      "nodeId": "B_PUZZLE_REPLAY_START",
+      "text": "the list of 'events for the file that need to be replayed' should exist and be non-empty.",
+      "writtenBy": "user",
+      "status": "not locked"
+    },
+    {
+      "number": 8,
+      "phase": 3,
+      "nodeId": "B_SPLIT_PUZZLES_INTO_RANGES",
+      "text": "the puzzle splits into ranges. every edit of the puzzle is in exactly one range. no edit is lost or doubled.",
+      "writtenBy": "Claude, approved by the user",
+      "status": "not locked"
+    },
+    {
+      "number": 9,
+      "phase": 4,
+      "nodeId": "Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_YES",
+      "text": "forward replay from the bytes of the older beacon, through every edit of the range, gives exactly the bytes that the newer beacon saw.",
+      "writtenBy": "Claude, approved by the user",
+      "status": "not locked"
+    },
+    {
+      "number": 10,
+      "phase": 4,
+      "nodeId": "B_RANGE_INSERT_USER_EDIT_BEFORE_NEWER",
+      "text": "with the 'user edit' node in place, replay again from the older beacon reaches what the newer beacon saw. the range has no script runs.",
+      "writtenBy": "Claude, approved by the user",
+      "status": "not locked"
+    },
+    {
+      "number": 11,
+      "phase": 4,
+      "nodeId": "B_RANGE_INSERT_USER_EDIT_BEFORE_EDIT",
+      "text": "with the 'user edit' node in place, replay again from the older beacon reaches what the newer beacon saw. the range has no script runs.",
+      "writtenBy": "Claude, approved by the user",
+      "status": "not locked"
+    },
+    {
+      "number": 12,
+      "phase": 4,
+      "nodeId": "Q_CHOICE_RANGE_ANY_EDIT_LEFT_BACKWARD_NO",
+      "text": "round trip. take the bytes that the backward replay ended with, replay the same edits forward, and get what the newer beacon saw again.",
+      "writtenBy": "Claude, approved by the user",
+      "status": "not locked"
+    },
+    {
+      "number": 13,
+      "phase": 4,
+      "nodeId": "B_RANGE_SAVE",
+      "text": "read the range back from the inverse per-file repo. the bytes of each node equal the bytes in memory. a second run answers 'already solved and saved: yes' for this range.",
+      "writtenBy": "Claude, approved by the user",
+      "status": "not locked"
+    },
+    {
+      "number": 14,
+      "phase": 4,
+      "nodeId": "B_PUZZLE_FILE_DONE",
+      "text": "saved ranges + research ranges = all ranges of F. for a file on disk, the newest state in the inverse per-file repo equals the bytes on disk.",
+      "writtenBy": "Claude, approved by the user",
+      "status": "not locked"
+    },
+    {
+      "number": 15,
+      "phase": 4,
+      "nodeId": "B_PUZZLE_BARRIER",
+      "text": "every included file finished its puzzle loop exactly once. the count of finished files equals the size of filesToReconstruct.",
+      "writtenBy": "Claude, approved by the user",
+      "status": "not locked"
+    },
+    {
+      "number": 16,
+      "phase": 5,
+      "nodeId": "B_SCRIPT_REPLAYABLE",
+      "text": "replay of the range from the script node to the newer beacon, with the bytes that the script made, gives exactly what the newer beacon saw.",
+      "writtenBy": "Claude, approved by the user",
+      "status": "not locked"
+    }
+  ],
+  "verification": {
+    "scenarioNames": [
+      "s1-delete-file",
+      "s49-delete-recreate",
+      "s4-overwrite-file",
+      "s12-write-conv-only-rewrite",
+      "s7-minimal-code-restore",
+      "s13-multi-edit-code-restore-read",
+      "s16-multi-edit-code-restore-re-edit",
+      "s15-user-edit-then-conv-rewind",
+      "s18-user-edit-no-rewind",
+      "s20-user-edit-code-rewind",
+      "s21-multiple-user-edits",
+      "s39-git-baseline-seed",
+      "s40-git-baseline-user-edits",
+      "s58-concurrent-over-git-baseline",
+      "s5-bash-redirect",
+      "s24-script-rename-functions",
+      "s53-concurrent-two-agents",
+      "s56-concurrent-with-user-edit",
+      "s78-sayqueued-read-beacon",
+      "s63-compact-basic"
+    ]
+  },
+  "fixturesIntro": "Times are whole numbers. A larger number is newer. A puzzle is written newest first.",
+  "fixtures": [
+    {
+      "name": "FX-INPUTS",
+      "text": "the real project folder `/Users/matkatmusicllc/Desktop/claude code src/RevEng/jfred`. It is its own git repo root (`git rev-parse --show-toplevel` prints the same path). Its JSONL folder is `/Users/matkatmusicllc/.claude/projects/-Users-matkatmusicllc-Desktop-claude-code-src-RevEng-jfred`. Its snapshot root is `/Users/matkatmusicllc/.claude/file-history`."
+    },
+    {
+      "name": "FX-8FILES",
+      "text": "a temporary git project with these files. A column says whether the file is on disk, in git history, and named in a JSONL.",
+      "table": [
+        {
+          "File": "`none.txt`",
+          "disk": "no",
+          "git": "no",
+          "jsonl": "no",
+          "group": "1 (cannot be in the list)"
+        },
+        {
+          "File": "`logonly.txt`",
+          "disk": "no",
+          "git": "no",
+          "jsonl": "yes",
+          "group": "2"
+        },
+        {
+          "File": "`gitonly_removed.txt`",
+          "disk": "no",
+          "git": "yes (added at c1, removed at c2)",
+          "jsonl": "no",
+          "group": "3"
+        },
+        {
+          "File": "`gitlog_removed.txt`",
+          "disk": "no",
+          "git": "yes (added at c1, removed at c2)",
+          "jsonl": "yes",
+          "group": "4"
+        },
+        {
+          "File": "`diskonly.txt`",
+          "disk": "yes",
+          "git": "no",
+          "jsonl": "no",
+          "group": "5"
+        },
+        {
+          "File": "`disklog.txt`",
+          "disk": "yes",
+          "git": "no",
+          "jsonl": "yes",
+          "group": "6"
+        },
+        {
+          "File": "`diskgit.txt`",
+          "disk": "yes",
+          "git": "yes",
+          "jsonl": "no",
+          "group": "7"
+        },
+        {
+          "File": "`all.txt`",
+          "disk": "yes",
+          "git": "yes",
+          "jsonl": "yes",
+          "group": "8"
+        }
+      ],
+      "commits": "Commits: c1 at t10, c2 at t20, c3 at t30 (c3 changes only `diskgit.txt` and `all.txt`)."
+    },
+    {
+      "name": "FX-W8",
+      "text": "(the user's section 8 walk): node 0 `O` at t100. Git commits `g1` t90, `g2` t80, `g3` t60. Snapshot events `h1` t95, `h2` t70, `h3` t50. Events list at the start: `[h1, h2, h3]`."
+    },
+    {
+      "name": "FX-RANGE",
+      "text": "beacon `c1` (commit, t50, bytes `a\\n`). Edit `e2` (t60, old `a`, new `b`, no originalFile). Edit `e1` (t70, old `b`, new `c`, no originalFile). Node 0 `Now` (t100). The puzzle is `[Now, e1, e2, c1]`."
+    }
+  ],
+  "diagramDoesNotSayIntro": "Each item is a place where a check cannot be written clearly, or where decision a or b differs from the live text. These are not decided here.",
+  "diagramDoesNotSay": [
+    {
+      "item": 1,
+      "text": "Decision a differs from the live text of `B_PUZZLE_START` (`Node 0 is the on-disk state of F (absent if F is not on disk)`), of `B_PUZZLE_ADD_GIT_COMMITS` (`a delete commit means absent`), of `B_RANGE_TAKE_FIRST` (`newer = puzzle[0];  (the on-disk state)`) and of `B_PUZZLE_REPLAY_START` (`The first range is 'now' and the first beacon after it.`). Under decision a, node 0 of a file that is not on disk is a beacon, not the on-disk state."
+    },
+    {
+      "item": 2,
+      "text": "Decision a: events and commits that are newer than node 0 (node 0 is the newest beacon, not \"now\"). The nodes `Q_PUZZLE_EVENT_IN_PAIR` and `Q_PUZZLE_EVENT_BEFORE_OLDEST` place only events between nodes or older than the oldest. A JSONL Edit or a git commit newer than node 0 fits nowhere. Does it go to `B_RESEARCH_PUZZLE_EVENTS_FIT_NO_PAIR`, or is it dropped? Also what a git delete commit does when it is older or newer than node 0."
+    },
+    {
+      "item": 3,
+      "text": "`B_BUILD_LIST_TO_RECONSTRUCT` (`Build the list of files to include or exclude for reconstruction`) comes before the per-file gate (`B_FILE_NAMED_IN_LOGS` then `Q_NEW_6`). The node text says the list has includes and excludes, but the marks are made later per file. `B_NEW_9` and `B_NEW_10` have the same text and the diagram does not say what `B_NEW_9` (exclude) and `B_NEW_10` (include) hand to the next step."
+    },
+    {
+      "item": 4,
+      "text": "`B_SOURCE_DISK`, `B_SOURCE_GIT`, `B_SOURCE_SUBMODULE_GIT`, `B_SOURCE_LOGS`, `B_FIND_GIT_FOLDER_OF_F` and `B_NEW_12` appear only in `class` lines. They have no text and no edge. The four sources are described only by the notes above `B_ALL_INPUTS_KNOWN`."
+    },
+    {
+      "item": 5,
+      "text": "`B_NEW_4` (`file-history snapshot path is pulled from JSONL file`) follows `B_DERIVE_SNAPSHOTS` (`Derive the snapshot folder path from the project folder`). The two texts name different ways to find the snapshot folder. It also says \"path\" (one) where the given case says \"folders\" (several)."
+    },
+    {
+      "item": 6,
+      "text": "How `B_DERIVE_JSONLS`, `B_DERIVE_SNAPSHOTS`, `B_DERIVE_GIT_FOLDER` derive: the diagram says \"derive\" only. The checks above use the existing default rules (map block 1)."
+    },
+    {
+      "item": 7,
+      "text": "`Q_REMOVED_FROM_REPO_IN_GIT` and `Q_NEW_1` (`in F's git folder`, `latest event in F's git folder`): which git folder, for a file in a submodule or outside the project; and `Q_NEW_1` does not say whether \"latest\" is up to the chosen hash or up to HEAD. `Q_NEW_2` (`Was the removal event before or after the commit time of the git hash?`) does not say what an equal time does."
+    },
+    {
+      "item": 8,
+      "text": "`B_PUZZLE_LIST_EVENTS` says \"every event ... that modifies F\", but `B_PUZZLE_PICK_BEST_EVENT` ranks `commit, snapshot, full-file read, full-file write, then partial edit`. A snapshot and a full-file read do not modify F; a commit is not a JSONL event (commits come from `B_PUZZLE_ADD_GIT_COMMITS`). The diagram does not say which of these go into `events`. It also does not rank \"Edit with originalFile\" (a beacon in `B_PUZZLE_REPLAY_START`, but not named in the pick list)."
+    },
+    {
+      "item": 9,
+      "text": "Event kinds not named anywhere in the live flow: partial Read, `UserEditNotice`, `OtherRow` (open question 3 of the build plan). Where they go in `events`, and whether they count as edits inside a range, is not said."
+    },
+    {
+      "item": 10,
+      "text": "`Q_PUZZLE_EVENT_IN_PAIR` (`Does any listed event lie between the two nodes of this pair?`): strictly between is implied by `B_RESEARCH_PUZZLE_EVENTS_FIT_NO_PAIR` (same time as a node) but not written. Events without an instant are not mentioned. (A measurement on 2705 real records found no equal-instant pair; map, Check 2. Git commit times have second precision and were not measured.)"
+    },
+    {
+      "item": 11,
+      "text": "`B_RANGE_START_BYTES` (`bytes = older.bytes`): for an older beacon that is an Edit with originalFile or a full-file write, \"its bytes\" could mean the text after the event or its originalFile. `Q_RANGE_BYTES_EQUAL_NEWER` says \"what the newer beacon saw\" (originalFile) for the newer side only."
+    },
+    {
+      "item": 12,
+      "text": "Decision b differs from the live text of: `B_PUZZLE_PICK_BEST_EVENT` (full-file write is ranked), `B_PUZZLE_REPLAY_START` (full-file write is a beacon), `Q_RANGE_BYTES_EQUAL_NEWER` and `Q_CHOICE_RANGE_BYTES_EQUAL_NEWER_CANNOT_TELL` (`Cannot tell: full-file write without originalFile` goes to status `solved` or `pending` without a compare), `B_RANGE_BACKWARD_START` (`or its originalFile`). The map (Check 3) shows: existing code handles a full-file write without old text as a forward beacon but not as a before-state; skipping the event removes a full reset of the bytes. Not decided: skip as a newer beacon only, or drop the event."
+    },
+    {
+      "item": 13,
+      "text": "`B_RANGE_INSERT_USER_EDIT_BEFORE_NEWER` (`Insert a 'user edit' node before the newer beacon. It gets what the newer beacon saw`): \"before\" in list order or in time is not said; which bytes the node holds before it (the replay result) is not said; whether the node splits the saved range into two ranges is not said. The check in 26 follows the reading \"just older than the newer beacon, after-bytes equal to what the newer beacon saw\"."
+    },
+    {
+      "item": 14,
+      "text": "`Q_RANGE_ANY_EDIT_LEFT` (`Is there an edit left to replay/reverse (depending on which engine gets used) between older and newer?`): \"which engine gets used\" is not defined; the backward loop has its own question `Q_RANGE_ANY_EDIT_LEFT_BACKWARD`. `Q_RANGE_ANY_EDIT_LEFT_BACKWARD` says `after a 'user edit' node: stop after the edit that did not apply`, but the forward loop does not say how the failing edit is remembered for the backward loop."
+    },
+    {
+      "item": 15,
+      "text": "`B_RANGE_UNDO_EDIT` (`The next node further in history gets bytes`) and `B_RANGE_SAVE` (`Write the range and its range status`): what is written for each node (all nodes, or only beacons and the 'user edit' nodes) and in which format is not said. The checks in 29 use read-back of the range, the edits and the status only."
+    },
+    {
+      "item": 16,
+      "text": "A git delete commit as the older beacon of a range (`B_RANGE_START_BYTES`): `bytes` absent is not defined for the replay (an edit on absent bytes)."
+    },
+    {
+      "item": 17,
+      "text": "`Q_RANGE_SOLVED_SAVED` (`same bytes of older, same bytes of newer, same events between them`): the key of the saved range is not defined (hash of the bytes? the ids of the events?). With a new store (decision c) the first run has nothing saved, so the Yes branch can be checked only on a second run."
+    },
+    {
+      "item": 18,
+      "text": "`B_PUZZLE_BARRIER` (`the puzzle loop of every included file is finished`): a file that ended at `B_RESEARCH_PUZZLE_EVENTS_FIT_NO_PAIR` flows to `Q_PUZZLE_MORE_FILES` and counts as finished. What is saved for that file is not said."
+    },
+    {
+      "item": 19,
+      "text": "`B_HISTORY_COMPLETE_IN_GIT` (`The change history for this file is complete, and the puzzle for this file is considered solved`) is followed by `Q_NEW_2`, so a \"solved\" file can still be included (after the hash). Whether a solved file is marked in the store when it is included is not said."
+    },
+    {
+      "item": 20,
+      "text": "The order of files inside one group (`B_PROCESS_GROUPS_IN_ORDER`, `B_PUZZLE_NEXT_FILE`: `Take the next file in the current group. advance the group number if the group is finished.`) is not defined; the check in 12 asserts only the non-decreasing group numbers."
+    }
+  ],
+  "scenariosIntro": "Expected result of each stopping point on the 20 recorded scenarios listed in \"How each stopping point is verified\". One sub-section per scenario. Each row: stopping point number, expected value, mark. Marks: \"worked out from the scenario files\", \"guess\", or \"blocked by item N\" (item N of \"Diagram does not say\"). Node names (W1, E1, S1 and so on) are local to the sub-section. `P` is the recorded folder `jfred/scenarios/executed/<scenario>`. A scenario folder with several runs uses its newest run.",
+  "scenarios": [
+    {
+      "name": "s13-multi-edit-code-restore-read",
+      "kind": "echo case",
+      "facts": "Facts: recorded folder `P` has no `.git`; the outer repo is `jfred/scenarios` (13 commits). JSONL `P/f15f77aa-cf2c-4a0a-a15f-73844b883682.jsonl` (120 lines). The JSONL names a temporary working folder from the recording, not `P`. Snapshot folder `jfred/scenarios/file-history/f15f77aa-cf2c-4a0a-a15f-73844b883682`. Files: `scenario13.py` (F, group 8) and `tests/test_scenario13.py` (T, group 8). The other files of `P` are not named in the JSONL (groups 5 and 7). One commit, `9c44354` (2026-07-22), touches F and T: it is newer than the session (2026-06-27).\nF events, oldest first: W1 full-file Write (no originalFile), S1 snapshot v2 (45 bytes), R1 full-file Read (45 bytes), E1 Edit with originalFile (adds `farewell`, 97 bytes), S2 snapshot v3 (97 bytes), then a code restore with no JSONL row, N1 `edited_text_file` notice (the 2 `greet` lines), S3 snapshot v4 (45 bytes, same as S1), R2 Read with result `file_unchanged`. A Bash script run X1 (`pytest tests/test_scenario13.py`) names T. Echo decision: N1 is an echo (its text equals S1 and S3 and R2 says unchanged), not a user edit.",
+      "extraGaps": []
+    },
+    {
+      "name": "s4-overwrite-file",
+      "kind": "full-file writes",
+      "facts": "Facts: recorded folder `P` is inside the repo `jfred/scenarios`. JSONL `P/14e13ef2-7155-46ed-920b-e687d5023280.jsonl` (99 lines). Snapshot folder `jfred/scenarios/file-history/14e13ef2-7155-46ed-920b-e687d5023280` (4 files). The JSONL names an old temporary folder that is gone. Main file `s4_overwrite.py` (group 8), helper `tests/test_s4_overwrite.py` (group 8). The folder has 68 files: 27 tracked, 41 untracked (`__pycache__`, `.pytest_cache`). One commit, `9c44354` (2026-07-22), touches both files; HEAD is `d45a7df`.\nMain file events, oldest first: W1 full-file Write (create, originalFile null, text `version1`), S1 snapshot v1 (backup null: file absent), S2 snapshot v2 (`version1`), W2 full-file Write (update, originalFile = `version1`, text `version2`), S3 snapshot v3 (`version2`). Two `pytest` runs and one `mkdir` are not events of this file. No Read, no partial Edit, no user edit notice.",
+      "extraGaps": [
+        "Extra gaps found here, not in the list of 20: the order of `events` decides whether this file gets one puzzle or ends at `B_RESEARCH_PUZZLE_EVENTS_FIT_NO_PAIR` (points 17 and 18); the mapping of the old temporary paths in the JSONL to `P` is not defined; O (disk modified time 2026-07-17, a copy time) is older than G1 (2026-07-22), so the order is wrong from the start."
+      ]
+    },
+    {
+      "name": "s20-user-edit-code-rewind",
+      "kind": "user edits",
+      "facts": "Facts: recorded folder `P` inside the repo `jfred/scenarios`. JSONL `P/50c1e3f4-d883-48cc-9b40-14c4151be23f.jsonl` (125 lines). Snapshot folder `jfred/scenarios/file-history/50c1e3f4-d883-48cc-9b40-14c4151be23f` (`scenario20.py` = 9e22c90f78eef801 v2 to v5, `tests/test_scenario20.py` = c61a908b4309fa51 v2). The JSONL names an old temporary folder that is gone; the groups below assume its paths map to `P` (with literal paths the temporary paths are group 2 and the copies group 7). Main file `scenario20.py` (group 8), helper `tests/test_scenario20.py` (group 8). Commit `9c44354` (2026-07-22) adds both; disk equals it. Disk text (82 bytes): `add`, `multiply`, `# user tweak`.\nMain file events, oldest first: W1 full-file Write (originalFile null, `add`), S1 snapshot v1 (backup null), UE1 `edited_text_file` notice (`add` + `# user tweak`), S2 snapshot v2 (`add` + tweak), R1 Read `file_unchanged`, E1 Edit with originalFile (`add` + tweak, adds `subtract`), S3 snapshot v3 (add, subtract, tweak). Then the code rewind (no JSONL row; disk returns to the S2 text). After it: N2 notice (`add` + tweak), S4 snapshot v4 (`add` + tweak), R2 Read `file_unchanged`, E2 Edit with originalFile (`add` + tweak, adds `multiply`), S5 snapshot v5 (add, multiply, tweak; equals disk). E1 and S3 sit on the abandoned branch. Script runs: B0 (`ls`, before W1), B1 (`pytest tests/test_scenario20.py`: names only the test file by the name pattern).",
+      "extraGaps": []
+    },
+    {
+      "name": "s15-user-edit-then-conv-rewind",
+      "kind": "user edits",
+      "facts": "Facts: recorded folder `P` inside the repo `jfred/scenarios`. JSONL `P/e7e2b77c-75e5-4743-a2f1-0b0917e972d6.jsonl` (111 lines). Snapshot folder `jfred/scenarios/file-history/e7e2b77c-75e5-4743-a2f1-0b0917e972d6` (2 files). The JSONL names an old temporary folder that is gone; the groups below assume its paths map to `P` (without the mapping the 3 files are group 2). Files, all group 8: F `scenario15.py`, T `tests/test_scenario15.py`, K `conftest.py` (named only by one full Read). Group 7: 36 other tracked files; group 5: 65 cache files; 104 files on disk. Commit `9c44354` (2026-07-22) is newer than the disk copy time (2026-07-17).\nF events: W1 full-file Write (create, 32 bytes), S1 snapshot v1 (no backup), then the rewind point, N1 `edited_text_file` notice (`# user edit` prepended: the one genuine user edit, on the abandoned branch), S2 snapshot v2 (44 bytes), R1 full-file Read `file_unchanged` (after the rewind). Step 4 `Rewind: 1` is conversation-only: the disk keeps `# user edit`. T: W2 Write, S3, S4 snapshots, B1 `pytest` run (a script run). K: Rc full Read (157 bytes). Rewound events count (the diagram has no rewind rule).",
+      "extraGaps": []
+    },
+    {
+      "name": "s49-delete-recreate",
+      "kind": "a file that is gone",
+      "facts": "Facts: newest run log `s49-delete-recreate-run-20260626-214921.txt`. Recorded folder `P` (81 files on disk, 28 tracked, no `.git`), inside the repo `jfred/scenarios`. One JSONL `P/0befad2e-8635-4590-8354-1c37055844e8.jsonl` (107 lines, one chat, no rewind). Snapshot folder `jfred/scenarios/file-history/0befad2e-8635-4590-8354-1c37055844e8` (3 files). The JSONL names an old temporary folder that is gone; the groups below assume its paths map to `P`. The recreate step (prompt 4) is not in the JSONL: the file is never recreated. Commit `9c44354` (newer than the session) touches T and the step-state copies, not F.\nF `m4_lifecycle.py`: disk no, git no, JSONL yes = group 2. T `tests/test_m4_lifecycle.py`: disk yes, git yes, JSONL yes = group 8. 27 other tracked files = group 7, 53 untracked cache files = group 5.\nF events, oldest first: S1 snapshot v1 (backup null: absent before create), W1 full-file Write (create, 23 bytes), S2 snapshot v2, R1 full-file Read (23 bytes), E1 Edit with originalFile (adds `v1_helper`, 62 bytes), S3 snapshot v3 (62 bytes), X1 script run `rm m4_lifecycle.py` (names F), S4 and S5 snapshots v4 and v5 (backup null: the file is gone). The delete shows only as X1 plus the null snapshots. T events: S1t (null), W2 Write (66 bytes), X2 `pytest tests/test_m4_lifecycle.py` (names T, not F), S2t snapshot v2, G1t commit `9c44354`, Ot disk.",
+      "extraGaps": [
+        "Extra gaps found here, not in the list of 20: a snapshot with `backupFileName` null (file absent) as a beacon or an 'absent' node (decision a says no absent node, but the delete is recorded only by such rows and by the Bash `rm`); the instant of a Write or Edit (tool_use time or tool_result time) against its snapshot time; whether a snapshot entry repeated in later rows counts once; whether a Bash `rm` that names F is a script run or the delete event itself."
+      ]
+    },
+    {
+      "name": "s12-write-conv-only-rewrite",
+      "kind": "full-file writes",
+      "facts": "Facts: newest run log `s12-write-conv-only-rewrite-run-20260627-090601.txt`. Recorded folder `P` (95 files on disk: 36 tracked, 59 caches; no `.git`), inside the repo `jfred/scenarios`. One JSONL `P/66c72c9c-8c76-461e-91ae-8f83220c0c30.jsonl` (132 lines, one chat). Snapshot folder `jfred/scenarios/file-history/66c72c9c-8c76-461e-91ae-8f83220c0c30` (4 files). The JSONL names an old temporary folder that is gone; the groups assume its paths map to `P`. Commit `9c44354` (newer than the session) touches both files. F `scenario12.py` and T `tests/test_scenario12.py` are group 8; 34 other tracked files are group 7; 59 caches group 5.\nF events, oldest first: W1 full-file Write (create, `add`, 32 bytes), S0 snapshot v1 (null: absent), X1 script run `pytest tests/test_scenario12.py` (names T, not F), S1 snapshot v2 (`add`), then a conversation-only rewind (no JSONL row; the shared `parentUuid` shows the fork; disk keeps `add`), R1 full-file Read (`add`), W2 full-file Write (update, originalFile `add`, text `multiply`, 37 bytes), X2 pytest, S2 snapshot v3 (`multiply`), G1 commit `9c44354` (`multiply`, equals disk). No notice, no partial Edit, no user edit. Decision b: W1 (originalFile null) is skipped; W2 has originalFile and is kept. Rewound events still count (no rewind rule).",
+      "extraGaps": [
+        "Extra gaps found here, not in the list of 20: the order of `events` changes the route of points 17 and 18; a snapshot row with `backupFileName` null (S0, S0t): event or not; whether a read-only test run is a script run; whether events before a conversation-only fork still count; the mapping of the old temporary paths to `P`."
+      ]
+    },
+    {
+      "name": "s1-delete-file",
+      "kind": "a file that is gone",
+      "facts": "Facts: newest run log `s1-delete-file-run-20260627-090400.txt`. Recorded folder `P` (59 files on disk, no `.git`), inside the repo `jfred/scenarios`. One JSONL `P/a35bc28e-3687-4c06-ac02-2c4daebc964b.jsonl` (93 lines, no rewind, no notice). Snapshot folder `jfred/scenarios/file-history/a35bc28e-3687-4c06-ac02-2c4daebc964b` (2 files). The JSONL names an old temporary folder that is gone; the groups assume its paths map to `P`. Commit `9c44354` (newer than the session) touches T, `conftest.py` and the JSONL; no commit ever touches the deleted file.\nF `s1_delete.py`: disk no, git no, JSONL yes = group 2. T `tests/test_s1_delete.py` and K `conftest.py` = group 8. 16 other tracked files = group 7; 41 caches = group 5.\nF events, oldest first: W1 full-file Write (create, 32 bytes), S1 snapshot v1 (null), X1 script run `pytest tests/test_s1_delete.py` (names T only), S2 snapshot v2 (32 bytes), X2 script run `rm s1_delete.py tests/test_s1_delete.py` (names F and T: the only record of the delete), S3 and S4 snapshots v3 and v4 (null: the file is gone). Node 0 is S4, a snapshot of an absent file; if it does not count as a beacon, node 0 is S2.",
+      "extraGaps": [
+        "Extra gaps found here, not in the list of 20: (1) a snapshot with `backupFileName` null as a beacon with absent bytes (decision a forbids an absent node 0, yet the newest events are such snapshots); (2) W1's tool_use time (26.620) is older than S1's backup time (26.654) although S1 holds the pre-write state, so (S2,S1) gets a false 'user edit' node; (3) what a \"script run\" is (the code counts every Bash call, so the `rm` that did the delete is only a script run and no event); (4) the order of `events`, and whether node 0 stays in `events`. Also T is on disk although the recorded `rm` deleted it (the disk time is a copy time), so Ot is not the session-end state."
+      ]
+    },
+    {
+      "name": "s7-minimal-code-restore",
+      "kind": "edits and a rewind",
+      "facts": "Facts: newest run log `s7-minimal-code-restore-run-20260627-091612.txt`. Recorded folder `P` (126 files on disk: 31 tracked, 95 untracked caches and step copies; no `.git`), inside the repo `jfred/scenarios`. One JSONL `P/62532c18-e828-4ae1-ab47-7863aeb63c70.jsonl` (113 lines). Snapshot folder `jfred/scenarios/file-history/62532c18-e828-4ae1-ab47-7863aeb63c70` (2 files). The JSONL names an old temporary folder that is gone; the groups assume its paths map to `P`. The script has no Edit step: the JSONL has only Writes, snapshots and Bash. Commit `9c44354` (newer than the session) adds both files. F `scenario7.py` and T `tests/test_scenario7.py` are group 8.\nF events, oldest first: W1 full-file Write (create, 56 bytes), S1 snapshot v1 (null: absent), X1 `pytest tests/test_scenario7.py` (names T only; abandoned branch), then the rewind with code restore (no JSONL row; it shows only as snapshot v2 with a null backup), S2 snapshot v2 (null: absent), W2 full-file Write (create, originalFile null, 115 bytes), X2 pytest, S3 snapshot v3 (115 bytes), S3' a repeat of the v3 record, G1 commit `9c44354` (115 bytes). Before the rewind: W1, S1, X1. Rewound events still count (no rewind rule). Base puzzle, newest first: `[O, G1, S3, W2, S2, S1, W1]` (W1 ordered by its tool_use time; if by its result time, W1 and S1 swap).",
+      "extraGaps": [
+        "Extra gaps found here, not in the list of 20: the instant of a Write (tool_use time or result time) against its snapshot, and S3 and S3' sharing one backup time (an equal instant); a snapshot with `backupFileName` null and a create-Write with originalFile null are known absent states, unlike decision b's \"no old text\"; the diagram has no rewind rule (the code restore leaves no JSONL row); whether a pytest run naming only T is a script run for F."
+      ]
+    },
+    {
+      "name": "s18-user-edit-no-rewind",
+      "kind": "user edits",
+      "facts": "Facts: newest run log `s18-user-edit-no-rewind-run-20260627-090950.txt`. Recorded folder `P` (78 files on disk: 30 tracked, 48 untracked; no `.git`), inside the repo `jfred/scenarios`. One JSONL `P/a8e487f0-b1dc-49b7-ae0a-b347b5ccf69a.jsonl` (102 lines, one chat, no rewind). Snapshot folder `jfred/scenarios/file-history/a8e487f0-b1dc-49b7-ae0a-b347b5ccf69a` (3 files). The JSONL names an old temporary folder that is gone; the groups assume its paths map to `P`. Commit `9c44354` (newer than the session) tracks 30 files of `P`. F `scenario18.py` and T `tests/test_scenario18.py` are group 8; 28 others group 7; 48 untracked group 5.\nF events, oldest first: W1 full-file Write (create, 45 bytes), S1 snapshot v1 (null: absent), X1 `pytest tests/test_scenario18.py` (names T; \"scenario18.py\" is only a substring of the path), N1 `edited_text_file` notice (the whole file, 61 bytes, `# user was here` on line 1: the one genuine user edit), S2 snapshot v2 (61 bytes), R1 Read `file_unchanged` (no bytes), E1 Edit with originalFile (61 bytes, adds `farewell`, 113 after), S3 snapshot v3 (113 bytes, record repeated once). T events: Wt Write (93 bytes), St1 (null), St2 (93 bytes). Expected puzzle with the node: `[O, G1, S3, E1, (R1), S2, (N1), u, S1, W1]`, u = 'user edit', 45 to 61 bytes, just older than S2.",
+      "extraGaps": [
+        "Extra gaps found here, not in the list of 20: which time is an event's instant (tool_use row, tool_result row or snapshot backup time: W1 at 13.858 against S1 at 13.908 flips S1 and W1); a snapshot with `backupFileName` null as a beacon with what bytes; a Read `file_unchanged` and a notice with the whole file as a snippet (full-file read or not); the rule that decides whether a script run \"names\" F (\"tests/test_scenario18.py\" contains \"scenario18.py\")."
+      ]
+    },
+    {
+      "name": "s16-multi-edit-code-restore-re-edit",
+      "kind": "edits and a rewind",
+      "facts": "Facts: newest run log `s16-multi-edit-code-restore-re-edit-run-20260627-090819.txt` (8 steps, 1 abandoned branch). Recorded folder `P` (39 tracked files plus 65 ignored caches; no `.git`), inside the repo `jfred/scenarios`. One JSONL `P/20aa9aea-1b24-4b94-816e-1e1a1b5f322f.jsonl` (112 lines, one chat). Snapshot folder `jfred/scenarios/file-history/20aa9aea-1b24-4b94-816e-1e1a1b5f322f` (5 files). The JSONL names an old temporary folder that is gone; the groups assume its paths map to `P`. Commit `9c44354` (newer than the session) is the only commit. F `scenario16.py` and T `tests/test_scenario16.py` are group 8; 37 others group 7; 65 caches group 5. Notation: G = greet only, GF = greet + farewell, GS = greet + shout (disk = GS, 88 bytes).\nF events, oldest first: S1 snapshot v1 (null), W1 full-file Write (create, G), S2 snapshot v2 (G), R1 full-file Read (all 3 lines, G), E1 Edit with originalFile (G to GF), S3 snapshot v3 (GF), then the code rewind to G (no JSONL row; it shows only as N1, S4 and a byte mismatch), N1 `edited_text_file` notice (G), S4 snapshot v4 (G), E2 Edit with originalFile (G to GS), S5 snapshot v5 (GS), G1 commit `9c44354` (GS). E1 and S3 are on the abandoned branch (proved by the shared `parentUuid`); they still count. Bash runs: X1 `ls` (errored), X2 `mkdir -p tests`, X3 `pytest tests/test_scenario16.py -v` (names only the test file).",
+      "extraGaps": [
+        "Extra gaps found here, not in the list of 20: time inversion (G1 newer than O, both newer than every JSONL event; the repo holds other scenarios); a code rewind leaves no edit event, so the restore becomes a 'user edit' node and the diagram has no rewind concept; the order of \"first event\" in the pick; whether a script run is any Bash run; the path mapping (the folder encoding turns the dot into `-`, while Check 1 names only the space); step copies in `.step_states` and `.abandoned_branches` hold copies of F (are they files to reconstruct?)."
+      ]
+    },
+    {
+      "name": "s21-multiple-user-edits",
+      "kind": "user edits",
+      "facts": "Facts: newest run log `s21-multiple-user-edits-run-20260627-091208.txt`. Recorded folder `P` (113 files on disk, 42 in git; no `.git`), inside the repo `jfred/scenarios`. One JSONL `P/9e91487b-61c5-4506-bb1a-48f8cd3a19f8.jsonl` (120 lines, one chat, no rewind). Snapshot folder `jfred/scenarios/file-history/9e91487b-61c5-4506-bb1a-48f8cd3a19f8` (4 files). The JSONL names an old temporary folder that is gone; the groups assume its paths map to `P`. Commit `9c44354` (newer than the session) adds both files. F1 `scenario21.py` and F2 `tests/test_scenario21.py` are group 8; 40 harness and step-state files group 7; 71 caches group 5.\nF1 events, oldest first: S0 snapshot v1 (null), W1 full-file Write (create), X1 `mkdir -p tests`, X2 `pytest tests/test_scenario21.py -q` (names only the test path), U1 user edit notice (4 lines: `increment` added), S1 snapshot v2 (4 lines), R1 Read `file_unchanged` (no bytes), E1 Edit with originalFile (adds `decrement`), U2 notice (6 lines: `reset` added), S2 snapshot v3, E2 Edit with originalFile (adds `get_count`), U3 notice (8 lines: `# Counter class` prepended), S3 snapshot v4 (8 lines = disk; record repeated once), R2 Read `file_unchanged`, G1 commit (bytes = disk). F2 events: W2 Write, S0' (null), X2, T1 snapshot v2, G1. The notices are real user edits, not echoes.",
+      "extraGaps": [
+        "Extra gaps found here, not in the list of 20: O's time (copy time, 07-17) is older than G1 (07-22); a Read result `file_unchanged` has no bytes (neither full nor partial Read); a null-backup snapshot and a repeated snapshot record: event or not; the order of `events` for the pick; how a Bash command \"names\" F (substring or path)."
+      ]
+    },
+    {
+      "name": "s39-git-baseline-seed",
+      "kind": "git commits as beacons",
+      "facts": "Facts: the only run log `s39-git-baseline-seed-run-20260626-205257.txt` (6 steps). Recorded folder `P` has its own nested git repo (its own top level, branch `master`, zero commits: HEAD unborn; no baseline commit and no `feature` branch, because chat 1 ended after `git add`). The index holds `orders.py` (= W1 content), `tests/conftest.py` and `tests/test_orders.py`. So no commit beacon exists in `P`. The outer repo `jfred/scenarios` has commit `9c44354` (newer than the session), unused because the nested repo is the top level. Two JSONLs in `P`: chat 1 (seed chat) `b9783f4b-5828-46c3-b721-98dccaf26fd6` and chat 2 `81e41fb9-e174-4ad4-9065-265d8088affa` (started by step 2; no overlap in time: chat 1, then chat 2). `jsonl_path.txt` names only chat 2. Snapshot folder `jfred/scenarios/file-history/81e41fb9-...` (2 files); chat 1 has none (its snapshot rows have null backups). The JSONL names an old temporary folder that is gone; the groups assume its paths map to `P`.\nF `orders.py`: disk yes (444 bytes = v2), git no (index only), JSONL yes = group 6. T `tests/test_orders.py` (152 bytes): group 6. 36 other disk files (18 under `.step_states` and `.plate`, ignored by `.gitignore`): group 5.\nF events, oldest first (instants are a guess: snapshot = backup time, Edit = result time): chat 1: X1 `git init`, X2 `ls`, X3 `mkdir tests` (none names F), W1 full-file Write (create, 299 bytes), N0 snapshot row with null backup (no bytes), X4 `git add orders.py tests/` (names F). Chat 2: R1 full Read (299 bytes), E1 Edit with originalFile (adds `count()`), S1 snapshot v1 (299 bytes), S2 snapshot v2 (444 bytes), S3 repeat of S2. T: W2 Write. No rewind, no user edit notice, no echo. O = disk (2026-07-17), newer than every event.",
+      "extraGaps": [
+        "Extra gaps found here, not in the list of 20: a nested repo with no commit (the derive of the git hash fails; are staged index blobs beacons?); the instant of a snapshot (backup time against record time) and of an Edit (call against result) changes the order of S1 and E1; S3 repeats S2; what a script run is (X4 `git add orders.py` cannot modify F but names it, and the window of a range with no older beacon is unsaid); the order of `events`; whether a file named only in `ls` text is \"named in the JSONL\"."
+      ]
+    },
+    {
+      "name": "s63-compact-basic",
+      "kind": "a compacted chat",
+      "facts": "Facts: the only run log `s63-compact-basic-run-20260626-135753.txt` (7 steps: Write, Edit, `/compact`, Edit, Thanks, Exit; no rewind). Recorded folder `P` (27 files on disk; no `.git`), inside the repo `jfred/scenarios`. One JSONL `P/aeb93aca-4ebd-480d-8d75-05a2ba355d51.jsonl` (105 lines). Snapshot folder `jfred/scenarios/file-history/aeb93aca-4ebd-480d-8d75-05a2ba355d51` (v2 to v4; v1 has a null backup). The JSONL names an old temporary folder that is gone; the groups assume its paths map to `P` (unmapped: the temporary path is group 2 and `P/greet.py` group 7). Commit `9c44354` (newer than the session) adds `greet.py` (149 bytes, the final text). F `greet.py` is group 8; 24 other tracked files group 7; 2 caches group 5.\nCompaction: `compact_boundary` is line 58 (manual, preserved segment = lines 48 to 51), line 59 is the summary, line 63 is a post-compact `file` attachment. No file changes at the boundary. Events before it still count (the log is append-only and the files really changed; it is not a rewind). F events, oldest first: W1 full-file Write (create), S1 snapshot v1 (null), S2 snapshot v2 (46 bytes), E1 Edit with originalFile (46 to 99 bytes), A1 the post-compact `file` attachment (full content, 99 bytes), S3 snapshot v3 (99 bytes), R1 Read `file_unchanged`, E2 Edit with originalFile (99 to 149 bytes), S4 snapshot v4 (149 bytes). No Bash call, no notice. Puzzle at point 19 (W1 at its result time, A1 and R1 left out): `[O, G1, S4, E2, S3, E1, S2, W1, S1]`.",
+      "extraGaps": [
+        "Extra gaps found here, not in the list of 20: the diagram has no rule for `compact_boundary` or the summary line, and the post-compact `file` attachment A1 is not a named event kind; the instant of a Write or Edit (for W1 the tool_use time is older than S1's backup time, which contradicts cause and effect); the mapping of the temporary path to `P`; a null-backup snapshot as a node (item 16 covers only a git delete commit)."
+      ]
+    },
+    {
+      "name": "s40-git-baseline-user-edits",
+      "kind": "git commits as beacons, with user edits",
+      "facts": "Facts: the only run log `s40-git-baseline-user-edits-run-20260626-205913.txt` (9 steps, no rewind). Recorded folder `P` has its own nested `.git`: no commit exists and no `feature` branch (chat A ended at `git add`); only 3 staged blobs. The outer repo has commits `8639234` (script only) and `9c44354` (2026-07-22), newer than the session and not used (the engine's git folder is `P`). Two JSONLs: A (seed chat) `632219aa-61df-4f6b-ba90-6f100c4ef853` (excluded by the recording: `jsonl_path.txt` lists only B) and B `12136035-6bb7-4c80-8b6e-8e16e6f58ed2` (later chat); no overlap, A then B. Snapshot folder `jfred/scenarios/file-history/12136035-...` (v1 and v2 only; A has no snapshot folder). 43 files on disk without `.git`. F `orders.py` and T `tests/test_orders.py`: disk yes, git no (index only), JSONL yes = group 6. The 41 other files = group 5.\nF events, oldest first: W1 full-file Write (A, create, 286 bytes) with a null-backup snapshot S0, X1 `git add orders.py tests/` (A; names F, writes nothing), then user edit U1 (no JSONL event: `# reviewed by ops`, 286 to 304 bytes), R1 full Read (B, 304 bytes), E1 Edit with originalFile (B, 304 to 409 bytes, adds `subtotal`), S1 snapshot v1 (304 bytes, the pre-edit state), user edit U2 (no JSONL event: `# checked`, 409 to 419 bytes), N1 `edited_text_file` notice (B), S2 snapshot v2 (419 bytes). O = disk, 419 bytes, 2026-07-17. \"Case A\": E1 is a beacon at its result time and X1 is not a script run. \"Case B\": X1 counts as a script run.",
+      "extraGaps": [
+        "Extra gaps found here, not in the list of 20: a repo with no commit (the hash derive and staged index blobs); a null-backup snapshot (event, beacon or absent marker); the instant of an Edit (tool_use or tool_result) flips E1 and S1; whether a Bash that names F without writing it is a script run; the engine must accept an excluded-but-present JSONL (chat A)."
+      ]
+    },
+    {
+      "name": "s58-concurrent-over-git-baseline",
+      "kind": "git commits as beacons, two chats on one file",
+      "facts": "Facts: the only run log `s58-concurrent-over-git-baseline-run-20260626-133848.txt` (11 steps). Recorded folder `P` has its own `.git` with one commit G1 `4ed29b9236e07c23de93acba67a5afbfbdc78461` \"baseline\" (2026-06-26 20:40:38Z, epoch 1782506438; branches `feature` and `master` both at G1; holds `orders.py` 157 bytes, `tests/conftest.py`, `tests/test_orders.py`). Two chats, both write `orders.py`, no rewind, no compact: a1 `8675d994-22e3-4f7f-82c0-6ed8abe471a5` (first chat) and a2 `f563bade-953b-450b-98c4-480186426b72` (second chat, branch `feature`); merge by time. Snapshot folders `jfred/scenarios/file-history/8675d994-...` and `.../f563bade-...` (the same name `orders.py@v2` holds different bytes in the two: 290 and 407 bytes). 49 files on disk without `.git`. F `orders.py` (510 bytes on disk) and T `tests/test_orders.py` (164 bytes) = group 8. `tests/conftest.py` = group 7. The other 46 = group 5. The outer repo commit `9c44354` is newer than the session and unused.\nF events, oldest first: W1 (a1, full-file Write, 157 bytes), S0 (null-backup snapshot), X1 `git add orders.py tests` (names F), G1 commit, R1 (a2, full Read, 157 bytes), E1 (a2, Edit `count`, originalFile 157), Sa1 (a2 snapshot, 157, pre-edit), N1 (a1 notice of E1's result), Sb1 (a1 snapshot 290), Rb (a1 Read stub), E2 (a1, Edit `names`, originalFile 290), N2 (a2 notice of E2's result), Sa2 (a2 snapshot 407), Ra (a2 Read stub), E3 (a2, Edit `subtotal`, originalFile 407), N3 (a1 notice, partial snippet), Sb2 (a1 snapshot 510), Sa3 (a2 snapshot 510). The notices N1 to N3 are other-chat echoes (each equals an edit result of the other chat). Edit instants use the tool_use time, except E1 at its result time (Sa1 holds pre-edit bytes).",
+      "extraGaps": [
+        "Extra gaps found here, not in the list of 20: the instant of an Edit (tool_use time or result time; Sa1 sits between them, so with tool_use time E1 lands older than Sa1 and (Sa1,E1) would mismatch); a null-backup snapshot and repeated snapshot records (the dedupe key; the same backup name holds different bytes in two session folders); whether a Bash that only names F is a script run; a group 5 file with the single node `[O]` (is there one range); the notices of one chat about edits of the other chat need the other JSONL to be explained."
+      ]
+    },
+    {
+      "name": "s78-sayqueued-read-beacon",
+      "kind": "a full-file read as a beacon",
+      "facts": "Facts: the only run log `s78-sayqueued-read-beacon-run-20260701-134522.txt` (6 steps). Recorded folder `P` (39 files on disk, 37 tracked; no `.git`), inside the repo `jfred/scenarios`. One JSONL `P/e37929d3-bfce-4145-8167-fe8d9e28a253.jsonl` (104 lines, one chat, no rewind). Snapshot folder `jfred/scenarios/file-history/e37929d3-bfce-4145-8167-fe8d9e28a253` (3 files: alpha 77, beta 76, gamma 77 bytes). The JSONL names an old temporary folder that is gone; the groups assume its paths map to `P`. Commit `9c44354` (2026-07-22, newer than the session) adds all 37 tracked files. Main files `alpha.py`, `beta.py`, `gamma.py`: disk yes, git yes, JSONL yes = group 8 (all equal to the Write content); 34 tracked others group 7; 2 `.pyc` group 5. Rows 13 to 31 give `alpha.py`; `beta.py` and `gamma.py` differ only in times.\nEvents per file, oldest first: W1 full-file Write (create), N1 snapshot rows with null backup (file did not exist; no bytes), S1 snapshot with bytes (3 records point to the same backup), R1 full-file Read (no offset or limit, 7 of 7 lines). The `SayQueued` line is only a queued-command attachment, not a file event. No Edit, no notice, no Bash, no rewind. O = disk (2026-07-17), G1 = commit (2026-07-22).",
+      "extraGaps": [
+        "Extra gaps found here, not in the list of 20: O's time (07-17) is older than G1 (07-22), so node 0 is not the newest node in all 39 files that have a commit; a null-backup snapshot and 3 records pointing to one backup (dedupe, \"absent\"); the order of `events`; Read text (line-number form) to file bytes; a file named in the JSONL outside `P` (an `opened_file_in_ide` path: is it group 2?)."
+      ]
+    },
+    {
+      "name": "s5-bash-redirect",
+      "kind": "script runs",
+      "facts": "Facts: newest run log `s5-bash-redirect-run-20260627-091526.txt` (6 steps). Recorded folder `D` (25 files on disk, 23 tracked; no `.git`), inside the repo `jfred/scenarios`. One JSONL `D/1efc63be-c793-4f89-8401-e1c717f3d6e9.jsonl` (75 lines, one chat, no rewind). Snapshot folder `jfred/scenarios/file-history/1efc63be-...` (v2 to v4). The JSONL names an old temporary folder that is gone; the groups assume its paths map to `D`. Commit `9c44354` (newer than the session) is the only commit. Main file `s5_redirect.txt`: disk yes (`replaced content`, 17 bytes, 2026-07-17), git yes, JSONL yes = group 8. 22 helper files = group 7; 2 `.pyc` = group 5.\nEvents, oldest first: S0 snapshot v1 (null), W1 full-file Write (create, `line one`), S1 snapshot v2 (`line one`), X1 script run `echo \"line two\" >> s5_redirect.txt` (appends), N1 `edited_text_file` notice (echoes X1's append, not a real user edit), S2 snapshot v3 (`line one` + `line two`), X2 script run `echo \"replaced content\" > s5_redirect.txt` (overwrites), S3 snapshot v4 (`replaced content`), G1 commit (same bytes), O disk. Both Bash calls are script runs by the code (`listRunsInRecord` at `src/reconstruction_script_execution.ts:92` takes every Bash call; errored ones are dropped; `isFileNamedByScriptInWindow` matches the basename in the command). No Edit, no Read.",
+      "extraGaps": [
+        "Extra gaps found here, not in the list of 20: O's time (copy time) is older than G1 but newer than the chat; the git folder is the repo of all scenarios (is the history filtered to `D`: the whole repo would add many files to point 6); which time is an event's instant (here the order holds with any choice); script-run matching is by basename, so X1 and X2 also \"name\" the 6 `.step_states/step-00N/s5_redirect.txt` helper copies (group 7; no effect here)."
+      ]
+    },
+    {
+      "name": "s53-concurrent-two-agents",
+      "kind": "two chats on one file",
+      "facts": "Facts: the only run log `s53-concurrent-two-agents-run-20260626-132514.txt` (10 steps, no rewind). Recorded folder `P` (34 files: 32 tracked, 2 untracked `.pyc`; no `.git`), inside the repo `jfred/scenarios`. Two chats on one file, both in `P`: chat A `36f8d5ab-8760-48e7-ace3-be5778ea31ea` (Write, then Edit `mul`) and chat B `83260725-bcbc-46a1-8fd2-f2a532487a61` (Edit `sub`); merge by time. Snapshot folders `jfred/scenarios/file-history/<session id>` (A: v2, v3; B: v1 to v3; B's v2 and v3 are byte-identical to A's). The JSONLs name an old temporary folder that is gone; the groups assume its paths map to `P`. Commit `9c44354` (newer than the session) is the only commit. F `notes.py` (194 bytes, disk yes, git yes, JSONL yes) = group 8; 31 others group 7; 2 `.pyc` group 5.\nF events (Edit instant = tool_result time), oldest first: SA1 snapshot v1 (A, null), W1 (A, full-file Write, 78 bytes), R1 (B, full Read, 78), SB1 (B snapshot, 78), E1 (B, Edit with originalFile 78, adds `sub`, 136 after), SB2 (B snapshot 136), N1 (A notice with B's edit text 136 bytes: not a real user edit), SA2 (A snapshot 136), R2 (A Read `file_unchanged`), E2 (A, Edit with originalFile 136, adds `mul`, 194 after), SA3 (A snapshot 194), SB3 (B snapshot 194). No script runs, no rewind.",
+      "extraGaps": [
+        "Extra gaps found here, not in the list of 20: the instant of an Edit and of a snapshot (with E1 at its tool_use time the pre-edit snapshot SB1 lands newer than E1 and range (SB2,SB1) gets a false 'user edit' node; the tool_result time avoids it); a null-backup snapshot (SA1) and a Read `file_unchanged` (R2) as events; a commit newer than disk node 0 (item 2 covers only decision a); merging two JSONLs in one folder by time is not stated in the diagram."
+      ]
+    },
+    {
+      "name": "s56-concurrent-with-user-edit",
+      "kind": "two chats on one file, plus a user edit",
+      "facts": "Facts: the only run log `s56-concurrent-with-user-edit-run-20260626-133417.txt` (12 steps, no rewind, no Bash step). Recorded folder `P` (38 files on disk; no `.git`), inside the repo `jfred/scenarios`. Two chats on one file, both in `P`: chat A `8ebcb96c-636d-4f51-a01d-96fec01efb09` and chat B `674dfd28-37b2-4e1e-a49e-1d5cda37bbe3` (spawned at step 2). Snapshot folders `jfred/scenarios/file-history/<session id>`. The JSONLs name an old temporary folder that is gone; the groups assume its paths map to `P`. Commit `9c44354` (newer than the session) is the only commit. F `inventory.py` (498 bytes) = group 8; 35 others group 7; 2 `.pyc` group 5.\nF events, merged by time: S0 (A, snapshot v1, null), W1 (A, full-file Write, 134 bytes), R1 (B, full Read, 134), S1 (B, snapshot 134), E1 (B, Edit with originalFile 134, adds `remove_item`, 299 after), U1 (user edit `# reviewed by ops`, 317 bytes; no JSONL row, seen only through N1), N1 (A notice: E1 + U1), S2 (A, snapshot 317), RA1 and RA2 (A Reads `file_unchanged`), E2 (A, Edit with originalFile 317, adds `find_item`, 488 after), U2 (user edit `# checked`, 498 bytes; no row, seen through N2), N2 (B notice: U1 + E2 + U2), S3 (B, snapshot 498), N3 (A notice: `# checked` only), S4 (A, snapshot 498). No script runs. Each chat's notice shows the other chat's edit plus the user edit together.",
+      "extraGaps": [
+        "Extra gaps found here, not in the list of 20: which instant an event carries (B's S1 backup time lies between E1's tool_use and result time; likewise S0 against W1); a null-backup snapshot (S0) as a beacon and the two Reads `file_unchanged` (RA1, RA2); with two chats on one file each chat's notice shows the other chat's edit plus the user edit together, and the diagram does not say whether to merge events across JSONLs by time or compare per chat; duplicate snapshot rows as one event."
+      ]
+    },
+    {
+      "name": "s24-script-rename-functions",
+      "kind": "script runs",
+      "facts": "Facts: the only run log `s24-script-rename-functions-run-20260626-192943.txt` (9 steps). Recorded folder `P` (no `.git`), inside the repo `jfred/scenarios`. One JSONL `P/5f9e12bd-6c24-4a0b-92f9-3bf8ff90949e.jsonl` (161 lines, one chat, no rewind, no compaction). Snapshot folder `jfred/scenarios/file-history/5f9e12bd-6c24-4a0b-92f9-3bf8ff90949e` (7 files). The JSONL names an old temporary folder that is gone; the groups assume its paths map to `P`. Commit `9c44354` (newer than the session) adds the 3 files. Group 8: `order_utils.py` (F, 3733 bytes), `tests/test_order_utils.py`, `rename_funcs.py`. Harness files and 9 `.step_states` copies of F = group 7; caches group 5. The step 5 prompt never reached the JSONL.\nF events, oldest first: W1 full-file Write (2827 bytes), S1 snapshot v1 (null), S2 snapshot v2, R1 full Read (104 of 104 lines), E1 Edit with originalFile (adds `validate_items`), S3 snapshot v3 (3108 bytes), R2 partial Read (not an event), E2 Edit with originalFile (adds `order_line`), S4 snapshot v4 (3410), X1 script run `python3 rename_funcs.py` (rewrites F only: 3410 to 3518 bytes, 5 whole-word renames), U1 `edited_text_file` notice (partial 96-line snippet, 19 ms after X1 ends), S5 snapshot v5 (3518), R3 partial Read (not an event), E3 Edit with originalFile (adds `apply_loyalty`), S6 snapshot v6 (3733 = disk). Script runs: Bash 1 `ls` (not a script run); Bash 2 `python -m pytest tests/test_order_utils.py -v` (names only the test file; a script run only if \"script run\" means any Bash call); Bash 3 = X1.",
+      "extraGaps": [
+        "Extra gaps found here, not in the list of 20: \"script run in a range\" has no definition (any Bash call, one naming F, or one that writes F; Bash 2 and X1 give different statuses); O's time (copy time, Jul 17) is older than G1 (Jul 22); the instant of an event (for W1 the null backup S1 falls between its tool_use and result time); the first event taken in `B_PUZZLE_PICK_OLDER_EVENT`; whether harness files belong in the file list at point 6."
+      ]
+    }
+  ],
+  "history": "The 32 stopping points and their scenario values were removed by the user on 2026-11-21. The checkpoint notes of puzzle-solver-rules.mmd replace them."
+}

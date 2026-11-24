@@ -220,6 +220,7 @@ export enum TuiCommand {
     ToggleMarkerBoxScope = "toggleMarkerBoxScope",
     ToggleGuessFilter = "toggleGuessFilter",
     PlayScript = "playScript",
+    Quit = "quit",
     SetEventSpeed = "setEventSpeed",
     ViewFile = "viewFile",
     OpenConsole = "openConsole",

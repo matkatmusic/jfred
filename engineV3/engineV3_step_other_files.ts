@@ -28,7 +28,8 @@ export function walkOtherFilesToTheEnd(input: WalkOtherFilesInput): WalkedOtherF
     const { projectFolder, replayFiles, replayedProjectFile, storeFolder, transcriptsToParse, fileHistoryFolders, reportProgress, earliestBoundary } = input;
     const otherFiles = replayFiles.filter((projectFile) => !projectFile.file.equals(replayedProjectFile.file));
     // buildOnDemandInverseReposForFiles(projectFolder, otherFiles, transcriptsToParse, storeFolder, new Date(), () => {});
-    buildOnDemandInverseReposForFiles(projectFolder, otherFiles, transcriptsToParse, storeFolder, new Date(), () => {}, earliestBoundary);
+    // buildOnDemandInverseReposForFiles(projectFolder, otherFiles, transcriptsToParse, storeFolder, new Date(), () => {}, earliestBoundary);
+    buildOnDemandInverseReposForFiles(projectFolder, otherFiles, transcriptsToParse, storeFolder, new Date(), () => {}, earliestBoundary, earliestBoundary?.repoFolder);
     // const getEvents = createProjectEventsLoader(replayFiles, transcriptsToParse, [fileHistoryFolder]);
     // const getEvents = createProjectEventsLoader(replayFiles, transcriptsToParse, fileHistoryFolders);
     const getEvents = createProjectEventsLoader(replayFiles, transcriptsToParse, fileHistoryFolders, earliestBoundary);

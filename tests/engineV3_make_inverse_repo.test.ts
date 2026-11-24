@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { copyFileSync, mkdtempSync } from "node:fs";
+import { copyFileSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -150,4 +150,106 @@ test("test_a_source_commit_with_two_parents_throws", () => {
     runGit(repoFolder, ["update-ref", "HEAD", mergeHash]);
     // the function throws.
     assert.throws(() => makeInverseRepo(new Path(repoFolder)), /2 parents/);
+});
+
+type DeletedFileStep = { subject: string; writes: Record<string, string>; removes: string[] };
+
+// The user's example: A is on disk at HEAD; B is created, changed, then removed.
+const DELETED_FILE_STEPS: DeletedFileStep[] = [
+    { subject: "initial commit", writes: { ".gitignore": "node_modules\n" }, removes: [] },
+    { subject: "A created, B created", writes: { "A.txt": "A one\n", "B.txt": "B one\n" }, removes: [] },
+    { subject: "A changed", writes: { "A.txt": "A two\n" }, removes: [] },
+    { subject: "B changed", writes: { "B.txt": "B two, longer\n" }, removes: [] },
+    { subject: "B removed", writes: {}, removes: ["B.txt"] },
+    { subject: "A changed again", writes: { "A.txt": "A three\n" }, removes: [] },
+];
+
+function buildDeletedFileRepo(): Path {
+    const repoFolder = mkdtempSync(join(tmpdir(), "make-inverse-deleted-"));
+    runGit(repoFolder, ["init", "-q"]);
+    for (const [index, step] of DELETED_FILE_STEPS.entries()) {
+        for (const [fileName, text] of Object.entries(step.writes)) {
+            writeFileSync(join(repoFolder, fileName), text);
+        }
+        for (const fileName of step.removes) {
+            rmSync(join(repoFolder, fileName));
+        }
+        runGit(repoFolder, ["add", "-A"]);
+        const dateText = `${1_700_000_000 + index * 60} +0000`;
+        runGit(repoFolder, ["commit", "-q", "-m", step.subject], { ...GIT_IDENTITY_ENV, GIT_AUTHOR_DATE: dateText, GIT_COMMITTER_DATE: dateText });
+    }
+    return new Path(repoFolder);
+}
+
+function listFileNamesOfCommit(repo: Path, commitHash: string): string[] {
+    return runJfredGit(repo, ["ls-tree", "-r", "--name-only", commitHash]).split("\n").filter((name) => name !== "");
+}
+
+function readFileBytesAtCommit(repo: Path, commitHash: string, fileName: string): string {
+    return runJfredGit(repo, ["cat-file", "-p", `${commitHash}:${fileName}`]);
+}
+
+test("test_the_inverse_repo_of_file_A_has_one_commit_per_source_commit_that_changes_A_plus_the_base", () => {
+    // Scenario: the inverse repo of file A keeps only the source commits that change A.
+    // Steps:
+    const sourceRepo = buildDeletedFileRepo();
+    // count the source commits that change A.
+    const sourceCommitsChangingA = runJfredGit(sourceRepo, ["log", "--format=%H", "HEAD", "--", "A.txt"]).split("\n").length;
+    // make the inverse repo of A.
+    const inverseRepo = makeInverseRepo(sourceRepo, new Path("A.txt"));
+    // the inverse repo has 1 + that many commits.
+    assert.equal(listCommitHashesOldestFirst(inverseRepo).length, 1 + sourceCommitsChangingA);
+});
+
+test("test_the_last_inverse_commit_of_file_A_has_the_empty_tree", () => {
+    // Scenario: the revert of the creation of A leaves no files.
+    // Steps:
+    const inverseRepo = makeInverseRepo(buildDeletedFileRepo(), new Path("A.txt"));
+    assert.equal(runJfredGit(inverseRepo, ["rev-parse", "HEAD^{tree}"]), getEmptyTreeHash(inverseRepo));
+});
+
+test("test_no_inverse_commit_of_file_A_holds_B_or_gitignore", () => {
+    // Scenario: every tree of the inverse repo of A holds only A.
+    // Steps:
+    const inverseRepo = makeInverseRepo(buildDeletedFileRepo(), new Path("A.txt"));
+    for (const commitHash of listCommitHashesOldestFirst(inverseRepo)) {
+        for (const fileName of listFileNamesOfCommit(inverseRepo, commitHash)) {
+            assert.equal(fileName, "A.txt", `file in ${commitHash}`);
+        }
+    }
+});
+
+test("test_the_first_inverse_commit_of_file_B_has_the_empty_tree_because_B_is_absent_at_head", () => {
+    // Scenario: B was removed before HEAD, so commit 0 holds no file.
+    // Steps:
+    const inverseRepo = makeInverseRepo(buildDeletedFileRepo(), new Path("B.txt"));
+    assert.equal(getAt(listTreeHashesOldestFirst(inverseRepo), 0), getEmptyTreeHash(inverseRepo));
+});
+
+test("test_the_second_inverse_commit_of_file_B_holds_B_with_the_bytes_from_before_the_removal", () => {
+    // Scenario: the revert of "B removed" brings B back.
+    // Steps:
+    const inverseRepo = makeInverseRepo(buildDeletedFileRepo(), new Path("B.txt"));
+    const commitOne = getAt(listCommitHashesOldestFirst(inverseRepo), 1);
+    assert.deepEqual(listFileNamesOfCommit(inverseRepo, commitOne), ["B.txt"]);
+    assert.equal(readFileBytesAtCommit(inverseRepo, commitOne, "B.txt"), "B two, longer");
+});
+
+test("test_the_last_inverse_commit_of_file_B_has_the_empty_tree", () => {
+    // Scenario: the revert of the creation of B removes B.
+    // Steps:
+    const inverseRepo = makeInverseRepo(buildDeletedFileRepo(), new Path("B.txt"));
+    assert.equal(runJfredGit(inverseRepo, ["rev-parse", "HEAD^{tree}"]), getEmptyTreeHash(inverseRepo));
+});
+
+test("test_the_message_of_the_second_inverse_commit_of_file_B_names_the_hash_of_the_B_removed_commit", () => {
+    // Scenario: the paper trail of the revert of "B removed".
+    // Steps:
+    const sourceRepo = buildDeletedFileRepo();
+    const removalHash = runJfredGit(sourceRepo, ["log", "-1", "--format=%H", "--grep=^B removed$", "HEAD"]);
+    const inverseRepo = makeInverseRepo(sourceRepo, new Path("B.txt"));
+    const commitOne = getAt(listCommitHashesOldestFirst(inverseRepo), 1);
+    const message = runJfredGit(inverseRepo, ["log", "-1", "--format=%B", commitOne]);
+    assert.ok(message.includes(removalHash), message);
+    assert.ok(message.includes("B removed"), message);
 });
