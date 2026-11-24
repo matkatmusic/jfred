@@ -147,7 +147,7 @@ B_COMPLETED_CREATE_AND_POPULATE_NONREPLAYED_PUZZLES["non-replayed puzzles built 
   Q_RANGE_HOLDS_SCRIPT_RUN{{"Does this range hold a script run?<br/>#96;if( containsScriptRun(rangeEvents) ) { ...#96;"}}
   Q_CHOICE_RANGE_HOLDS_SCRIPT_RUN_YES["Yes. Walk from both ends, up to the script run"]
   Q_CHOICE_RANGE_HOLDS_SCRIPT_RUN_NO["No. Walk forward only"]
-  B_START_BACKWARD_WALK["Start the backward walk at the bytes of the newer beacon<br/>#96;bytes = rangeStart.bytes;#96;<br/>#96;eventIndex = 0;#96;"]
+  B_START_BACKWARD_WALK["Start the backward walk at the bytes of the newer beacon<br/>#96;#96;#96;<br/>bytes = rangeStart.bytes;<br/>eventIndex = 0;<br/>#96;#96;#96;"]
   B_MARK_SCRIPT_RUN_WAITS["Keep the bytes that the newest script run must make. The events between the two stop points wait for the script layer<br/>#96;range.bytesAfterNewestScriptRun = bytes;#96;<br/>#96;range.result = RangeResult::WaitsForScriptRun;#96;"]
   Q_BACKWARD_EVENT_IS_SCRIPT_RUN{{"Is the event at #96;eventIndex#96; a script run?<br/>#96;if( rangeEvents[eventIndex].isScriptRun() ) { ...#96;"}}
   Q_CHOICE_BACKWARD_EVENT_IS_SCRIPT_RUN_YES["Yes. The backward walk stops here"]
@@ -248,7 +248,7 @@ class B_TAKE_NEXT_RANGE_OF_FILE,B_TAKE_NEXT_INCLUDED_FILE,B_SORT_EACH_FILE_INTO_
   B_ADVANCE_TO_NEXT_NEWEST_NON_SCRIPT_EVENT["Advance to the next event closer to now:<br/>#96;--eventIndex;#96;"]
 %% ==size==: Q_NO_GIT_NO_JSONL_NO_DISK 451 118
   B_MISSING_SO_EXCLUDE_FROM_PROCESSING["exclude from processing"]
-  B_BUILD_RANGE_FOR_FILE["Build the range<br/>#96;rangeStart = file.beacons[i-1]; // newer beacon#96;<br/>#96;rangeEnd = file.beacons[i]; // older beacon#96;<br/>#96;rangeEvents = getEventsBetween(puzzle, rangeStart, rangeEnd); // newest first#96;"]
+  B_BUILD_RANGE_FOR_FILE["Build the range<br/>#96;#96;#96;<br/>rangeStart = file.beacons[i-1]; // newer beacon<br/>rangeEnd = file.beacons[i]; // older beacon<br/>rangeEvents = getEventsBetween(puzzle, rangeStart, rangeEnd); // newest first<br/>#96;#96;#96;"]
   B_BUILD_RANGE_FOR_FILE --> Q_RANGE_HOLDS_SCRIPT_RUN
 %% ==size==: B_TAKE_NEXT_RANGE_OF_FILE 553 100
 %% ==size==: B_PICK_NEXT_SCRIPT_RUN 435 96
@@ -283,5 +283,5 @@ class B_TAKE_NEXT_RANGE_OF_FILE,B_TAKE_NEXT_INCLUDED_FILE,B_SORT_EACH_FILE_INTO_
 %% ==size==: Q_MORE_FILES_FOR_RANGES 584 118
 %%%%====
 %% DO NOT MODIFY - AUTOMATICALLY GENERATED DURING EVERY SAVE
-%% {"lastSelectedNodeId":"B_TAKE_NEXT_RANGE_OF_FILE","outputScrollLeft":1276.5,"outputScrollTop":6150,"mainZoomPercent":100}
+%% {"lastSelectedNodeId":"B_BUILD_RANGE_FOR_FILE","outputScrollLeft":1329.5,"outputScrollTop":5993,"mainZoomPercent":100}
 %%%%====
